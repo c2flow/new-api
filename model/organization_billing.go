@@ -21,8 +21,8 @@ var (
 type OrganizationCharge struct {
 	Id                 int    `json:"id"`
 	RequestId          string `json:"request_id" gorm:"type:varchar(64);uniqueIndex;not null"`
-	OrgId              int    `json:"org_id" gorm:"index:idx_org_charge_period,priority:1;not null"`
-	UserId             int    `json:"user_id" gorm:"index:idx_org_charge_period,priority:2;not null"`
+	OrgId              int    `json:"org_id" gorm:"index:idx_org_charge_period,priority:1;index:idx_org_charge_month,priority:1;not null"`
+	UserId             int    `json:"user_id" gorm:"index:idx_org_charge_period,priority:2;index:idx_org_charge_month,priority:2;not null"`
 	TokenId            int    `json:"token_id"`
 	TokenQuotaManaged  bool   `json:"-"`
 	PeriodStart        int64  `json:"period_start" gorm:"type:bigint;index:idx_org_charge_period,priority:3"`
@@ -30,7 +30,7 @@ type OrganizationCharge struct {
 	SubscriptionPeriod int64  `json:"-" gorm:"type:bigint"`
 	Quota              int64  `json:"quota" gorm:"type:bigint;not null"`
 	Status             string `json:"status" gorm:"type:varchar(16);not null"`
-	CreatedAt          int64  `json:"created_at" gorm:"autoCreateTime"`
+	CreatedAt          int64  `json:"created_at" gorm:"autoCreateTime;index:idx_org_charge_month,priority:3"`
 	UpdatedAt          int64  `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
@@ -142,6 +142,21 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 				return ErrMemberSpendLimit
 			}
 		}
+
+		if member.MonthlySpendLimit > 0 {
+			timestamp := now
+			if receipt.Id != 0 {
+				timestamp = receipt.CreatedAt
+			}
+			start, end := OrganizationMonthlyWindow(timestamp)
+			var used int64
+			if err := tx.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("user_id = ? AND created_at >= ? AND created_at < ? AND status IN ?", userID, start, end, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
+				return err
+			}
+			if used > member.MonthlySpendLimit || delta > member.MonthlySpendLimit-used {
+				return ErrMemberSpendLimit
+			}
+		}
 		if receipt.Id != 0 {
 			if receipt.SubscriptionId > 0 {
 				result := tx.Model(&UserSubscription{}).Scopes(OrgScope(orgID)).Where("id = ? AND last_reset_time = ? AND (amount_total = 0 OR amount_used <= amount_total - ?)", receipt.SubscriptionId, receipt.SubscriptionPeriod, delta).Update("amount_used", gorm.Expr("amount_used + ?", delta))
@@ -165,7 +180,7 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 			}
 			return nil
 		}
-		receipt = OrganizationCharge{RequestId: requestID, OrgId: orgID, UserId: userID, TokenId: tokenID, TokenQuotaManaged: manageToken, PeriodStart: period, Quota: amount, Status: "reserved"}
+		receipt = OrganizationCharge{RequestId: requestID, OrgId: orgID, UserId: userID, TokenId: tokenID, TokenQuotaManaged: manageToken, PeriodStart: period, Quota: amount, Status: "reserved", CreatedAt: now}
 		allowWallet := true
 		for _, sub := range subs {
 			if !sub.AllowWalletOverflow {

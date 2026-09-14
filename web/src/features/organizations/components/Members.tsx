@@ -1,21 +1,3 @@
-/*
-Copyright (C) 2023-2026 QuantumNous
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-For commercial licensing, please contact support@quantumnous.com
-*/
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, UserPlus } from 'lucide-react'
 import { useState } from 'react'
@@ -25,6 +7,7 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Empty,
   EmptyDescription,
@@ -56,6 +39,25 @@ import {
 import { useOrganization } from '../context'
 import type { OrganizationMember } from '../types'
 import { MemberDialog } from './MemberDialog'
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+import { MonthlyLimitDialog } from './MonthlyLimitDialog'
 
 export function Members(props: { budgets?: boolean }) {
   const { t } = useTranslation()
@@ -74,6 +76,10 @@ export function Members(props: { budgets?: boolean }) {
     },
   })
   const [search, setSearch] = useState('')
+  const [selectedIDs, setSelectedIDs] = useState<number[]>([])
+  const [monthlyMembers, setMonthlyMembers] = useState<
+    OrganizationMember[] | null
+  >(null)
   const [dialog, setDialog] = useState<OrganizationMember | 'invite' | null>(
     null
   )
@@ -114,6 +120,12 @@ export function Members(props: { budgets?: boolean }) {
       .toLowerCase()
       .includes(search.toLowerCase())
   )
+  const selectedMembers = (members.data ?? []).filter(
+    (member) => member.status === 1 && selectedIDs.includes(member.user_id)
+  )
+  const showMonthly = (members.data ?? []).some(
+    (member) => (member.monthly_spend_limit ?? 0) > 0
+  )
   if (members.isError) {
     return (
       <Button
@@ -128,6 +140,15 @@ export function Members(props: { budgets?: boolean }) {
   }
   return (
     <div className='flex flex-col gap-5'>
+      {monthlyMembers && (
+        <MonthlyLimitDialog
+          members={monthlyMembers}
+          close={() => {
+            setMonthlyMembers(null)
+            setSelectedIDs([])
+          }}
+        />
+      )}
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <InputGroup className='max-w-sm'>
           <InputGroupAddon>
@@ -147,6 +168,18 @@ export function Members(props: { budgets?: boolean }) {
           </Button>
         )}
       </div>
+      {manage && selectedMembers.length > 0 && (
+        <Button
+          variant='outline'
+          disabled={selectedMembers.length > 500}
+          onClick={() => setMonthlyMembers(selectedMembers)}
+        >
+          {t('Set monthly limit')} ({selectedMembers.length})
+        </Button>
+      )}
+      {manage && selectedMembers.length > 500 && (
+        <p role='alert'>{t('Select up to 500 members per batch.')}</p>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>
@@ -160,10 +193,35 @@ export function Members(props: { budgets?: boolean }) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {manage && (
+                    <TableHead>
+                      <Checkbox
+                        aria-label={t('Select filtered members')}
+                        checked={
+                          filtered.some((m) => m.status === 1) &&
+                          filtered
+                            .filter((m) => m.status === 1)
+                            .every((m) => selectedIDs.includes(m.user_id))
+                        }
+                        onCheckedChange={(checked) =>
+                          setSelectedIDs(
+                            checked
+                              ? filtered
+                                  .filter((m) => m.status === 1)
+                                  .map((m) => m.user_id)
+                              : []
+                          )
+                        }
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>{t('Member')}</TableHead>
                   <TableHead>{t('Role')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
                   <TableHead>{t('Spending limit')}</TableHead>
+                  {showMonthly && (
+                    <TableHead>{t('Monthly spending limit')}</TableHead>
+                  )}
                   {props.budgets && (
                     <>
                       <TableHead>{t('Current period usage')}</TableHead>
@@ -176,6 +234,24 @@ export function Members(props: { budgets?: boolean }) {
               <TableBody>
                 {filtered.map((member) => (
                   <TableRow key={member.id}>
+                    {manage && (
+                      <TableCell>
+                        <Checkbox
+                          aria-label={t('Select {{name}}', {
+                            name: member.username,
+                          })}
+                          disabled={member.status !== 1}
+                          checked={selectedIDs.includes(member.user_id)}
+                          onCheckedChange={(checked) =>
+                            setSelectedIDs((ids) =>
+                              checked
+                                ? [...ids, member.user_id]
+                                : ids.filter((id) => id !== member.user_id)
+                            )
+                          }
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <strong>{member.display_name || member.username}</strong>
                       <p className='text-muted-foreground text-xs'>
@@ -195,6 +271,55 @@ export function Members(props: { budgets?: boolean }) {
                         ? formatQuotaWithCurrency(member.spend_limit)
                         : t('Unlimited')}
                     </TableCell>
+                    {showMonthly && (
+                      <TableCell>
+                        {(member.monthly_spend_limit ?? 0) > 0 ? (
+                          <>
+                            <p>
+                              {formatQuotaWithCurrency(
+                                member.monthly_spend_limit ?? 0
+                              )}
+                            </p>
+                            <p className='text-muted-foreground text-xs'>
+                              {t('Remaining')}:{' '}
+                              {formatQuotaWithCurrency(
+                                Math.max(
+                                  0,
+                                  (member.monthly_spend_limit ?? 0) -
+                                    (member.monthly_usage?.used ?? 0) -
+                                    (member.monthly_usage?.reserved ?? 0)
+                                )
+                              )}
+                            </p>
+                            <p className='text-muted-foreground text-xs'>
+                              {t('Used Quota')}:{' '}
+                              {formatQuotaWithCurrency(
+                                member.monthly_usage?.used ?? 0
+                              )}
+                            </p>
+                            <p className='text-muted-foreground text-xs'>
+                              {t('Pending reservations')}:{' '}
+                              {formatQuotaWithCurrency(
+                                member.monthly_usage?.reserved ?? 0
+                              )}
+                            </p>
+                            {member.monthly_reset_at && (
+                              <p className='text-muted-foreground text-xs'>
+                                {t('Next reset')}:{' '}
+                                {new Date(
+                                  member.monthly_reset_at * 1000
+                                ).toLocaleString(undefined, {
+                                  timeZone: 'Asia/Shanghai',
+                                  timeZoneName: 'short',
+                                })}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                    )}
                     {props.budgets && (
                       <>
                         <TableCell>
@@ -214,6 +339,15 @@ export function Members(props: { budgets?: boolean }) {
                       </>
                     )}
                     <TableCell className='text-end'>
+                      {manage && member.status === 1 && (
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          onClick={() => setMonthlyMembers([member])}
+                        >
+                          {t('Monthly spending limit')}
+                        </Button>
+                      )}
                       {manage &&
                         (props.budgets ||
                           (team && member.role !== 'owner')) && (

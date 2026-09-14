@@ -100,9 +100,11 @@ func GetOrganizationContext(c *gin.Context) {
 func GetOrganizationMembers(c *gin.Context) {
 	var members []struct {
 		model.OrganizationMember
-		Username    string `json:"username"`
-		DisplayName string `json:"display_name"`
-		Email       string `json:"email"`
+		MonthlyUsage   *model.OrganizationBudgetUsage `json:"monthly_usage,omitempty" gorm:"-"`
+		MonthlyResetAt int64                          `json:"monthly_reset_at,omitempty" gorm:"-"`
+		Username       string                         `json:"username"`
+		DisplayName    string                         `json:"display_name"`
+		Email          string                         `json:"email"`
 	}
 	query := model.DB.Model(&model.OrganizationMember{}).Select("organization_members.*, users.username, users.display_name, users.email").Joins("JOIN users ON users.id = organization_members.user_id").Scopes(model.OrgScope(c.GetInt("org_id")))
 	if c.GetString("org_role") == model.OrgRoleMember {
@@ -111,6 +113,34 @@ func GetOrganizationMembers(c *gin.Context) {
 	if err := query.Order("organization_members.id").Scan(&members).Error; err != nil {
 		common.ApiError(c, err)
 		return
+	}
+
+	var limitedIDs []int
+	for _, member := range members {
+		if member.MonthlySpendLimit > 0 {
+			limitedIDs = append(limitedIDs, member.UserId)
+		}
+	}
+	if len(limitedIDs) > 0 {
+		start, end := model.OrganizationMonthlyWindow(common.GetTimestamp())
+		var usage []model.OrganizationBudgetUsage
+		err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(c.GetInt("org_id"))).Where("user_id IN ? AND created_at >= ? AND created_at < ?", limitedIDs, start, end).Select("user_id, SUM(CASE WHEN status = 'settled' THEN quota ELSE 0 END) AS used, SUM(CASE WHEN status = 'reserved' THEN quota ELSE 0 END) AS reserved").Group("user_id").Scan(&usage).Error
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		byUser := make(map[int]model.OrganizationBudgetUsage, len(usage))
+		for _, row := range usage {
+			byUser[row.UserId] = row
+		}
+		for i := range members {
+			if members[i].MonthlySpendLimit > 0 {
+				row := byUser[members[i].UserId]
+				row.UserId = members[i].UserId
+				members[i].MonthlyUsage = &row
+				members[i].MonthlyResetAt = end
+			}
+		}
 	}
 	common.ApiSuccess(c, members)
 }

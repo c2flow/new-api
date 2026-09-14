@@ -85,6 +85,16 @@ func GetOrganizationSummary(c *gin.Context) {
 		}
 		available = min(available, max(int64(0), remaining))
 	}
+
+	if member.MonthlySpendLimit > 0 {
+		start, end := model.OrganizationMonthlyWindow(common.GetTimestamp())
+		var used int64
+		if err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(org.Id)).Where("user_id = ? AND created_at >= ? AND created_at < ? AND status IN ?", member.UserId, start, end, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		available = min(available, max(int64(0), member.MonthlySpendLimit-used))
+	}
 	if !authz.CanOrg(member.UserId, org.Id, member.Role, authz.Permission{Resource: "org.billing", Action: "read"}) {
 		org.Quota, settings.BudgetLimit = available, 0
 		subscriptions = nil
@@ -240,4 +250,20 @@ func GetOrganizationOrders(c *gin.Context) {
 	page.SetTotal(int(total))
 	page.SetItems(items)
 	common.ApiSuccess(c, page)
+}
+
+func SetOrganizationMemberMonthlyLimits(c *gin.Context) {
+	var input struct {
+		UserIDs []int  `json:"user_ids"`
+		Limit   *int64 `json:"monthly_spend_limit"`
+	}
+	if c.ShouldBindJSON(&input) != nil || input.Limit == nil {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	if err := model.SetOrganizationMemberMonthlyLimits(c.GetInt("org_id"), c.GetInt("id"), input.UserIDs, *input.Limit); err != nil {
+		organizationError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
 }

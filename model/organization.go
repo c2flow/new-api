@@ -50,13 +50,14 @@ type Organization struct {
 }
 
 type OrganizationMember struct {
-	Id         int    `json:"id"`
-	OrgId      int    `json:"org_id" gorm:"uniqueIndex:idx_org_member,priority:1;not null"`
-	UserId     int    `json:"user_id" gorm:"uniqueIndex:idx_org_member,priority:2;index;not null"`
-	Role       string `json:"role" gorm:"type:varchar(16);not null"`
-	SpendLimit int64  `json:"spend_limit" gorm:"type:bigint;not null"`
-	Status     int    `json:"status" gorm:"not null"`
-	CreatedAt  int64  `json:"created_at" gorm:"autoCreateTime"`
+	MonthlySpendLimit int64  `json:"monthly_spend_limit,omitempty" gorm:"type:bigint"`
+	Id                int    `json:"id"`
+	OrgId             int    `json:"org_id" gorm:"uniqueIndex:idx_org_member,priority:1;not null"`
+	UserId            int    `json:"user_id" gorm:"uniqueIndex:idx_org_member,priority:2;index;not null"`
+	Role              string `json:"role" gorm:"type:varchar(16);not null"`
+	SpendLimit        int64  `json:"spend_limit" gorm:"type:bigint;not null"`
+	Status            int    `json:"status" gorm:"not null"`
+	CreatedAt         int64  `json:"created_at" gorm:"autoCreateTime"`
 }
 
 type OrganizationInvite struct {
