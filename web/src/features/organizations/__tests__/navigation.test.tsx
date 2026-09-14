@@ -38,6 +38,8 @@ import type { ReactNode } from 'react'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 
+import { MobileDrawer } from '@/components/layout/components/mobile-drawer'
+import { ProfileDropdown } from '@/components/profile-dropdown'
 import { useSidebarData } from '@/hooks/use-sidebar-data'
 import { useSidebarView } from '@/hooks/use-sidebar-view'
 import { api } from '@/lib/http-client'
@@ -179,6 +181,14 @@ test('personal and team selection preserve admin navigation and show team tools 
     })
   })
   await waitFor(() => expect(result.current.hasTeam).toBe(true))
+  expect(
+    result.current.sidebar.navGroups.map((group) => group.id)
+  ).not.toContain('personal')
+  expect(
+    result.current.sidebar.navGroups.flatMap((group) =>
+      group.items.map((item) => item.url)
+    )
+  ).not.toContain('/wallet')
   expect(result.current.sidebar.navGroups.map((group) => group.id)).toContain(
     'organization'
   )
@@ -193,6 +203,11 @@ test('personal and team selection preserve admin navigation and show team tools 
     })
   })
   await waitFor(() => expect(result.current.hasTeam).toBe(false))
+  expect(
+    result.current.sidebar.navGroups
+      .find((group) => group.id === 'personal')
+      ?.items.map((item) => item.url)
+  ).toEqual(expect.arrayContaining(['/wallet', '/profile']))
   expect(
     result.current.sidebar.navGroups.map((group) => group.id)
   ).not.toContain('organization')
@@ -467,6 +482,11 @@ test('organization creation sends only its name, including non-Latin names', asy
     name: 'Create organization',
   })
   expect(within(dialog).getAllByRole('textbox')).toHaveLength(1)
+  expect(
+    within(dialog).getByRole('textbox', { name: 'Organization name' })
+  ).toHaveAccessibleDescription(
+    'Organization names cannot be changed after creation.'
+  )
   fireEvent.change(
     within(dialog).getByRole('textbox', { name: 'Organization name' }),
     { target: { value: '  设计团队  ' } }
@@ -528,9 +548,14 @@ test('organization deletion requires its name and sends confirm_name', async () 
     throw new Error(`Unexpected request: ${config.url}`)
   }
   renderPage(() => <OrganizationPage section='settings' />)
+  await screen.findByRole('button', { name: 'Delete organization' })
   expect(
-    await screen.findByRole('textbox', { name: 'Organization name' })
-  ).toHaveAttribute('readonly')
+    screen.queryByRole('textbox', { name: 'Organization name' })
+  ).not.toBeInTheDocument()
+  expect(screen.getByRole('definition')).toHaveTextContent(team.name)
+  expect(
+    screen.queryByText('Organization names cannot be changed after creation.')
+  ).not.toBeInTheDocument()
   fireEvent.click(
     await screen.findByRole('button', { name: 'Delete organization' })
   )
@@ -594,3 +619,66 @@ test('platform organization search sends remarks to server and resets pagination
     expect(queries.at(-1)).toMatchObject({ keyword: 'customer', p: 1 })
   )
 })
+
+test.each([false, true])(
+  'profile menu retains profile while wallet follows personal space (team=%s)',
+  async (isTeam) => {
+    if (isTeam) {
+      useOrganizationStore.setState({
+        activeOrgID: team.id,
+        context: teamContext,
+      })
+    }
+    renderPage(ProfileDropdown)
+    fireEvent.click(await screen.findByRole('button', { expanded: false }))
+    expect(
+      await screen.findByRole('menuitem', { name: 'Profile' })
+    ).toBeVisible()
+    if (isTeam) {
+      expect(
+        screen.queryByRole('menuitem', { name: 'Wallet' })
+      ).not.toBeInTheDocument()
+    } else {
+      expect(screen.getByRole('menuitem', { name: 'Wallet' })).toBeVisible()
+    }
+  }
+)
+
+test.each([false, true])(
+  'mobile account links retain profile and hide team wallet (team=%s)',
+  async (isTeam) => {
+    if (isTeam) {
+      useOrganizationStore.setState({
+        activeOrgID: team.id,
+        context: teamContext,
+      })
+    }
+    renderPage(() => (
+      <MobileDrawer
+        isOpen
+        onClose={() => {}}
+        homeUrl='/'
+        displayLogo=''
+        displaySiteName='New API'
+        loading={false}
+        logoLoaded
+        mobileLinksList={[]}
+        showAuthButtons
+        user={useAuthStore.getState().auth.user}
+      />
+    ))
+    expect(
+      await screen.findByRole('link', { name: 'Profile' })
+    ).toHaveAttribute('href', '/profile')
+    if (isTeam) {
+      expect(
+        screen.queryByRole('link', { name: 'Wallet' })
+      ).not.toBeInTheDocument()
+    } else {
+      expect(screen.getByRole('link', { name: 'Wallet' })).toHaveAttribute(
+        'href',
+        '/wallet'
+      )
+    }
+  }
+)

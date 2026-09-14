@@ -112,7 +112,6 @@ function SettingsForm(props: {
   const [confirmName, setConfirmName] = useState('')
   const [target, setTarget] = useState('')
   const schema = z.object({
-    name: z.string().trim().min(1).max(64),
     logo: z.string(),
     webhook: z.string(),
     alert_email: z.string().email().or(z.literal('')),
@@ -125,7 +124,6 @@ function SettingsForm(props: {
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: props.initial.name,
       logo: props.initial.settings.logo,
       webhook: props.initial.settings.webhook,
       alert_email: props.initial.settings.alert_email,
@@ -138,7 +136,7 @@ function SettingsForm(props: {
   const update = useMutation({
     mutationFn: async (values: z.infer<typeof schema>) => {
       await updateOrganizationSettings({
-        name: values.name,
+        name: props.initial.name,
         settings: {
           logo: values.logo,
           webhook: values.webhook,
@@ -197,28 +195,16 @@ function SettingsForm(props: {
       <Card>
         <CardHeader>
           <CardTitle>{t('Organization settings')}</CardTitle>
+          <dl className='text-sm'>
+            <dt className='text-muted-foreground'>{t('Organization name')}</dt>
+            <dd className='mt-1 font-medium break-words'>
+              {props.initial.name}
+            </dd>
+          </dl>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit((values) => update.mutate(values))}>
             <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor='org-name'>
-                  {t('Organization name')}
-                </FieldLabel>
-                <Input
-                  id='org-name'
-                  readOnly
-                  aria-describedby='org-name-description'
-                  maxLength={64}
-                  {...form.register('name')}
-                />
-                <p
-                  id='org-name-description'
-                  className='text-muted-foreground text-sm'
-                >
-                  {t('Organization names cannot be changed after creation.')}
-                </p>
-              </Field>
               <Field>
                 <FieldLabel htmlFor='org-logo'>{t('Logo URL')}</FieldLabel>
                 <Input id='org-logo' type='url' {...form.register('logo')} />

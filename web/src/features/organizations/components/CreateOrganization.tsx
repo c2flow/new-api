@@ -103,11 +103,18 @@ export function CreateOrganization() {
               {t('Organization name')}
               <Input
                 {...register('name')}
+                aria-describedby='organization-name-notice'
                 maxLength={64}
                 required
                 placeholder={t('Your team name')}
               />
             </label>
+            <p
+              id='organization-name-notice'
+              className='text-muted-foreground text-sm'
+            >
+              {t('Organization names cannot be changed after creation.')}
+            </p>
             {errors.name && (
               <p role='alert' className='mt-error'>
                 {errors.name.message}

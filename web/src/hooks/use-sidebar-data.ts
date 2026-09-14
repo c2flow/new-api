@@ -205,12 +205,7 @@ export function useSidebarData(): SidebarData {
         icon: Settings,
       })
   } else {
-    data.navGroups = data.navGroups.map((group) => ({
-      ...group,
-      items: group.items.filter(
-        (item) => item.url !== '/wallet' || capabilities?.['org.billing']?.read
-      ),
-    }))
+    data.navGroups = data.navGroups.filter((group) => group.id !== 'personal')
     data.navGroups.splice(2, 0, {
       id: 'organization',
       title: t('Organization'),
