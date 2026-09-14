@@ -11,6 +11,24 @@ import (
 )
 
 var ErrOrganizationUnsettled = errors.New("organization has a balance, active subscriptions, pending payments or unfinished requests")
+var ErrUserOwnsOrganizations = errors.New("transfer or delete owned organizations before deleting this account")
+
+// lockUserForDeletion serializes deletion with team creation and incoming
+// ownership transfers. Outgoing transfers may only make deletion permissible.
+func lockUserForDeletion(tx *gorm.DB, userID int) error {
+	var user User
+	if err := lockForUpdate(tx.Unscoped()).Select("id").Where("id = ?", userID).First(&user).Error; err != nil {
+		return err
+	}
+	var owned int64
+	if err := tx.Model(&Organization{}).Where("owner_id = ?", userID).Count(&owned).Error; err != nil {
+		return err
+	}
+	if owned > 0 {
+		return ErrUserOwnsOrganizations
+	}
+	return nil
+}
 
 type OrganizationDeletionImpact struct {
 	Members       int64 `json:"members"`
@@ -151,6 +169,10 @@ func AcceptOrganizationTransfer(orgID, actorID int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		var org Organization
 		if err := lockForUpdate(tx).Where("id = ? AND status = ?", orgID, OrganizationActive).First(&org).Error; err != nil {
+			return ErrOrganizationAccess
+		}
+		var target User
+		if err := lockForUpdate(tx).Where("id = ? AND status = ?", actorID, common.UserStatusEnabled).First(&target).Error; err != nil {
 			return ErrOrganizationAccess
 		}
 		var transfer OrganizationTransfer

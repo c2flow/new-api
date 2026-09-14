@@ -228,6 +228,12 @@ func InitDB() (err error) {
 }
 
 func InitLogDB() (err error) {
+	defer func() {
+		if err == nil && common.IsMasterNode {
+			err = BackfillOrganizationUserUsage()
+		}
+	}()
+
 	if os.Getenv("LOG_SQL_DSN") == "" {
 		LOG_DB = DB
 		common.SetLogDatabaseType(common.MainDatabaseType())

@@ -23,20 +23,17 @@ func GetScopedQuotaDates(scope ResourceScope, start, end int64) ([]*QuotaData, e
 func GetScopedFlowQuotaData(scope ResourceScope, start, end int64) ([]*FlowQuotaData, error) {
 	rows := make([]*FlowQuotaData, 0)
 	err := scope.Apply(flowQuotaBaseQuery(start, end)).
-		Select("user_id, username, token_id, use_group, channel_id, model_name, SUM(count) AS count, SUM(quota) AS quota, SUM(token_used) AS token_used").
-		Group("user_id, username, token_id, use_group, channel_id, model_name").Order("quota DESC").Find(&rows).Error
+		Select("user_id, username, token_id, use_group, model_name, SUM(count) AS count, SUM(quota) AS quota, SUM(token_used) AS token_used").
+		Group("user_id, username, token_id, use_group, model_name").Order("quota DESC").Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}
 	if err := fillFlowTokenNames(rows); err != nil {
 		return nil, err
 	}
-	if err := fillFlowChannelNames(rows); err != nil {
-		return nil, err
-	}
 	if !scope.AllMembers {
 		for _, row := range rows {
-			row.Username, row.ChannelName = "", ""
+			row.Username = ""
 		}
 	}
 	return rows, nil

@@ -1011,6 +1011,10 @@ func DeleteUser(c *gin.Context) {
 	}
 	err = model.HardDeleteUserById(id)
 	if err != nil {
+		if errors.Is(err, model.ErrUserOwnsOrganizations) {
+			common.ApiErrorI18n(c, i18n.MsgUserOwnsOrganizations)
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}
@@ -1036,6 +1040,10 @@ func DeleteSelf(c *gin.Context) {
 
 	err := model.DeleteUserById(id)
 	if err != nil {
+		if errors.Is(err, model.ErrUserOwnsOrganizations) {
+			common.ApiErrorI18n(c, i18n.MsgUserOwnsOrganizations)
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}
@@ -1165,6 +1173,10 @@ func ManageUser(c *gin.Context) {
 			return
 		}
 		if err := user.Delete(); err != nil {
+			if errors.Is(err, model.ErrUserOwnsOrganizations) {
+				common.ApiErrorI18n(c, i18n.MsgUserOwnsOrganizations)
+				return
+			}
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": err.Error(),

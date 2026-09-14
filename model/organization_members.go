@@ -345,11 +345,13 @@ func DeclineOrganizationInvite(userID, inviteID int) error {
 	if inviteID <= 0 {
 		return ErrOrganizationInvite
 	}
+	// Resolve the team outside the transaction, as acceptance does, so MySQL
+	// takes the invitation snapshot only after acquiring the organization lock.
+	var invite OrganizationInvite
+	if err := DB.Where("id = ? AND invitee_id = ?", inviteID, userID).First(&invite).Error; err != nil {
+		return ErrOrganizationInvite
+	}
 	return DB.Transaction(func(tx *gorm.DB) error {
-		var invite OrganizationInvite
-		if err := tx.Where("id = ? AND invitee_id = ?", inviteID, userID).First(&invite).Error; err != nil {
-			return ErrOrganizationInvite
-		}
 		var org Organization
 		if err := lockForUpdate(tx).First(&org, invite.OrgId).Error; err != nil {
 			return ErrOrganizationInvite

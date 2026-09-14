@@ -97,6 +97,7 @@ const (
 	MsgUserNoPermissionHigherLevel   = "user.no_permission_higher_level"
 	MsgUserCannotCreateHigherLevel   = "user.cannot_create_higher_level"
 	MsgUserCannotDeleteRootUser      = "user.cannot_delete_root_user"
+	MsgUserOwnsOrganizations         = "user.owns_organizations"
 	MsgUserCannotDisableRootUser     = "user.cannot_disable_root_user"
 	MsgUserCannotDemoteRootUser      = "user.cannot_demote_root_user"
 	MsgUserAlreadyAdmin              = "user.already_admin"

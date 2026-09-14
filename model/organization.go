@@ -137,7 +137,8 @@ func CreateTeamOrganization(userID int, name, slug string) (*Organization, error
 		Status: OrganizationActive, Group: "default"}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var user User
-		if err := tx.Where("id = ? AND status = ?", userID, common.UserStatusEnabled).First(&user).Error; err != nil {
+		// Serialize ownership acquisition with account deletion.
+		if err := lockForUpdate(tx).Where("id = ? AND status = ?", userID, common.UserStatusEnabled).First(&user).Error; err != nil {
 			return err
 		}
 		if err := tx.Create(&org).Error; err != nil {

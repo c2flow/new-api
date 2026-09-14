@@ -32,7 +32,7 @@ func setupManageUserTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, err)
 	model.DB, model.LOG_DB = db, db
 	require.NoError(t, db.AutoMigrate(
-		&model.User{}, &model.UserSession{}, &model.Log{}, &model.CasbinRule{}, &model.AuthzRole{},
+		&model.Organization{}, &model.User{}, &model.UserSession{}, &model.Log{}, &model.CasbinRule{}, &model.AuthzRole{},
 	))
 
 	t.Cleanup(func() {
@@ -179,4 +179,42 @@ func TestManageUserQuotaRespectsWalletCeiling(t *testing.T) {
 	assert.Contains(t, recorder.Body.String(), `"success":false`)
 	require.NoError(t, db.First(&updated, user.Id).Error)
 	assert.Equal(t, common.MaxWalletQuota-1, updated.Quota)
+}
+
+func TestAccountDeletionRejectsOrganizationOwner(t *testing.T) {
+	for _, endpoint := range []string{"self", "admin", "manage"} {
+		t.Run(endpoint, func(t *testing.T) {
+			db := setupManageUserTestDB(t)
+			user := model.User{Username: "team-owner", AffCode: "team-owner", Status: common.UserStatusEnabled, Role: common.RoleCommonUser, AuthVersion: 1}
+			require.NoError(t, db.Create(&user).Error)
+			org := model.Organization{Name: "Funded team", Slug: "funded-team", OwnerId: user.Id, Status: model.OrganizationActive, Group: "default", Quota: 1000}
+			require.NoError(t, db.Create(&org).Error)
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Set("id", user.Id)
+			c.Set("role", common.RoleRootUser)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/api/user/self", nil)
+			switch endpoint {
+			case "self":
+				DeleteSelf(c)
+			case "admin":
+				c.Params = gin.Params{{Key: "id", Value: fmt.Sprint(user.Id)}}
+				DeleteUser(c)
+			case "manage":
+				c.Request = httptest.NewRequest(http.MethodPost, "/api/user/manage", strings.NewReader(fmt.Sprintf(`{"id":%d,"action":"delete"}`, user.Id)))
+				ManageUser(c)
+			}
+			var body struct {
+				Success bool
+				Message string
+			}
+			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &body))
+			assert.False(t, body.Success)
+			assert.NotEmpty(t, body.Message)
+			require.NoError(t, db.First(&user, user.Id).Error)
+			assert.Equal(t, int64(1), user.AuthVersion)
+			require.NoError(t, db.First(&org, org.Id).Error)
+			assert.Equal(t, int64(1000), org.Quota)
+		})
+	}
 }

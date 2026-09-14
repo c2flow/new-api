@@ -94,7 +94,8 @@ type User struct {
 	AccessToken      *string                    `json:"-" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
 	Quota            int                        `json:"quota" gorm:"type:int;default:0"`
 	UsedQuota        int                        `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
-	RequestCount     int                        `json:"request_count" gorm:"type:int;default:0;"`               // request number
+	OrgUsedQuota     *int64                     `json:"-" gorm:"type:bigint"`
+	RequestCount     int                        `json:"request_count" gorm:"type:int;default:0;"` // request number
 	Group            string                     `json:"group" gorm:"type:varchar(64);default:'default'"`
 	AffCode          string                     `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	AffCount         int                        `json:"aff_count" gorm:"type:int;default:0;column:aff_count"`
@@ -909,6 +910,9 @@ func (user *User) Delete() error {
 	}
 	var nextAuthVersion int64
 	if err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockUserForDeletion(tx, user.Id); err != nil {
+			return err
+		}
 		var err error
 		nextAuthVersion, err = IncrementUserAuthVersionWithTx(tx, user.Id)
 		if err != nil {
@@ -934,6 +938,9 @@ func (user *User) HardDelete() error {
 	var tokens []Token
 	var deletedAuthVersion int64
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockUserForDeletion(tx, user.Id); err != nil {
+			return err
+		}
 		var err error
 		deletedAuthVersion, err = IncrementUserAuthVersionWithTx(tx, user.Id)
 		if err != nil {
@@ -1366,54 +1373,50 @@ func UpdateUserLastLoginAt(id int) {
 	}
 }
 
-func UpdateUserUsedQuotaAndRequestCount(id int, quota int) {
+// orgID distinguishes organization traffic while preserving platform-wide totals.
+func UpdateUserUsedQuotaAndRequestCount(id int, quota int, orgID ...int) {
+	orgQuota := 0
+	if len(orgID) > 0 && orgID[0] > 0 {
+		orgQuota = quota
+	}
 	if common.BatchUpdateEnabled {
 		addNewRecord(BatchUpdateTypeUsedQuota, id, quota)
 		addNewRecord(BatchUpdateTypeRequestCount, id, 1)
+		addNewRecord(BatchUpdateTypeOrgUsedQuota, id, orgQuota)
 		return
 	}
-	updateUserUsedQuotaAndRequestCount(id, quota, 1)
+	updateUserQuotaUsedQuotaAndRequestCount(id, 0, quota, 1, orgQuota)
 }
 
 // UpdateUserUsedQuota adjusts accumulated usage without changing request count.
-func UpdateUserUsedQuota(id int, quota int) {
+func UpdateUserUsedQuota(id int, quota int, orgID ...int) {
+	orgQuota := 0
+	if len(orgID) > 0 && orgID[0] > 0 {
+		orgQuota = quota
+	}
 	if common.BatchUpdateEnabled {
 		addNewRecord(BatchUpdateTypeUsedQuota, id, quota)
+		addNewRecord(BatchUpdateTypeOrgUsedQuota, id, orgQuota)
 		return
 	}
-	if err := DB.Model(&User{}).Where("id = ?", id).Update("used_quota", gorm.Expr("used_quota + ?", quota)).Error; err != nil {
-		common.SysLog("failed to update user used quota: " + err.Error())
-	}
+	updateUserQuotaUsedQuotaAndRequestCount(id, 0, quota, 0, orgQuota)
 }
 
-func updateUserUsedQuotaAndRequestCount(id int, quota int, count int) {
-	err := DB.Model(&User{}).Where("id = ?", id).Updates(
-		map[string]interface{}{
-			"used_quota":    gorm.Expr("used_quota + ?", quota),
-			"request_count": gorm.Expr("request_count + ?", count),
-		},
-	).Error
-	if err != nil {
-		common.SysLog("failed to update user used quota and request count: " + err.Error())
-		return
+func updateUserQuotaUsedQuotaAndRequestCount(id int, quota int, usedQuota int, requestCount int, orgUsage ...int) {
+	orgQuota := 0
+	if len(orgUsage) == 1 {
+		orgQuota = orgUsage[0]
 	}
-
-	//// 更新缓存
-	//if err := invalidateUserCache(id); err != nil {
-	//	common.SysError("failed to invalidate user cache: " + err.Error())
-	//}
-}
-
-func updateUserQuotaUsedQuotaAndRequestCount(id int, quota int, usedQuota int, requestCount int) {
-	if quota == 0 && usedQuota == 0 && requestCount == 0 {
+	if quota == 0 && usedQuota == 0 && requestCount == 0 && orgQuota == 0 {
 		return
 	}
 
 	err := DB.Model(&User{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
-			"quota":         gorm.Expr("quota + ?", quota),
-			"used_quota":    gorm.Expr("used_quota + ?", usedQuota),
-			"request_count": gorm.Expr("request_count + ?", requestCount),
+			"quota":          gorm.Expr("quota + ?", quota),
+			"used_quota":     gorm.Expr("used_quota + ?", usedQuota),
+			"org_used_quota": gorm.Expr("COALESCE(org_used_quota, 0) + ?", orgQuota),
+			"request_count":  gorm.Expr("request_count + ?", requestCount),
 		},
 	).Error
 	if err != nil {
