@@ -135,3 +135,22 @@ func PlatformChangeOrganizationStatus(c *gin.Context) {
 	}
 	common.ApiSuccess(c, nil)
 }
+
+func PlatformAdjustOrganizationQuota(c *gin.Context) {
+	orgID, err := strconv.Atoi(c.Param("org_id"))
+	var input struct {
+		Mode   string `json:"mode"`
+		Value  *int64 `json:"value"`
+		Reason string `json:"reason"`
+	}
+	if err != nil || orgID <= 0 || c.ShouldBindJSON(&input) != nil || input.Value == nil {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	quota, err := model.AdjustOrganizationQuota(orgID, c.GetInt("id"), input.Mode, *input.Value, input.Reason)
+	if err != nil {
+		organizationError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"quota": quota})
+}

@@ -368,3 +368,34 @@ test('automatic fallback after membership removal clears cached organization res
     client.getQueryData(['dashboard', 'overview', 'api-keys'])
   ).toBeUndefined()
 })
+
+test.each([
+  { role: 100, write: false, visible: true },
+  { role: 10, write: true, visible: true },
+  { role: 10, write: false, visible: false },
+])(
+  'organization balance adjustment respects platform permission $role/$write',
+  async ({ role, write, visible }) => {
+    useAuthStore.getState().auth.setUser({
+      id: 1,
+      username: 'admin',
+      role,
+      permissions: { admin_permissions: { organization: { write } } },
+    })
+    client.setQueryData(['platform-organizations', '', 1], {
+      items: [
+        { ...team, owner_username: 'owner', owner_display_name: 'Owner' },
+      ],
+      total: 1,
+    })
+    renderPage(PlatformOrganizations)
+    expect(await screen.findByText('Design team')).toBeVisible()
+    if (visible) {
+      expect(screen.getByRole('button', { name: 'Adjust Quota' })).toBeVisible()
+    } else {
+      expect(
+        screen.queryByRole('button', { name: 'Adjust Quota' })
+      ).not.toBeInTheDocument()
+    }
+  }
+)

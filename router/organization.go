@@ -12,6 +12,7 @@ func setOrganizationRoutes(api *gin.RouterGroup) {
 	platform.GET("", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "read"}), controller.PlatformListOrganizations)
 	platform.GET("/:org_id/resources/:resource", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "read"}), controller.PlatformOrganizationResources)
 	platform.PUT("/:org_id/status", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "write"}), controller.PlatformChangeOrganizationStatus)
+	platform.PUT("/:org_id/quota", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "write"}), controller.PlatformAdjustOrganizationQuota)
 	organizations := api.Group("/organizations", middleware.UserAuth())
 	organizations.GET("", controller.ListOrganizations)
 	organizations.GET("/:org_id/deletion-impact", controller.GetOrganizationDeletionImpact)

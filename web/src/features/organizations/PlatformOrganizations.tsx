@@ -33,9 +33,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { hasPermission } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
 import { formatQuotaWithCurrency } from '@/lib/currency'
+import { useAuthStore } from '@/stores/auth-store'
 
+import { OrganizationQuotaDialog } from './components/OrganizationQuotaDialog'
 import type { PlatformOrganization, Page } from './types'
 
 const resourceColumns = {
@@ -51,6 +54,11 @@ type Resource = keyof typeof resourceColumns
 export function PlatformOrganizations() {
   const { t } = useTranslation()
   const client = useQueryClient()
+  const canAdjustQuota = useAuthStore((state) =>
+    hasPermission(state.auth.user, 'organization', 'write')
+  )
+  const [quotaOrganization, setQuotaOrganization] =
+    useState<PlatformOrganization | null>(null)
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<PlatformOrganization | null>(null)
@@ -198,6 +206,15 @@ export function PlatformOrganizations() {
                     </TableCell>
                     <TableCell>{formatQuotaWithCurrency(org.quota)}</TableCell>
                     <TableCell>
+                      {canAdjustQuota && org.status !== 3 && (
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setQuotaOrganization(org)}
+                        >
+                          {t('Adjust Quota')}
+                        </Button>
+                      )}
                       <Button
                         variant='outline'
                         size='sm'
@@ -309,6 +326,12 @@ export function PlatformOrganizations() {
                 </Button>
               </div>
             </section>
+          )}
+          {quotaOrganization && (
+            <OrganizationQuotaDialog
+              organization={quotaOrganization}
+              close={() => setQuotaOrganization(null)}
+            />
           )}
           <ConfirmDialog
             open={confirm}
