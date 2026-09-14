@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"strconv"
@@ -63,7 +64,7 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 	t.Logf("database: %s", version)
 	owner := model.User{Username: "owner", DisplayName: "Owner Name", Password: "private-password", Email: "private@example.test", AffCode: "owner", Status: 1, Quota: 12345}
 	require.NoError(t, db.Create(&owner).Error)
-	team, err := model.CreateTeamOrganization(owner.Id, "Design team", "design")
+	team, err := model.CreateTeamOrganization(owner.Id, "Design team")
 	require.NoError(t, err)
 	key := model.Token{UserId: owner.Id, Name: "personal-key", Key: "private-token-key"}
 	require.NoError(t, db.Create(&key).Error)
@@ -93,7 +94,7 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		return result
 	}
 	t.Run("platform pagination search and owners expose only teams", func(t *testing.T) {
-		for _, path := range []string{"/platform/organizations?size=1", "/platform/organizations?keyword=design"} {
+		for _, path := range []string{"/platform/organizations?size=1", "/platform/organizations?keyword=Design", fmt.Sprintf("/platform/organizations?keyword=%d", team.Id)} {
 			result := request("GET", path, "", "")
 			require.Equal(t, 200, result.Code)
 			var body struct {
@@ -112,6 +113,7 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 			assert.Equal(t, team.Id, body.Data.Items[0].ID)
 			assert.Equal(t, "owner", body.Data.Items[0].OwnerUsername)
 			assert.Equal(t, "Owner Name", body.Data.Items[0].OwnerDisplayName)
+			assert.NotContains(t, result.Body.String(), `"slug"`)
 			assert.NotContains(t, result.Body.String(), "private-password")
 			assert.NotContains(t, result.Body.String(), "private@example.test")
 		}

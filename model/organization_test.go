@@ -59,7 +59,7 @@ func TestAccountAndTeamResourceIsolation(t *testing.T) {
 	db := organizationTestDatabase(t)
 	users := []User{{Username: "alice", AffCode: "alice", Quota: 500}, {Username: "bob", AffCode: "bob"}}
 	require.NoError(t, db.Create(&users).Error)
-	org, err := CreateTeamOrganization(users[0].Id, "Team", "team")
+	org, err := CreateTeamOrganization(users[0].Id, "Team")
 	require.NoError(t, err)
 	keys := []Token{
 		{UserId: users[0].Id, Key: "alice-personal", Name: "alice"},
@@ -93,7 +93,7 @@ func TestOrganizationInvitationRequiresMatchingIdentityAndPreservesAssets(t *tes
 	db := organizationTestDatabase(t)
 	users := []User{{Username: "owner", Email: "owner@example.test", AffCode: "owner"}, {Username: "member", AffCode: "member"}, {Username: "outsider", Email: "outsider@example.test", AffCode: "outsider"}}
 	require.NoError(t, db.Create(&users).Error)
-	org, err := CreateTeamOrganization(users[0].Id, "Team", "team")
+	org, err := CreateTeamOrganization(users[0].Id, "Team")
 	require.NoError(t, err)
 	invite, err := CreateOrganizationInvite(org.Id, users[0].Id, "member", OrgRoleMember)
 	require.NoError(t, err)

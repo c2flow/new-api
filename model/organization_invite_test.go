@@ -12,7 +12,7 @@ func TestOrganizationInviteBindsUsernameToAccountWithoutEmail(t *testing.T) {
 	db := organizationTestDatabase(t)
 	users := []User{{Username: "owner", AffCode: "owner"}, {Username: "Member", AffCode: "member"}, {Username: "outsider", Email: "Member", AffCode: "outsider"}, {Username: "disabled", Status: common.UserStatusDisabled, AffCode: "disabled"}}
 	require.NoError(t, db.Create(&users).Error)
-	org, err := CreateTeamOrganization(users[0].Id, "Team", "username-team")
+	org, err := CreateTeamOrganization(users[0].Id, "Team")
 	require.NoError(t, err)
 	for _, username := range []string{"unknown", "member", "disabled"} {
 		_, err = CreateOrganizationInvite(org.Id, users[0].Id, username, OrgRoleMember)
@@ -62,7 +62,7 @@ func TestOrganizationInvitationInboxIsAccountScopedAndRequiresConsent(t *testing
 	db := organizationTestDatabase(t)
 	users := []User{{Username: "owner", AffCode: "owner"}, {Username: "recipient", AffCode: "recipient"}, {Username: "other", AffCode: "other"}}
 	require.NoError(t, db.Create(&users).Error)
-	org, err := CreateTeamOrganization(users[0].Id, "Inbox Team", "inbox-team")
+	org, err := CreateTeamOrganization(users[0].Id, "Inbox Team")
 	require.NoError(t, err)
 	invite, err := CreateOrganizationInvite(org.Id, users[0].Id, users[1].Username, OrgRoleMember)
 	require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestOrganizationInviteAcceptAndRevokeHaveOneWinner(t *testing.T) {
 	}
 	users := []User{{Username: "owner", AffCode: "owner"}, {Username: "recipient", AffCode: "recipient"}}
 	require.NoError(t, db.Create(&users).Error)
-	org, err := CreateTeamOrganization(users[0].Id, "Team", "invite-winner")
+	org, err := CreateTeamOrganization(users[0].Id, "Team")
 	require.NoError(t, err)
 	invite, err := CreateOrganizationInvite(org.Id, users[0].Id, users[1].Username, OrgRoleMember)
 	require.NoError(t, err)

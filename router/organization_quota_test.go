@@ -29,7 +29,7 @@ func TestPlatformOrganizationQuotaAuthorization(t *testing.T) {
 	})
 
 	require.NoError(t, authz.Init(db))
-	org := model.Organization{Id: 931, OwnerId: 922, Name: "Quota team", Slug: "quota-team", Status: model.OrganizationActive, Quota: 1000}
+	org := model.Organization{Id: 931, OwnerId: 922, Name: "Quota team", Status: model.OrganizationActive, Quota: 1000}
 	require.NoError(t, db.Create(&org).Error)
 	engine := gin.New()
 	SetApiRouter(engine)

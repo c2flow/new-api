@@ -53,7 +53,7 @@ func TestOrganizationTransferCannotAssignDeletedAccount(t *testing.T) {
 	assert.ErrorIs(t, AcceptOrganizationTransfer(org.Id, users[1].Id), ErrOrganizationAccess)
 	require.NoError(t, db.First(org, org.Id).Error)
 	assert.Equal(t, users[0].Id, org.OwnerId)
-	_, err := CreateTeamOrganization(users[1].Id, "Deleted owner", "deleted-owner")
+	_, err := CreateTeamOrganization(users[1].Id, "Deleted owner")
 	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }
 
@@ -61,7 +61,7 @@ func TestOrganizationDeletedTeamDoesNotPreventAccountDeletion(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
 	require.NoError(t, db.AutoMigrate(&UserSession{}))
 	require.NoError(t, db.Model(org).Update("quota", 0).Error)
-	require.NoError(t, ChangeOrganizationStatus(org.Id, users[0].Id, OrganizationDeleting, org.Slug))
+	require.NoError(t, ChangeOrganizationStatus(org.Id, users[0].Id, OrganizationDeleting, org.Name))
 	require.NoError(t, DeleteUserById(users[0].Id))
 	var user User
 	assert.ErrorIs(t, db.First(&user, users[0].Id).Error, gorm.ErrRecordNotFound)
@@ -93,7 +93,7 @@ func TestOrganizationAccountDeletionCannotRaceOwnershipAcquisition(t *testing.T)
 					acquired <- AcceptOrganizationTransfer(org.Id, users[1].Id)
 					return
 				}
-				_, err := CreateTeamOrganization(users[1].Id, "New team", "new-team")
+				_, err := CreateTeamOrganization(users[1].Id, "New team")
 				acquired <- err
 			}()
 			<-read

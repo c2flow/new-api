@@ -17,7 +17,7 @@ func TestOrganizationPlatformSuspensionRequiresPlatformRestore(t *testing.T) {
 		return PlatformChangeOrganizationStatusTx(tx, org.Id, 999, OrganizationDisabled, "platform suspension")
 	}))
 	for _, status := range []int{OrganizationActive, OrganizationDisabled, OrganizationDeleting} {
-		assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[0].Id, status, org.Slug), ErrOrganizationAccess)
+		assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[0].Id, status, org.Name), ErrOrganizationAccess)
 	}
 	listed, err := ListUserOrganizations(users[0].Id)
 	require.NoError(t, err)

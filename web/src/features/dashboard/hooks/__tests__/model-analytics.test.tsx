@@ -69,7 +69,6 @@ function setOrganization(id: number, canReadAll = true) {
     organization: {
       id,
       name: `Team ${id}`,
-      slug: `team-${id}`,
       status: 1,
       owner_id: 1,
       group: 'default',

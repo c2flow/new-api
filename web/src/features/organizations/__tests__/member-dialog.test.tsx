@@ -69,7 +69,6 @@ beforeEach(() => {
       organization: {
         id: 10,
         name: 'Review team',
-        slug: 'review-team',
         status: 1,
         owner_id: 1,
         group: 'default',

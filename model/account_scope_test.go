@@ -41,7 +41,7 @@ func TestAccountSubscriptionCannotSpendTeamAllowance(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(&SubscriptionPreConsumeRecord{}))
 	user := User{Username: "buyer", AffCode: "buyer", Quota: 2000000}
 	require.NoError(t, db.Create(&user).Error)
-	team, err := CreateTeamOrganization(user.Id, "Team", "subscription-team")
+	team, err := CreateTeamOrganization(user.Id, "Team")
 	require.NoError(t, err)
 	plan := SubscriptionPlan{Title: "Both", Enabled: true, Audience: "both", PriceAmount: 1,
 		DurationUnit: SubscriptionDurationMonth, DurationValue: 1, TotalAmount: 1000, MaxPurchasePerUser: 1}

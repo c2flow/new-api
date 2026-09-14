@@ -47,7 +47,7 @@ func TestOrganizationPostConsumeUsesBillingSession(t *testing.T) {
 				require.NoError(t, db.Migrator().DropTable(resource))
 			}
 			require.NoError(t, db.AutoMigrate(resources...))
-			org := model.Organization{Name: "Quota", Slug: "quota", Status: model.OrganizationActive, Quota: 1000}
+			org := model.Organization{Name: "Quota", Status: model.OrganizationActive, Quota: 1000}
 			require.NoError(t, db.Create(&org).Error)
 			member := model.OrganizationMember{OrgId: org.Id, UserId: 1, Role: model.OrgRoleOwner, Status: model.OrganizationActive}
 			require.NoError(t, db.Create(&member).Error)

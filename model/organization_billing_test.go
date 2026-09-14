@@ -17,7 +17,7 @@ func organizationBillingFixture(t *testing.T) (*gorm.DB, *Organization, []User) 
 	db := organizationTestDatabase(t)
 	users := []User{{Username: "owner", AffCode: "owner", Email: "owner@example.test", Quota: 999}, {Username: "member", AffCode: "member", Email: "member@example.test", Quota: 888}}
 	require.NoError(t, db.Create(&users).Error)
-	org, err := CreateTeamOrganization(users[0].Id, "Team", "billing-team")
+	org, err := CreateTeamOrganization(users[0].Id, "Team")
 	require.NoError(t, err)
 	require.NoError(t, db.Model(org).Update("quota", 1000).Error)
 	require.NoError(t, db.Create(&OrganizationMember{OrgId: org.Id, UserId: users[1].Id, Role: OrgRoleMember, Status: OrganizationActive, SpendLimit: 200}).Error)
@@ -155,14 +155,14 @@ func TestOrganizationLifecycleRequiresAcceptedTransferAndSettledFunds(t *testing
 	require.NoError(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDisabled, ""))
 	_, _, err := GetOrganizationMembership(org.Id, users[1].Id)
 	assert.ErrorIs(t, err, ErrOrganizationAccess)
-	assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Slug), ErrOrganizationUnsettled)
+	assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Name), ErrOrganizationUnsettled)
 	require.NoError(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationActive, ""))
 	require.NoError(t, db.Model(org).Update("quota", 0).Error)
 	subscription := UserSubscription{OrgId: org.Id, UserId: users[1].Id, Status: "active", EndTime: time.Now().Add(time.Hour).Unix()}
 	require.NoError(t, db.Create(&subscription).Error)
-	assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Slug), ErrOrganizationUnsettled)
+	assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Name), ErrOrganizationUnsettled)
 	require.NoError(t, db.Model(&subscription).Update("status", "expired").Error)
-	require.NoError(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Slug))
+	require.NoError(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Name))
 	assert.ErrorIs(t, db.First(&Organization{}, org.Id).Error, gorm.ErrRecordNotFound)
 }
 

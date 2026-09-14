@@ -67,7 +67,6 @@ export async function organizationMutation<T = unknown>(
 }
 export async function createOrganization(data: {
   name: string
-  slug: string
 }): Promise<Organization> {
   const response = await api.post<Response<Organization>>(
     '/api/organizations',
@@ -113,11 +112,11 @@ export async function getDeletionImpact(
 export async function changeOrganizationStatus(
   orgID: number,
   status: number,
-  confirm_slug = ''
+  confirm_name = ''
 ): Promise<void> {
   const response = await api.put<Response<unknown>>(
     `/api/organizations/${orgID}/status`,
-    { status, confirm_slug }
+    { status, confirm_name }
   )
   if (!response.data.success) throw new Error(response.data.message)
 }

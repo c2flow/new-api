@@ -12,7 +12,7 @@ import (
 
 func TestOrganizationPaymentsUsePersistedOwnerAndImmutableTerms(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
-	other, err := CreateTeamOrganization(users[0].Id, "Other team", "other-payments")
+	other, err := CreateTeamOrganization(users[0].Id, "Other team")
 	require.NoError(t, err)
 	plan := SubscriptionPlan{Title: "Purchased terms", Enabled: true, Audience: "org", PriceAmount: 10, DurationUnit: SubscriptionDurationMonth, DurationValue: 1, TotalAmount: 500, UpgradeGroup: "premium", MaxMembers: 3}
 	require.NoError(t, db.Create(&plan).Error)
@@ -48,7 +48,7 @@ func TestOrganizationPaymentsUsePersistedOwnerAndImmutableTerms(t *testing.T) {
 
 func TestOrganizationExpiryCannotChangeAnotherOrganizationsTier(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
-	other, err := CreateTeamOrganization(users[0].Id, "Other tier", "other-tier")
+	other, err := CreateTeamOrganization(users[0].Id, "Other tier")
 	require.NoError(t, err)
 	plan := SubscriptionPlan{Title: "Tier", Enabled: true, Audience: "org", DurationUnit: SubscriptionDurationMonth, DurationValue: 1, TotalAmount: 500, UpgradeGroup: "premium"}
 	require.NoError(t, db.Create(&plan).Error)

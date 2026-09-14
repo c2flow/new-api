@@ -170,13 +170,13 @@ func ChangeOrganizationStatus(c *gin.Context) {
 	}
 	var input struct {
 		Status      int    `json:"status"`
-		ConfirmSlug string `json:"confirm_slug"`
+		ConfirmName string `json:"confirm_name"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	if err := model.ChangeOrganizationStatus(orgID, c.GetInt("id"), input.Status, input.ConfirmSlug); err != nil {
+	if err := model.ChangeOrganizationStatus(orgID, c.GetInt("id"), input.Status, input.ConfirmName); err != nil {
 		organizationError(c, err)
 		return
 	}

@@ -55,7 +55,6 @@ function show() {
           organization={{
             id: 7,
             name: 'Team Seven',
-            slug: 'seven',
             status: 1,
             owner_id: 2,
             quota: 1000000,

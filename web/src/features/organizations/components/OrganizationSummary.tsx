@@ -91,7 +91,7 @@ export function OrganizationSummary() {
             </Badge>
           </div>
           <span className='text-muted-foreground text-xs'>
-            {context.organization.slug} · {t('Organization usage')}
+            {t('Organization usage')}
           </span>
         </div>
       </div>

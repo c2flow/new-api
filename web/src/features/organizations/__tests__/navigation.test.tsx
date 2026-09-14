@@ -30,6 +30,7 @@ import {
   render,
   renderHook,
   screen,
+  within,
   waitFor,
 } from '@testing-library/react'
 import { createInstance } from 'i18next'
@@ -58,7 +59,6 @@ await i18n
 const team: OrganizationMembership = {
   id: 2,
   name: 'Design team',
-  slug: 'design',
   status: 1,
   owner_id: 1,
   group: 'default',
@@ -407,10 +407,9 @@ test('organization dropdown shows each team logo and keeps the default icon for 
       ...team,
       id: 3,
       name: 'Other team',
-      slug: 'other',
       logo: 'https://example.test/other.png',
     },
-    { ...team, id: 4, name: 'No logo', slug: 'plain' },
+    { ...team, id: 4, name: 'No logo' },
   ])
   renderPage(OrganizationSwitcher)
   fireEvent.click(
@@ -443,4 +442,111 @@ test('organization dropdown shows each team logo and keeps the default icon for 
   expect(
     screen.getByRole('button', { name: 'Other team' }).querySelector('img')
   ).toHaveAttribute('src', 'https://example.test/other.png')
+})
+
+test('organization creation sends only its name, including non-Latin names', async () => {
+  const bodies: unknown[] = []
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'post' && config.url === '/api/organizations') {
+      bodies.push(JSON.parse(config.data))
+      return {
+        config,
+        data: { success: false, message: 'Creation unavailable' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+      }
+    }
+    throw new Error(`Unexpected request: ${config.url}`)
+  }
+  renderPage(() => <OrganizationPage section='settings' />)
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Create organization' })
+  )
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Create organization',
+  })
+  expect(within(dialog).getAllByRole('textbox')).toHaveLength(1)
+  fireEvent.change(
+    within(dialog).getByRole('textbox', { name: 'Organization name' }),
+    { target: { value: '  设计团队  ' } }
+  )
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: 'Create organization' })
+  )
+  await waitFor(() => expect(bodies).toEqual([{ name: '设计团队' }]))
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Creation unavailable'
+  )
+})
+
+test('organization deletion requires its name and sends confirm_name', async () => {
+  useOrganizationStore.setState({ activeOrgID: team.id, context: teamContext })
+  client.setQueryData(['organization-settings', team.id], {
+    name: team.name,
+    available_models: [],
+    transfers: [],
+    settings: {
+      logo: '',
+      webhook: '',
+      alert_email: '',
+      default_spend_limit: 0,
+      budget_limit: 0,
+      alert_percent: 80,
+      allowed_models: [],
+    },
+  })
+  client.setQueryData(['organization-deletion-impact', team.id], {
+    blocked: false,
+    members: 1,
+    tokens: 0,
+    logs: 0,
+    orders: 0,
+    subscriptions: 0,
+  })
+  const bodies: unknown[] = []
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get' && config.url?.endsWith('/deletion-impact')) {
+      return {
+        config,
+        data: { success: true, data: { blocked: false } },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+      }
+    }
+    if (config.method === 'put') {
+      bodies.push(JSON.parse(config.data))
+      return {
+        config,
+        data: { success: false, message: 'Deletion unavailable' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+      }
+    }
+    throw new Error(`Unexpected request: ${config.url}`)
+  }
+  renderPage(() => <OrganizationPage section='settings' />)
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Delete organization' })
+  )
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Delete organization',
+  })
+  const confirmation = within(dialog).getByRole('textbox', {
+    name: 'Type Design team to confirm deletion',
+  })
+  fireEvent.change(confirmation, { target: { value: 'design' } })
+  expect(within(dialog).getByRole('button', { name: 'Confirm' })).toBeDisabled()
+  fireEvent.change(confirmation, { target: { value: team.name } })
+  await waitFor(() =>
+    expect(
+      within(dialog).getByRole('button', { name: 'Confirm' })
+    ).toBeEnabled()
+  )
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+  await waitFor(() =>
+    expect(bodies).toEqual([{ status: 3, confirm_name: team.name }])
+  )
 })

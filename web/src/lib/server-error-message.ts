@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 const serverErrorMessageKeys = {
-  ORG_SLUG: 'This organization slug is already in use.',
   ORG_MEMBER_EXISTS: 'This user is already a member of this organization.',
   ORG_INVITE_PENDING:
     'An invitation is already pending. Resend it from the invitation list.',

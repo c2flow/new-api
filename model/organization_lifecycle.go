@@ -109,7 +109,7 @@ func GetOrganizationDeletionImpact(orgID, actorID int) (*OrganizationDeletionImp
 	return impact, err
 }
 
-func ChangeOrganizationStatus(orgID, actorID, status int, confirmSlug string) error {
+func ChangeOrganizationStatus(orgID, actorID, status int, confirmName string) error {
 	if status != OrganizationActive && status != OrganizationDisabled && status != OrganizationDeleting {
 		return ErrOrganizationInput
 	}
@@ -119,7 +119,7 @@ func ChangeOrganizationStatus(orgID, actorID, status int, confirmSlug string) er
 			return err
 		}
 		if status == OrganizationDeleting {
-			if confirmSlug != org.Slug {
+			if confirmName != org.Name {
 				return ErrOrganizationInput
 			}
 			blocked, err := OrganizationHasUnsettledFunds(tx, org)

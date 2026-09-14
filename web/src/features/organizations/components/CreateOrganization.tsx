@@ -47,12 +47,10 @@ export function CreateOrganization() {
   const {
     register,
     handleSubmit,
-    setValue,
-    getValues,
     reset,
     setError,
-    formState: { errors, dirtyFields },
-  } = useForm<{ name: string; slug: string }>({
+    formState: { errors },
+  } = useForm<{ name: string }>({
     resolver: zodResolver(
       z.object({
         name: z
@@ -60,14 +58,6 @@ export function CreateOrganization() {
           .trim()
           .min(1, t('Organization name is required'))
           .max(64),
-        slug: z
-          .string()
-          .min(1)
-          .max(64)
-          .regex(
-            /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-            t('Use lowercase letters, numbers and hyphens.')
-          ),
       })
     ),
   })
@@ -75,7 +65,7 @@ export function CreateOrganization() {
     <>
       <Button
         onClick={() => {
-          reset({ name: '', slug: '' })
+          reset({ name: '' })
           setCreating(true)
         }}
       >
@@ -112,43 +102,15 @@ export function CreateOrganization() {
             <label>
               {t('Organization name')}
               <Input
-                {...register('name', {
-                  required: true,
-                  onChange: (event) => {
-                    if (dirtyFields.slug) return
-                    const name = String(event.target.value)
-                    const suggested = name
-                      .toLowerCase()
-                      .replaceAll(/[^a-z0-9]+/g, '-')
-                      .replaceAll(/^-|-$/g, '')
-                    setValue(
-                      'slug',
-                      suggested ||
-                        getValues('slug') ||
-                        `team-${crypto.randomUUID().slice(0, 8)}`
-                    )
-                  },
-                })}
+                {...register('name')}
                 maxLength={64}
                 required
                 placeholder={t('Your team name')}
               />
             </label>
-            <label>
-              {t('Organization slug')}
-              <Input
-                {...register('slug')}
-                required
-                maxLength={64}
-                placeholder='my-team'
-              />
-              <small>
-                {t('Lowercase letters, numbers and hyphens. Globally unique.')}
-              </small>
-            </label>
-            {(errors.name || errors.slug) && (
+            {errors.name && (
               <p role='alert' className='mt-error'>
-                {errors.name?.message ?? errors.slug?.message}
+                {errors.name.message}
               </p>
             )}
             {errors.root && (

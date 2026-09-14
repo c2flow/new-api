@@ -20,7 +20,6 @@ export type OrganizationRole = 'owner' | 'admin' | 'member'
 export type Organization = {
   id: number
   name: string
-  slug: string
   status: number
   owner_id: number
   group: string

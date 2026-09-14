@@ -17,8 +17,6 @@ func organizationError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, model.ErrOrganizationAccess):
 		status, code, message = http.StatusForbidden, "ORG_FORBIDDEN", "Organization access unavailable"
-	case errors.Is(err, model.ErrOrganizationSlug):
-		status, code, message = http.StatusBadRequest, "ORG_SLUG", "This organization slug is already in use."
 	case errors.Is(err, model.ErrOrganizationMemberExists):
 		status, code, message = http.StatusBadRequest, "ORG_MEMBER_EXISTS", "This user is already a member of this organization."
 	case errors.Is(err, model.ErrOrganizationInvitePending):
@@ -57,13 +55,12 @@ func ListOrganizations(c *gin.Context) {
 func CreateOrganization(c *gin.Context) {
 	var input struct {
 		Name string `json:"name"`
-		Slug string `json:"slug"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	org, err := model.CreateTeamOrganization(c.GetInt("id"), input.Name, input.Slug)
+	org, err := model.CreateTeamOrganization(c.GetInt("id"), input.Name)
 	if err != nil {
 		organizationError(c, err)
 		return

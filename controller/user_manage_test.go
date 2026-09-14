@@ -187,7 +187,7 @@ func TestAccountDeletionRejectsOrganizationOwner(t *testing.T) {
 			db := setupManageUserTestDB(t)
 			user := model.User{Username: "team-owner", AffCode: "team-owner", Status: common.UserStatusEnabled, Role: common.RoleCommonUser, AuthVersion: 1}
 			require.NoError(t, db.Create(&user).Error)
-			org := model.Organization{Name: "Funded team", Slug: "funded-team", OwnerId: user.Id, Status: model.OrganizationActive, Group: "default", Quota: 1000}
+			org := model.Organization{Name: "Funded team", OwnerId: user.Id, Status: model.OrganizationActive, Group: "default", Quota: 1000}
 			require.NoError(t, db.Create(&org).Error)
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)

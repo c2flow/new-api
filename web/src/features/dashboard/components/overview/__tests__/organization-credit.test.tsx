@@ -60,7 +60,6 @@ test('a team with subscription credit and an empty wallet shows usable credit wi
     organization: {
       id: 10,
       name: 'Subscription team',
-      slug: 'subscription-team',
       status: 1,
       owner_id: 1,
       group: 'default',

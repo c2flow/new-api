@@ -109,7 +109,7 @@ function SettingsForm(props: {
   const [action, setAction] = useState<
     'disable' | 'delete' | 'transfer' | null
   >(null)
-  const [confirmSlug, setConfirmSlug] = useState('')
+  const [confirmName, setConfirmName] = useState('')
   const [target, setTarget] = useState('')
   const schema = z.object({
     name: z.string().trim().min(1).max(64),
@@ -180,7 +180,7 @@ function SettingsForm(props: {
       await changeOrganizationStatus(
         props.organization.id,
         action === 'delete' ? 3 : 2,
-        confirmSlug
+        confirmName
       )
       switchOrg(props.organization.id)
     },
@@ -405,15 +405,15 @@ function SettingsForm(props: {
                 </p>
               )}
               <Field>
-                <FieldLabel htmlFor='confirm-slug'>
-                  {t('Type {{slug}} to confirm deletion', {
-                    slug: props.organization.slug,
+                <FieldLabel htmlFor='confirm-name'>
+                  {t('Type {{name}} to confirm deletion', {
+                    name: props.organization.name,
                   })}
                 </FieldLabel>
                 <Input
-                  id='confirm-slug'
-                  value={confirmSlug}
-                  onChange={(event) => setConfirmSlug(event.target.value)}
+                  id='confirm-name'
+                  value={confirmName}
+                  onChange={(event) => setConfirmName(event.target.value)}
                 />
               </Field>
             </FieldGroup>
@@ -434,7 +434,7 @@ function SettingsForm(props: {
                 (action === 'delete' &&
                   (!impact.data ||
                     impact.data.blocked ||
-                    confirmSlug !== props.organization.slug)) ||
+                    confirmName !== props.organization.name)) ||
                 (action === 'transfer' && !target)
               }
               onClick={() => lifecycle.mutate()}

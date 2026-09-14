@@ -16,7 +16,7 @@ import (
 )
 
 func TestOrganizationResourceRoutesEnforceMemberRole(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(t.TempDir()+"/organizations.db"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Organization{}, &model.OrganizationMember{}, &model.OrganizationAudit{}, &model.Token{}, &model.TopUp{}, &model.QuotaData{}, &model.Log{}, &model.CasbinRule{}, &model.AuthzRole{}))
 	previousDB, previousLogDB, previousRedis, previousMaster := model.DB, model.LOG_DB, common.RedisEnabled, common.IsMasterNode
@@ -30,7 +30,7 @@ func TestOrganizationResourceRoutesEnforceMemberRole(t *testing.T) {
 	token := "organization-read-permission"
 	user := model.User{Id: 921, Username: "read-member", AffCode: "read-member", Status: common.UserStatusEnabled, Role: common.RoleCommonUser, AccessToken: &token}
 	require.NoError(t, db.Create(&user).Error)
-	require.NoError(t, db.Create(&model.Organization{Id: 931, OwnerId: 920, Name: "Read team", Slug: "read-team", Status: model.OrganizationActive, Group: "default", Settings: "{}"}).Error)
+	require.NoError(t, db.Create(&model.Organization{Id: 931, OwnerId: 920, Name: "Read team", Status: model.OrganizationActive, Group: "default", Settings: "{}"}).Error)
 	require.NoError(t, db.Create(&model.OrganizationMember{OrgId: 931, UserId: user.Id, Role: model.OrgRoleMember, Status: model.OrganizationActive}).Error)
 	require.NoError(t, authz.Init(db))
 	engine := gin.New()

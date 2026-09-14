@@ -171,7 +171,6 @@ export function OrganizationSwitcher() {
               <span>
                 <strong>{org.name}</strong>
                 <small>
-                  {org.slug} ·{' '}
                   {org.status === 1
                     ? roleLabels[org.role]
                     : t('Disabled — click to restore')}

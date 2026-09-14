@@ -189,9 +189,7 @@ export function PlatformOrganizations() {
                   <TableRow key={org.id}>
                     <TableCell>
                       {org.name}
-                      <p className='text-muted-foreground text-xs'>
-                        {org.slug}
-                      </p>
+                      <p className='text-muted-foreground text-xs'>#{org.id}</p>
                     </TableCell>
                     <TableCell>
                       <p>

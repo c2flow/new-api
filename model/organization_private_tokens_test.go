@@ -13,7 +13,7 @@ func TestOrganizationMemberRevocationDisablesOnlyTheirKeysAndPreservesSettlement
 	for _, status := range []int{OrganizationDisabled, OrganizationDeleting} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			db, org, users := organizationBillingFixture(t)
-			other, err := CreateTeamOrganization(users[1].Id, "Other", "other-private-keys")
+			other, err := CreateTeamOrganization(users[1].Id, "Other")
 			require.NoError(t, err)
 			keys := []Token{
 				{OrgId: org.Id, UserId: users[1].Id, Key: "member-revoked", Status: common.TokenStatusEnabled, ExpiredTime: -1, UnlimitedQuota: true},

@@ -60,7 +60,7 @@ func main() {
 		for _, spec := range []struct {
 			resource interface{}
 			index    string
-		}{{&model.Organization{}, "idx_organizations_slug"}, {&model.OrganizationMember{}, "idx_org_member"}, {&model.OrganizationCharge{}, "idx_organization_charges_request_id"}} {
+		}{{&model.OrganizationMember{}, "idx_org_member"}, {&model.OrganizationCharge{}, "idx_organization_charges_request_id"}} {
 			if !model.DB.Migrator().HasIndex(spec.resource, spec.index) {
 				panic("missing index: " + spec.index)
 			}

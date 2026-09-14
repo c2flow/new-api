@@ -16,7 +16,11 @@ func PlatformListOrganizations(c *gin.Context) {
 	page := common.GetPageQuery(c)
 	query := model.DB.Model(&model.Organization{})
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
-		query = query.Where("name LIKE ? OR slug LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		if id, err := strconv.Atoi(keyword); err == nil && id > 0 {
+			query = query.Where("name LIKE ? OR id = ?", "%"+keyword+"%", id)
+		} else {
+			query = query.Where("name LIKE ?", "%"+keyword+"%")
+		}
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -24,7 +28,7 @@ func PlatformListOrganizations(c *gin.Context) {
 		return
 	}
 	var organizations []model.Organization
-	if err := query.Select("id", "name", "slug", "status", "owner_id", "quota", "used_quota", "group").Order("id desc").Offset(page.GetStartIdx()).Limit(page.GetPageSize()).Find(&organizations).Error; err != nil {
+	if err := query.Select("id", "name", "status", "owner_id", "quota", "used_quota", "group").Order("id desc").Offset(page.GetStartIdx()).Limit(page.GetPageSize()).Find(&organizations).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}

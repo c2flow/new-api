@@ -3,7 +3,6 @@ package model
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -25,12 +24,10 @@ const (
 )
 
 var (
-	ErrOrganizationAccess   = errors.New("organization access unavailable")
-	ErrOrganizationSlug     = errors.New("organization slug already exists")
-	ErrOrganizationInput    = errors.New("invalid organization details")
-	ErrOrganizationOwner    = errors.New("organization ownership operation is not allowed")
-	ErrOrganizationSeats    = errors.New("organization member limit reached")
-	organizationSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	ErrOrganizationAccess = errors.New("organization access unavailable")
+	ErrOrganizationInput  = errors.New("invalid organization details")
+	ErrOrganizationOwner  = errors.New("organization ownership operation is not allowed")
+	ErrOrganizationSeats  = errors.New("organization member limit reached")
 )
 
 // Organization owns a team wallet and resources. Personal resources belong
@@ -38,7 +35,6 @@ var (
 type Organization struct {
 	Id                int            `json:"id"`
 	Name              string         `json:"name" gorm:"type:varchar(64);not null"`
-	Slug              string         `json:"slug" gorm:"type:varchar(64);uniqueIndex;not null"`
 	OwnerId           int            `json:"owner_id" gorm:"index"`
 	Status            int            `json:"status" gorm:"not null"`
 	Group             string         `json:"group" gorm:"type:varchar(64);not null"`
@@ -127,13 +123,12 @@ func GetOrganizationMembership(orgID, userID int) (*Organization, *OrganizationM
 	return &org, &member, nil
 }
 
-func CreateTeamOrganization(userID int, name, slug string) (*Organization, error) {
-	name, slug = strings.TrimSpace(name), strings.ToLower(strings.TrimSpace(slug))
-	if userID <= 0 || name == "" || utf8.RuneCountInString(name) > 64 || len(slug) > 64 ||
-		!organizationSlugPattern.MatchString(slug) {
+func CreateTeamOrganization(userID int, name string) (*Organization, error) {
+	name = strings.TrimSpace(name)
+	if userID <= 0 || name == "" || utf8.RuneCountInString(name) > 64 {
 		return nil, ErrOrganizationInput
 	}
-	org := Organization{Name: name, Slug: slug, OwnerId: userID,
+	org := Organization{Name: name, OwnerId: userID,
 		Status: OrganizationActive, Group: "default"}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var user User
@@ -149,12 +144,6 @@ func CreateTeamOrganization(userID int, name, slug string) (*Organization, error
 		}
 		return tx.Create(&OrganizationAudit{OrgId: org.Id, ActorId: userID, Action: "organization.create", ObjectId: fmt.Sprint(org.Id), Result: "success"}).Error
 	})
-	if err != nil {
-		var duplicate int64
-		if lookupErr := DB.Unscoped().Model(&Organization{}).Where("slug = ?", slug).Count(&duplicate).Error; lookupErr == nil && duplicate > 0 {
-			return nil, ErrOrganizationSlug
-		}
-	}
 	return &org, err
 }
 

@@ -42,7 +42,7 @@ func setupGenericTaskTest(t *testing.T) *model.Task {
 		Id: 7, Username: "artifact-owner", Status: common.UserStatusEnabled,
 		Role: common.RoleCommonUser, Group: "default",
 	}).Error)
-	require.NoError(t, database.Create(&model.Organization{Id: 7, Name: "Artifact team", Slug: "artifact-team", Status: model.OrganizationActive}).Error)
+	require.NoError(t, database.Create(&model.Organization{Id: 7, Name: "Artifact team", Status: model.OrganizationActive}).Error)
 	baseURL := "https://example.com"
 	require.NoError(t, database.Create(&model.Channel{
 		Id: 1, Name: "artifact", Key: "key", BaseURL: &baseURL, Status: common.ChannelStatusEnabled,
