@@ -30,6 +30,7 @@ export type Organization = {
   budget_period_end: number
 }
 export type OrganizationMembership = Organization & {
+  logo?: string
   role: OrganizationRole
   spend_limit: number
 }

@@ -158,7 +158,15 @@ export function OrganizationSwitcher() {
               }}
             >
               <span className='mt-org-icon blue'>
-                <HugeiconsIcon icon={Building03Icon} size={18} />
+                {org.logo ? (
+                  <img
+                    src={org.logo}
+                    alt=''
+                    className='size-5 rounded object-contain'
+                  />
+                ) : (
+                  <HugeiconsIcon icon={Building03Icon} size={18} />
+                )}
               </span>
               <span>
                 <strong>{org.name}</strong>

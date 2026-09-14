@@ -154,6 +154,7 @@ function SettingsForm(props: {
       })
       await client.invalidateQueries({ queryKey: ['organization-context'] })
       await client.invalidateQueries({ queryKey: ['organization-settings'] })
+      await client.invalidateQueries({ queryKey: ['organizations'] })
     },
   })
   const members = useQuery({

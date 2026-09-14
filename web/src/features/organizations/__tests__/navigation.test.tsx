@@ -399,3 +399,48 @@ test.each([
     }
   }
 )
+
+test('organization dropdown shows each team logo and keeps the default icon for teams without a logo', async () => {
+  client.setQueryData(listKey, [
+    { ...team, logo: 'https://example.test/design.png' },
+    {
+      ...team,
+      id: 3,
+      name: 'Other team',
+      slug: 'other',
+      logo: 'https://example.test/other.png',
+    },
+    { ...team, id: 4, name: 'No logo', slug: 'plain' },
+  ])
+  renderPage(OrganizationSwitcher)
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Switch organization' })
+  )
+  const first = await screen.findByRole('button', { name: 'Design team' })
+  expect(first.querySelector('img')).toHaveAttribute(
+    'src',
+    'https://example.test/design.png'
+  )
+  expect(
+    screen.getByRole('button', { name: 'Other team' }).querySelector('img')
+  ).toHaveAttribute('src', 'https://example.test/other.png')
+  expect(
+    screen.getByRole('button', { name: 'No logo' }).querySelector('img')
+  ).toBeNull()
+  expect(
+    screen.getByRole('button', { name: 'No logo' }).querySelector('svg')
+  ).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Personal' }).querySelector('img')
+  ).toBeNull()
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Search organizations' }),
+    { target: { value: 'Other' } }
+  )
+  expect(
+    screen.queryByRole('button', { name: 'Design team' })
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Other team' }).querySelector('img')
+  ).toHaveAttribute('src', 'https://example.test/other.png')
+})

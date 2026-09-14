@@ -18,6 +18,7 @@ var ErrOrganizationInvitePending = errors.New("an active invitation already exis
 
 type OrganizationMembership struct {
 	Organization
+	Logo       string `json:"logo,omitempty" gorm:"-"`
 	Role       string `json:"role"`
 	SpendLimit int64  `json:"spend_limit"`
 }
@@ -28,7 +29,15 @@ func ListUserOrganizations(userID int) ([]OrganizationMembership, error) {
 		Joins("JOIN organization_members ON organization_members.org_id = organizations.id").
 		Where("organization_members.user_id = ? AND organization_members.status = ? AND (organizations.status = ? OR (organizations.status = ? AND organizations.owner_id = ?))", userID, OrganizationActive, OrganizationActive, OrganizationDisabled, userID).
 		Order("organizations.id").Scan(&orgs).Error
+	if err != nil {
+		return nil, err
+	}
 	for i := range orgs {
+		settings, err := orgs[i].EffectiveSettings()
+		if err != nil {
+			return nil, err
+		}
+		orgs[i].Logo = settings.Logo
 		// The switcher never needs private notification destinations or team totals.
 		orgs[i].Settings = ""
 		if orgs[i].Role == OrgRoleMember {
