@@ -32,6 +32,9 @@ m = r.sub == p.sub && r.obj == p.obj && r.act == p.act && p.eft == "allow"
 
 func Init(db *gorm.DB) error {
 	if common.IsMasterNode {
+		if err := migratePlatformPolicies(db); err != nil {
+			return err
+		}
 		if err := seedBuiltInRoles(db); err != nil {
 			return err
 		}
