@@ -528,6 +528,9 @@ test('organization deletion requires its name and sends confirm_name', async () 
     throw new Error(`Unexpected request: ${config.url}`)
   }
   renderPage(() => <OrganizationPage section='settings' />)
+  expect(
+    await screen.findByRole('textbox', { name: 'Organization name' })
+  ).toHaveAttribute('readonly')
   fireEvent.click(
     await screen.findByRole('button', { name: 'Delete organization' })
   )
@@ -548,5 +551,46 @@ test('organization deletion requires its name and sends confirm_name', async () 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
   await waitFor(() =>
     expect(bodies).toEqual([{ status: 3, confirm_name: team.name }])
+  )
+})
+
+test('platform organization search sends remarks to server and resets pagination', async () => {
+  const queries: { keyword: string; p: number }[] = []
+  api.defaults.adapter = async (config) => {
+    queries.push(config.params)
+    return {
+      config,
+      data: {
+        success: true,
+        data: {
+          items: [
+            {
+              ...team,
+              remark: 'Internal customer',
+              owner_username: 'owner',
+              owner_display_name: '',
+            },
+          ],
+          total: 21,
+        },
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+    }
+  }
+  renderPage(() => <PlatformOrganizations />)
+  expect(await screen.findByText('Internal customer')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Edit remark' })
+  ).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+  await waitFor(() => expect(queries.at(-1)?.p).toBe(2))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Search organizations' }),
+    { target: { value: 'customer' } }
+  )
+  await waitFor(() =>
+    expect(queries.at(-1)).toMatchObject({ keyword: 'customer', p: 1 })
   )
 })

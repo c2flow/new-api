@@ -33,6 +33,8 @@ var (
 // Organization owns a team wallet and resources. Personal resources belong
 // directly to their user and have org_id zero.
 type Organization struct {
+	// Remark is platform-private; expose it only in platform response DTOs.
+	Remark            string         `json:"-" gorm:"type:varchar(255)"`
 	Id                int            `json:"id"`
 	Name              string         `json:"name" gorm:"type:varchar(64);not null"`
 	OwnerId           int            `json:"owner_id" gorm:"index"`

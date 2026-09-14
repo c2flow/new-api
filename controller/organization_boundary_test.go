@@ -94,7 +94,8 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		return result
 	}
 	t.Run("platform pagination search and owners expose only teams", func(t *testing.T) {
-		for _, path := range []string{"/platform/organizations?size=1", "/platform/organizations?keyword=Design", fmt.Sprintf("/platform/organizations?keyword=%d", team.Id)} {
+		require.NoError(t, model.DB.Model(team).Update("remark", "private-customer-987").Error)
+		for _, path := range []string{"/platform/organizations?size=1", "/platform/organizations?keyword=Design", "/platform/organizations?keyword=customer-987", "/platform/organizations?keyword=987", fmt.Sprintf("/platform/organizations?keyword=%d", team.Id)} {
 			result := request("GET", path, "", "")
 			require.Equal(t, 200, result.Code)
 			var body struct {
@@ -113,6 +114,7 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 			assert.Equal(t, team.Id, body.Data.Items[0].ID)
 			assert.Equal(t, "owner", body.Data.Items[0].OwnerUsername)
 			assert.Equal(t, "Owner Name", body.Data.Items[0].OwnerDisplayName)
+			assert.Contains(t, result.Body.String(), `"remark":"private-customer-987"`)
 			assert.NotContains(t, result.Body.String(), `"slug"`)
 			assert.NotContains(t, result.Body.String(), "private-password")
 			assert.NotContains(t, result.Body.String(), "private@example.test")
@@ -122,6 +124,8 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		assert.Contains(t, result.Body.String(), `"items":[]`)
 		result = request("GET", "/organizations", "", "")
 		assert.Contains(t, result.Body.String(), "Design team")
+		assert.NotContains(t, result.Body.String(), "private-customer-987")
+		assert.NotContains(t, result.Body.String(), `"remark"`)
 		assert.NotContains(t, result.Body.String(), "personal-")
 		assert.NotContains(t, result.Body.String(), `"kind":"personal"`)
 	})
@@ -212,6 +216,8 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		result := request("GET", "/org/context", id, "")
 		require.Equal(t, 200, result.Code)
 		assert.Contains(t, result.Body.String(), "Design team")
+		assert.NotContains(t, result.Body.String(), "private-customer-987")
+		assert.NotContains(t, result.Body.String(), `"remark"`)
 		for _, status := range []string{"2", "1"} {
 			result = request("PUT", "/platform/organizations/"+id+"/status", "", `{"status":`+status+`,"reason":"test"}`)
 			assert.Equal(t, 200, result.Code)

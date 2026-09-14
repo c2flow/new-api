@@ -149,6 +149,7 @@ export type IncomingOrganizationInvite = {
 }
 
 export type PlatformOrganization = Organization & {
+  remark?: string
   owner_username: string
   owner_display_name: string
 }

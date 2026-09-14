@@ -207,9 +207,17 @@ function SettingsForm(props: {
                 </FieldLabel>
                 <Input
                   id='org-name'
+                  readOnly
+                  aria-describedby='org-name-description'
                   maxLength={64}
                   {...form.register('name')}
                 />
+                <p
+                  id='org-name-description'
+                  className='text-muted-foreground text-sm'
+                >
+                  {t('Organization names cannot be changed after creation.')}
+                </p>
               </Field>
               <Field>
                 <FieldLabel htmlFor='org-logo'>{t('Logo URL')}</FieldLabel>

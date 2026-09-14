@@ -58,6 +58,9 @@ func UpdateOrganizationSettings(orgID, actorID int, name string, settings Organi
 		if err != nil {
 			return err
 		}
+		if name != org.Name {
+			return ErrOrganizationInput
+		}
 		permitted := map[string]bool{}
 		for _, name := range GetGroupEnabledModels(org.Group) {
 			permitted[name] = true
@@ -71,8 +74,8 @@ func UpdateOrganizationSettings(orgID, actorID int, name string, settings Organi
 		if err != nil {
 			return err
 		}
-		org.Name, org.Settings = name, string(data)
-		if err := tx.Model(org).Updates(map[string]interface{}{"name": name, "settings": org.Settings}).Error; err != nil {
+		org.Settings = string(data)
+		if err := tx.Model(org).Update("settings", org.Settings).Error; err != nil {
 			return err
 		}
 		return tx.Create(&OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "settings.update", ObjectId: fmt.Sprint(orgID), Result: "success"}).Error

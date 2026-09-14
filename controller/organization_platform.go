@@ -17,9 +17,9 @@ func PlatformListOrganizations(c *gin.Context) {
 	query := model.DB.Model(&model.Organization{})
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		if id, err := strconv.Atoi(keyword); err == nil && id > 0 {
-			query = query.Where("name LIKE ? OR id = ?", "%"+keyword+"%", id)
+			query = query.Where("name LIKE ? OR remark LIKE ? OR id = ?", "%"+keyword+"%", "%"+keyword+"%", id)
 		} else {
-			query = query.Where("name LIKE ?", "%"+keyword+"%")
+			query = query.Where("name LIKE ? OR remark LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 		}
 	}
 	var total int64
@@ -28,7 +28,7 @@ func PlatformListOrganizations(c *gin.Context) {
 		return
 	}
 	var organizations []model.Organization
-	if err := query.Select("id", "name", "status", "owner_id", "quota", "used_quota", "group").Order("id desc").Offset(page.GetStartIdx()).Limit(page.GetPageSize()).Find(&organizations).Error; err != nil {
+	if err := query.Select("id", "name", "remark", "status", "owner_id", "quota", "used_quota", "group").Order("id desc").Offset(page.GetStartIdx()).Limit(page.GetPageSize()).Find(&organizations).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -49,13 +49,14 @@ func PlatformListOrganizations(c *gin.Context) {
 	}
 	type organizationResponse struct {
 		model.Organization
+		Remark           string `json:"remark"`
 		OwnerUsername    string `json:"owner_username"`
 		OwnerDisplayName string `json:"owner_display_name"`
 	}
 	items := make([]organizationResponse, 0, len(organizations))
 	for _, org := range organizations {
 		owner := ownerByID[org.OwnerId]
-		items = append(items, organizationResponse{org, owner.Username, owner.DisplayName})
+		items = append(items, organizationResponse{Organization: org, Remark: org.Remark, OwnerUsername: owner.Username, OwnerDisplayName: owner.DisplayName})
 	}
 	page.SetTotal(int(total))
 	page.SetItems(items)
@@ -157,4 +158,20 @@ func PlatformAdjustOrganizationQuota(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{"quota": quota})
+}
+
+func PlatformSetOrganizationRemark(c *gin.Context) {
+	orgID, err := strconv.Atoi(c.Param("org_id"))
+	var input struct {
+		Remark *string `json:"remark"`
+	}
+	if err != nil || orgID <= 0 || c.ShouldBindJSON(&input) != nil || input.Remark == nil {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	if err := model.PlatformSetOrganizationRemark(orgID, c.GetInt("id"), *input.Remark); err != nil {
+		organizationError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
 }

@@ -22,6 +22,8 @@ import { useTranslation } from 'react-i18next'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SectionPageLayout } from '@/components/layout'
+import { LongText } from '@/components/long-text'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -33,12 +35,18 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { hasPermission } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
 import { formatQuotaWithCurrency } from '@/lib/currency'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { OrganizationQuotaDialog } from './components/OrganizationQuotaDialog'
+import { OrganizationRemarkDialog } from './components/OrganizationRemarkDialog'
 import type { PlatformOrganization, Page } from './types'
 
 const resourceColumns = {
@@ -54,10 +62,12 @@ type Resource = keyof typeof resourceColumns
 export function PlatformOrganizations() {
   const { t } = useTranslation()
   const client = useQueryClient()
-  const canAdjustQuota = useAuthStore((state) =>
+  const canManage = useAuthStore((state) =>
     hasPermission(state.auth.user, 'organization', 'write')
   )
   const [quotaOrganization, setQuotaOrganization] =
+    useState<PlatformOrganization | null>(null)
+  const [remarkOrganization, setRemarkOrganization] =
     useState<PlatformOrganization | null>(null)
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
@@ -158,7 +168,7 @@ export function PlatformOrganizations() {
           <Input
             className='max-w-md'
             aria-label={t('Search organizations')}
-            placeholder={t('Search organizations')}
+            placeholder={t('Search by organization name, ID or remark')}
             value={keyword}
             onChange={(event) => {
               setKeyword(event.target.value)
@@ -188,7 +198,30 @@ export function PlatformOrganizations() {
                 {organizations.data?.items.map((org) => (
                   <TableRow key={org.id}>
                     <TableCell>
-                      {org.name}
+                      <div className='flex items-center gap-2'>
+                        {org.name}
+                        {org.remark && (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <StatusBadge
+                                  variant='success'
+                                  copyable={false}
+                                />
+                              }
+                            >
+                              <LongText className='max-w-[120px]'>
+                                {org.remark}
+                              </LongText>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className='max-w-xs text-xs break-words whitespace-pre-wrap'>
+                                {org.remark}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                       <p className='text-muted-foreground text-xs'>#{org.id}</p>
                     </TableCell>
                     <TableCell>
@@ -204,7 +237,16 @@ export function PlatformOrganizations() {
                     </TableCell>
                     <TableCell>{formatQuotaWithCurrency(org.quota)}</TableCell>
                     <TableCell>
-                      {canAdjustQuota && org.status !== 3 && (
+                      {canManage && (
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setRemarkOrganization(org)}
+                        >
+                          {t('Edit remark')}
+                        </Button>
+                      )}
+                      {canManage && org.status !== 3 && (
                         <Button
                           variant='outline'
                           size='sm'
@@ -324,6 +366,12 @@ export function PlatformOrganizations() {
                 </Button>
               </div>
             </section>
+          )}
+          {remarkOrganization && (
+            <OrganizationRemarkDialog
+              organization={remarkOrganization}
+              close={() => setRemarkOrganization(null)}
+            />
           )}
           {quotaOrganization && (
             <OrganizationQuotaDialog
