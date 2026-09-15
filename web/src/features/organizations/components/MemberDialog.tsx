@@ -102,7 +102,7 @@ export function MemberDialog(props: {
             role: values.role,
             status: Number(values.status),
             spend_limit,
-            ...(!props.budget ? { monthly_spend_limit } : {}),
+            monthly_spend_limit,
           })
         }
       } else {
@@ -164,29 +164,6 @@ export function MemberDialog(props: {
                     {form.formState.errors.username?.message}
                   </FieldDescription>
                 </Field>
-                {props.member && (
-                  <Field data-invalid={!!form.formState.errors.monthlyLimit}>
-                    <FieldLabel htmlFor='member-monthly-limit'>
-                      {t('Monthly spending limit')} ({getCurrencyLabel()})
-                    </FieldLabel>
-                    <Input
-                      id='member-monthly-limit'
-                      type='number'
-                      step='any'
-                      min='0'
-                      aria-invalid={!!form.formState.errors.monthlyLimit}
-                      {...form.register('monthlyLimit', {
-                        valueAsNumber: true,
-                      })}
-                    />
-                    <FieldDescription>
-                      {t('Zero means unlimited.')}{' '}
-                      {t(
-                        'Resets on the first day of each month at 00:00 Beijing time.'
-                      )}
-                    </FieldDescription>
-                  </Field>
-                )}
                 {!props.monthlyOnly && (
                   <Field>
                     <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
@@ -206,7 +183,7 @@ export function MemberDialog(props: {
               <>
                 <Field data-invalid={!!form.formState.errors.limit}>
                   <FieldLabel htmlFor='member-limit'>
-                    {t('Spending limit (USD)')}
+                    {t('Billing-period spending limit')} ({getCurrencyLabel()})
                   </FieldLabel>
                   <Input
                     id='member-limit'
@@ -248,6 +225,27 @@ export function MemberDialog(props: {
                   </Field>
                 )}
               </>
+            )}
+            {props.member && (
+              <Field data-invalid={!!form.formState.errors.monthlyLimit}>
+                <FieldLabel htmlFor='member-monthly-limit'>
+                  {t('Monthly spending limit')} ({getCurrencyLabel()})
+                </FieldLabel>
+                <Input
+                  id='member-monthly-limit'
+                  type='number'
+                  step='any'
+                  min='0'
+                  aria-invalid={!!form.formState.errors.monthlyLimit}
+                  {...form.register('monthlyLimit', { valueAsNumber: true })}
+                />
+                <FieldDescription>
+                  {t('Zero means unlimited.')}{' '}
+                  {t(
+                    'Resets on the first day of each month at 00:00 Beijing time.'
+                  )}
+                </FieldDescription>
+              </Field>
             )}
             {mutation.isError && (
               <p role='alert' className='text-destructive text-sm'>

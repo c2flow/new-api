@@ -236,11 +236,18 @@ test('saving a member budget sends the converted quota to the budget endpoint wi
   })
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   fireEvent.change(
-    screen.getByRole('spinbutton', { name: 'Spending limit (USD)' }),
+    screen.getByRole('spinbutton', { name: /Billing-period spending limit/ }),
     { target: { value: '12.50' } }
+  )
+  fireEvent.change(
+    screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
+    {
+      target: { value: '20' },
+    }
   )
   fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
   await waitFor(() => expect(close).toHaveBeenCalledOnce())
   expect(requests[0].url).toBe('/api/org/members/2/budget')
   expect(JSON.parse(requests[0].data).spend_limit).toBe(6250000)
+  expect(JSON.parse(requests[0].data).monthly_spend_limit).toBe(10000000)
 })

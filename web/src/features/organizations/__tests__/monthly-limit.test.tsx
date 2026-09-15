@@ -218,6 +218,37 @@ test('members without caps have no monthly column; managers can select members f
   )
 })
 
+test('budget page Edit exposes monthly settings even when the monthly column is hidden', async () => {
+  const context = useOrganizationStore.getState().context
+  if (!context) throw new Error('Missing organization fixture')
+  useOrganizationStore.setState({
+    context: {
+      ...context,
+      capabilities: { platform: {}, org: { 'org.member': { write: true } } },
+    },
+  })
+  client.setQueryData(['organization-members', 10], [member])
+  client.setQueryData(['organization-summary', 10], { usage: [] })
+  render(
+    <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={client}>
+        <Members budgets />
+      </QueryClientProvider>
+    </I18nextProvider>
+  )
+  expect(
+    screen.queryByRole('columnheader', { name: 'Monthly spending limit' })
+  ).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  expect(
+    await screen.findByRole('spinbutton', { name: /Monthly spending limit/ })
+  ).toHaveValue(0)
+  expect(
+    screen.getByRole('spinbutton', { name: /Billing-period spending limit/ })
+  ).toHaveValue(0)
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+})
+
 test('ordinary members see monthly usage only when their cap is enabled', async () => {
   client.setQueryData(
     ['organization-members', 10],

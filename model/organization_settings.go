@@ -82,8 +82,15 @@ func UpdateOrganizationSettings(orgID, actorID int, name string, settings Organi
 	})
 }
 
-func SetOrganizationMemberBudget(orgID, actorID, userID int, limit int64) error {
+func SetOrganizationMemberBudget(orgID, actorID, userID int, limit int64, monthlyLimits ...*int64) error {
 	if limit < 0 || limit > int64(common.MaxWalletQuota) {
+		return ErrOrganizationInput
+	}
+	var monthlyLimit *int64
+	if len(monthlyLimits) > 0 {
+		monthlyLimit = monthlyLimits[0]
+	}
+	if monthlyLimit != nil && (*monthlyLimit < 0 || *monthlyLimit > int64(common.MaxWalletQuota)) {
 		return ErrOrganizationInput
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
@@ -94,7 +101,11 @@ func SetOrganizationMemberBudget(orgID, actorID, userID int, limit int64) error 
 		if err := tx.Scopes(OrgScope(orgID)).Where("user_id = ?", userID).First(&member).Error; err != nil {
 			return ErrOrganizationAccess
 		}
-		if err := tx.Model(&member).Update("spend_limit", limit).Error; err != nil {
+		updates := map[string]interface{}{"spend_limit": limit}
+		if monthlyLimit != nil {
+			updates["monthly_spend_limit"] = *monthlyLimit
+		}
+		if err := tx.Model(&member).Updates(updates).Error; err != nil {
 			return err
 		}
 		return tx.Create(&OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "member.budget", ObjectId: fmt.Sprint(userID), Result: "success"}).Error
