@@ -240,9 +240,15 @@ test('ordinary members see monthly usage only when their cap is enabled', async 
   expect(
     screen.getByRole('columnheader', { name: 'Monthly spending limit' })
   ).toBeVisible()
-  expect(screen.getByText(/Next reset/)).toBeVisible()
+  expect(screen.queryByText(/Next reset/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Pending reservations/)).not.toBeInTheDocument()
+  expect(screen.getByText(/Remaining/)).toBeVisible()
+  expect(screen.getByText('Monthly spending limit')).toHaveAttribute(
+    'title',
+    'Resets on the first day of each month at 00:00 Beijing time.'
+  )
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   expect(
-    screen.queryByRole('button', { name: 'Monthly spending limit' })
+    screen.queryByRole('button', { name: 'Set monthly limit' })
   ).not.toBeInTheDocument()
 })

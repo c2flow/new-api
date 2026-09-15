@@ -218,9 +218,18 @@ export function Members(props: { budgets?: boolean }) {
                   <TableHead>{t('Member')}</TableHead>
                   <TableHead>{t('Role')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
-                  <TableHead>{t('Spending limit')}</TableHead>
+                  <TableHead>{t('Billing-period spending limit')}</TableHead>
                   {showMonthly && (
-                    <TableHead>{t('Monthly spending limit')}</TableHead>
+                    <TableHead>
+                      <span
+                        title={t(
+                          'Resets on the first day of each month at 00:00 Beijing time.'
+                        )}
+                        className='cursor-help border-b border-dotted'
+                      >
+                        {t('Monthly spending limit')}
+                      </span>
+                    </TableHead>
                   )}
                   {props.budgets && (
                     <>
@@ -291,29 +300,6 @@ export function Members(props: { budgets?: boolean }) {
                                 )
                               )}
                             </p>
-                            <p className='text-muted-foreground text-xs'>
-                              {t('Used Quota')}:{' '}
-                              {formatQuotaWithCurrency(
-                                member.monthly_usage?.used ?? 0
-                              )}
-                            </p>
-                            <p className='text-muted-foreground text-xs'>
-                              {t('Pending reservations')}:{' '}
-                              {formatQuotaWithCurrency(
-                                member.monthly_usage?.reserved ?? 0
-                              )}
-                            </p>
-                            {member.monthly_reset_at && (
-                              <p className='text-muted-foreground text-xs'>
-                                {t('Next reset')}:{' '}
-                                {new Date(
-                                  member.monthly_reset_at * 1000
-                                ).toLocaleString(undefined, {
-                                  timeZone: 'Asia/Shanghai',
-                                  timeZoneName: 'short',
-                                })}
-                              </p>
-                            )}
                           </>
                         ) : (
                           '—'
@@ -345,7 +331,7 @@ export function Members(props: { budgets?: boolean }) {
                           variant='ghost'
                           onClick={() => setMonthlyMembers([member])}
                         >
-                          {t('Monthly spending limit')}
+                          {t('Set monthly limit')}
                         </Button>
                       )}
                       {manage &&
