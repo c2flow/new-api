@@ -155,7 +155,7 @@ func UpdateOrganizationMember(c *gin.Context) {
 		Role              string `json:"role"`
 		Status            int    `json:"status"`
 		SpendLimit        int64  `json:"spend_limit"`
-		MonthlySpendLimit int64  `json:"monthly_spend_limit"`
+		MonthlySpendLimit *int64 `json:"monthly_spend_limit"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		organizationError(c, model.ErrOrganizationInput)

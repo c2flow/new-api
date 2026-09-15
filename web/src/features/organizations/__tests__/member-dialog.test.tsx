@@ -121,6 +121,7 @@ function renderDialog(props: Parameters<typeof MemberDialog>[0]) {
 
 test('an empty invitation username shows a validation error without sending a request', async () => {
   renderDialog({ close: vi.fn() })
+  expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
   expect(screen.getByRole('dialog')).toHaveAccessibleName('Invite member')
   expect(
     screen.getAllByRole('option').map((option) => option.textContent)
@@ -134,6 +135,53 @@ test('an empty invitation username shows a validation error without sending a re
   )
   expect(screen.getByText('Please enter your username')).toBeVisible()
   expect(requests).toHaveLength(0)
+})
+
+test.each([0, 12.5])(
+  'editing a member saves monthly limit %s with role and status',
+  async (amount) => {
+    const close = vi.fn()
+    renderDialog({
+      close,
+      member: {
+        ...member,
+        role: 'member',
+        user_id: 2,
+        monthly_spend_limit: 500000,
+      },
+    })
+    const input = screen.getByRole('spinbutton', {
+      name: /Monthly spending limit/,
+    })
+    expect(input).toHaveValue(1)
+    fireEvent.change(input, { target: { value: String(amount) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(requests[0].url).toBe('/api/org/members/2')
+    expect(JSON.parse(requests[0].data)).toEqual({
+      role: 'member',
+      status: 1,
+      spend_limit: 0,
+      monthly_spend_limit: amount * 500000,
+    })
+  }
+)
+
+test('editing the owner changes only the monthly limit', async () => {
+  const close = vi.fn()
+  renderDialog({ close, member, monthlyOnly: true })
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  fireEvent.change(
+    screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
+    { target: { value: '10' } }
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+  await waitFor(() => expect(close).toHaveBeenCalledOnce())
+  expect(requests[0].url).toBe('/api/org/members/monthly-limit')
+  expect(JSON.parse(requests[0].data)).toEqual({
+    user_ids: [1],
+    monthly_spend_limit: 5000000,
+  })
 })
 
 test('a successful invitation sends the username to the team and closes the dialog', async () => {

@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
-import { getCurrencyDisplay } from '@/lib/currency'
+import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import { getServerErrorMessageKey } from '@/lib/server-error-message'
 
 import { organizationMutation } from '../api'
@@ -49,6 +49,7 @@ import type { OrganizationMember } from '../types'
 export function MemberDialog(props: {
   member?: OrganizationMember
   budget?: boolean
+  monthlyOnly?: boolean
   close: () => void
 }) {
   const { t } = useTranslation()
@@ -62,7 +63,10 @@ export function MemberDialog(props: {
       .number()
       .min(0)
       .max(Number.MAX_SAFE_INTEGER / getCurrencyDisplay().config.quotaPerUnit),
-    monthlyLimit: z.number().min(0).max(Number.MAX_SAFE_INTEGER / getCurrencyDisplay().config.quotaPerUnit),
+    monthlyLimit: z
+      .number()
+      .min(0)
+      .max(Number.MAX_SAFE_INTEGER / getCurrencyDisplay().config.quotaPerUnit),
   })
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -88,12 +92,19 @@ export function MemberDialog(props: {
           values.monthlyLimit * getCurrencyDisplay().config.quotaPerUnit
         )
         const path = `members/${props.member.user_id}${props.budget ? '/budget' : ''}`
-        await organizationMutation('put', path, {
-          role: values.role,
-          status: Number(values.status),
-          spend_limit,
-          ...(!props.budget ? { monthly_spend_limit } : {}),
-        })
+        if (props.monthlyOnly) {
+          await organizationMutation('put', 'members/monthly-limit', {
+            user_ids: [props.member.user_id],
+            monthly_spend_limit,
+          })
+        } else {
+          await organizationMutation('put', path, {
+            role: values.role,
+            status: Number(values.status),
+            spend_limit,
+            ...(!props.budget ? { monthly_spend_limit } : {}),
+          })
+        }
       } else {
         if (!values.username) {
           form.setError('username', {
@@ -153,27 +164,45 @@ export function MemberDialog(props: {
                     {form.formState.errors.username?.message}
                   </FieldDescription>
                 </Field>
-                {!props.budget && (
+                {props.member && (
                   <Field data-invalid={!!form.formState.errors.monthlyLimit}>
-                    <FieldLabel htmlFor='member-monthly-limit'>{t('Monthly spending limit (USD)')}</FieldLabel>
-                    <Input id='member-monthly-limit' type='number' step='0.01' min='0' {...form.register('monthlyLimit', { valueAsNumber: true })} />
-                    <FieldDescription>{t('Zero means unlimited. Resets on the first day of each month at 00:00 Beijing time.')}</FieldDescription>
+                    <FieldLabel htmlFor='member-monthly-limit'>
+                      {t('Monthly spending limit')} ({getCurrencyLabel()})
+                    </FieldLabel>
+                    <Input
+                      id='member-monthly-limit'
+                      type='number'
+                      step='any'
+                      min='0'
+                      aria-invalid={!!form.formState.errors.monthlyLimit}
+                      {...form.register('monthlyLimit', {
+                        valueAsNumber: true,
+                      })}
+                    />
+                    <FieldDescription>
+                      {t('Zero means unlimited.')}{' '}
+                      {t(
+                        'Resets on the first day of each month at 00:00 Beijing time.'
+                      )}
+                    </FieldDescription>
                   </Field>
                 )}
-                <Field>
-                  <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
-                  <NativeSelect id='member-role' {...form.register('role')}>
-                    <NativeSelectOption value='member'>
-                      {t('Member')}
-                    </NativeSelectOption>
-                    <NativeSelectOption value='admin'>
-                      {t('Admin')}
-                    </NativeSelectOption>
-                  </NativeSelect>
-                </Field>
+                {!props.monthlyOnly && (
+                  <Field>
+                    <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
+                    <NativeSelect id='member-role' {...form.register('role')}>
+                      <NativeSelectOption value='member'>
+                        {t('Member')}
+                      </NativeSelectOption>
+                      <NativeSelectOption value='admin'>
+                        {t('Admin')}
+                      </NativeSelectOption>
+                    </NativeSelect>
+                  </Field>
+                )}
               </>
             )}
-            {props.member && (
+            {props.member && !props.monthlyOnly && (
               <>
                 <Field data-invalid={!!form.formState.errors.limit}>
                   <FieldLabel htmlFor='member-limit'>

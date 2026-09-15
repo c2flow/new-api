@@ -325,17 +325,15 @@ export function Members(props: { budgets?: boolean }) {
                       </>
                     )}
                     <TableCell className='text-end'>
-                      {manage &&
-                        (props.budgets ||
-                          (team && member.role !== 'owner')) && (
-                          <Button
-                            size='sm'
-                            variant='ghost'
-                            onClick={() => setDialog(member)}
-                          >
-                            {t('Edit')}
-                          </Button>
-                        )}
+                      {manage && (props.budgets || team) && (
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          onClick={() => setDialog(member)}
+                        >
+                          {t('Edit')}
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -413,6 +411,9 @@ export function Members(props: { budgets?: boolean }) {
         <MemberDialog
           member={dialog === 'invite' ? undefined : dialog}
           budget={props.budgets}
+          monthlyOnly={
+            dialog !== 'invite' && dialog.role === 'owner' && !props.budgets
+          }
           close={() => setDialog(null)}
         />
       )}
