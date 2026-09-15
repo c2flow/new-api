@@ -256,9 +256,13 @@ test('members without caps have no monthly column; managers can select members f
   expect(
     screen.queryByRole('columnheader', { name: 'Monthly spending limit' })
   ).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: 'Batch edit spending limits' })
+  ).not.toBeInTheDocument()
   fireEvent.click(
     screen.getByRole('checkbox', { name: 'Select filtered members' })
   )
+  expect(screen.getByText('Selected 2 members')).toBeVisible()
   fireEvent.click(
     screen.getByRole('button', { name: 'Batch edit spending limits' })
   )
@@ -267,42 +271,39 @@ test('members without caps have no monthly column; managers can select members f
   )
 })
 
-test.each([false, true])(
-  'Edit opens both limits directly with budgets=%s and no monthly column',
-  async (budgets) => {
-    const context = useOrganizationStore.getState().context
-    if (!context) throw new Error('Missing organization fixture')
-    useOrganizationStore.setState({
-      context: {
-        ...context,
-        capabilities: { platform: {}, org: { 'org.member': { write: true } } },
-      },
-    })
-    client.setQueryData(['organization-members', 10], [member])
-    client.setQueryData(['organization-invites', 10], [])
-    client.setQueryData(['organization-summary', 10], { usage: [] })
-    render(
-      <I18nextProvider i18n={i18n}>
-        <QueryClientProvider client={client}>
-          <Members budgets={budgets} />
-        </QueryClientProvider>
-      </I18nextProvider>
-    )
-    expect(
-      screen.queryByRole('columnheader', { name: 'Monthly spending limit' })
-    ).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
-      'Edit spending limits'
-    )
-    expect(
-      screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
-    ).toHaveValue(0)
-    expect(
-      screen.getByRole('spinbutton', { name: /Total spending limit/ })
-    ).toHaveValue(0)
-  }
-)
+test('Set spending limits opens both limits directly with no monthly column', async () => {
+  const context = useOrganizationStore.getState().context
+  if (!context) throw new Error('Missing organization fixture')
+  useOrganizationStore.setState({
+    context: {
+      ...context,
+      capabilities: { platform: {}, org: { 'org.member': { write: true } } },
+    },
+  })
+  client.setQueryData(['organization-members', 10], [member])
+  client.setQueryData(['organization-invites', 10], [])
+  client.setQueryData(['organization-summary', 10], { usage: [] })
+  render(
+    <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={client}>
+        <Members />
+      </QueryClientProvider>
+    </I18nextProvider>
+  )
+  expect(
+    screen.queryByRole('columnheader', { name: 'Monthly spending limit' })
+  ).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Set spending limits' }))
+  expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+    'Edit spending limits'
+  )
+  expect(
+    screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
+  ).toHaveValue(0)
+  expect(
+    screen.getByRole('spinbutton', { name: /Total spending limit/ })
+  ).toHaveValue(0)
+})
 
 test('total and monthly limits show matching usage rows with nonzero reservations', async () => {
   client.setQueryData(
@@ -352,8 +353,8 @@ test('unlimited members still show both usage amounts when the monthly column is
       { ...member, id: 2, user_id: 2, monthly_spend_limit: 1000000 },
       {
         ...member,
-      username: 'unlimited',
-      display_name: 'unlimited',
+        username: 'unlimited',
+        display_name: 'unlimited',
         total_usage: { used: 1500000, reserved: 0 },
         monthly_usage: { used: 500000, reserved: 0 },
       },
@@ -362,7 +363,7 @@ test('unlimited members still show both usage amounts when the monthly column is
   render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
-        <Members budgets />
+        <Members />
       </QueryClientProvider>
     </I18nextProvider>
   )

@@ -46,6 +46,7 @@ import { api } from '@/lib/http-client'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOrganizationStore } from '@/stores/organization-store'
 
+import { Billing } from '../components/Billing'
 import { OrganizationSummary } from '../components/OrganizationSummary'
 import { OrganizationSwitcher } from '../components/OrganizationSwitcher'
 import { useHasTeamOrganizations } from '../context'
@@ -680,5 +681,54 @@ test.each([false, true])(
         '/wallet'
       )
     }
+  }
+)
+
+test.each([false, true])(
+  'billing links to members without duplicating the member table (manager=%s)',
+  async (manage) => {
+    useOrganizationStore.setState({
+      activeOrgID: team.id,
+      context: {
+        ...teamContext,
+        capabilities: {
+          platform: {},
+          org: {
+            'org.billing': { read: manage },
+            'org.member': { write: manage },
+          },
+        },
+      },
+    })
+    client.setQueryData(['organization-summary', team.id], {
+      available_quota: 0,
+      quota: 0,
+      used_quota: 0,
+      budget_limit: 0,
+      usage: [],
+      subscriptions: [],
+    })
+    const requests: string[] = []
+    api.defaults.adapter = async (config) => {
+      requests.push(config.url ?? '')
+      return {
+        config,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: { success: true, data: [] },
+      }
+    }
+    renderPage(Billing)
+    expect(
+      await screen.findByRole('link', {
+        name: manage ? 'Manage member spending limits' : 'Members',
+      })
+    ).toHaveAttribute('href', '/organization/members')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('textbox', { name: 'Search members' })
+    ).not.toBeInTheDocument()
+    expect(requests).not.toContain('/api/org/members')
   }
 )

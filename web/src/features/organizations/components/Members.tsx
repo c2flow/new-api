@@ -58,12 +58,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { MemberLimitsDialog } from './MemberLimitsDialog'
 
-export function Members(props: { budgets?: boolean }) {
+export function Members() {
   const { t } = useTranslation()
   const context = useOrganization()
   const client = useQueryClient()
   const manage = context?.capabilities.org['org.member']?.write === true
-  const team = context !== null
   const resend = useMutation({
     mutationFn: (id: number) =>
       organizationMutation('post', `invites/${id}/resend`),
@@ -90,7 +89,7 @@ export function Members(props: { budgets?: boolean }) {
   const invites = useQuery({
     queryKey: ['organization-invites', context?.organization.id],
     queryFn: getOrganizationInvites,
-    enabled: manage && team && !props.budgets,
+    enabled: manage,
   })
   const revoke = useMutation({
     mutationFn: (id: number) => organizationMutation('delete', `invites/${id}`),
@@ -157,34 +156,30 @@ export function Members(props: { budgets?: boolean }) {
             onChange={(event) => setSearch(event.target.value)}
           />
         </InputGroup>
-        {manage && team && !props.budgets && (
+        {manage && (
           <Button onClick={() => setDialog('invite')}>
             <UserPlus />
             {t('Invite member')}
           </Button>
         )}
       </div>
-      {manage && (
+      {manage && selectedMembers.length > 0 && (
         <div className='bg-muted/30 flex flex-wrap items-center gap-3 rounded-lg border p-3'>
           <span className='text-muted-foreground text-sm'>
             {t('Selected {{count}} members', { count: selectedMembers.length })}
           </span>
           <Button
             variant='outline'
-            disabled={
-              selectedMembers.length === 0 || selectedMembers.length > 500
-            }
+            disabled={selectedMembers.length > 500}
             onClick={() =>
               setLimitsDialog({ members: selectedMembers, batch: true })
             }
           >
             {t('Batch edit spending limits')}
           </Button>
-          {selectedMembers.length > 0 && (
-            <Button variant='ghost' onClick={() => setSelectedIDs([])}>
-              {t('Clear selection')}
-            </Button>
-          )}
+          <Button variant='ghost' onClick={() => setSelectedIDs([])}>
+            {t('Clear selection')}
+          </Button>
         </div>
       )}
       {manage && selectedMembers.length > 500 && (
@@ -192,9 +187,7 @@ export function Members(props: { budgets?: boolean }) {
       )}
       <Card>
         <CardHeader>
-          <CardTitle>
-            {props.budgets ? t('Member spending limits') : t('Members')}
-          </CardTitle>
+          <CardTitle>{t('Members')}</CardTitle>
         </CardHeader>
         <CardContent>
           {members.isPending ? (
@@ -314,7 +307,7 @@ export function Members(props: { budgets?: boolean }) {
                       </TableCell>
                     ))}
                     <TableCell className='text-end'>
-                      {manage && (props.budgets || team) && (
+                      {manage && (
                         <>
                           <Button
                             size='sm'
@@ -327,15 +320,15 @@ export function Members(props: { budgets?: boolean }) {
                               })
                             }
                           >
-                            {t('Edit')}
+                            {t('Set spending limits')}
                           </Button>
-                          {!props.budgets && member.role !== 'owner' && (
+                          {member.role !== 'owner' && (
                             <Button
                               size='sm'
                               variant='ghost'
                               onClick={() => setDialog(member)}
                             >
-                              {t('Edit member')}
+                              {t('Member settings')}
                             </Button>
                           )}
                         </>
@@ -358,7 +351,7 @@ export function Members(props: { budgets?: boolean }) {
           )}
         </CardContent>
       </Card>
-      {manage && team && !props.budgets && (
+      {manage && (
         <Card>
           <CardHeader>
             <CardTitle>{t('Invitations')}</CardTitle>

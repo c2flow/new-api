@@ -21,7 +21,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -34,7 +34,6 @@ import { formatQuotaWithCurrency } from '@/lib/currency'
 
 import { getOrganizationSummary } from '../api'
 import { useOrganization } from '../context'
-import { Members } from './Members'
 
 export function Billing() {
   const { t } = useTranslation()
@@ -43,6 +42,20 @@ export function Billing() {
     queryKey: ['organization-summary', context?.organization.id],
     queryFn: getOrganizationSummary,
   })
+  const membersLink = (
+    <Link
+      to='/organization/$section'
+      params={{ section: 'members' }}
+      className={buttonVariants({
+        variant: 'outline',
+        className: 'self-start',
+      })}
+    >
+      {context?.capabilities.org['org.member']?.write
+        ? t('Manage member spending limits')
+        : t('Members')}
+    </Link>
+  )
   const data = summary.data
   if (!data) return <p role='status'>{t('Loading...')}</p>
   if (!context?.capabilities.org['org.billing']?.read) {
@@ -60,8 +73,7 @@ export function Billing() {
           </CardHeader>
           <CardContent>
             <p>
-              {t('Total spending')}:{' '}
-              {formatQuotaWithCurrency(data.used_quota)}
+              {t('Total spending')}: {formatQuotaWithCurrency(data.used_quota)}
             </p>
             <p>
               {t('Pending reservations')}:{' '}
@@ -69,7 +81,7 @@ export function Billing() {
             </p>
           </CardContent>
         </Card>
-        <Members budgets />
+        {membersLink}
       </div>
     )
   }
@@ -147,11 +159,6 @@ export function Billing() {
           </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-col gap-3'>
-          <p className='text-muted-foreground text-sm'>
-            {t(
-              'Member limits reset with the subscription allowance. Without a subscription, they reset each calendar month.'
-            )}
-          </p>
           {data.budget_limit > 0 && (
             <>
               <Progress value={percent} aria-label={t('Budget usage')} />
@@ -163,7 +170,7 @@ export function Billing() {
           )}
         </CardContent>
       </Card>
-      <Members budgets />
+      {membersLink}
     </div>
   )
 }

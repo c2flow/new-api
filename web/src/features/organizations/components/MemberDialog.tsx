@@ -95,7 +95,7 @@ export function MemberDialog(props: {
   })
   let title = t('Invite member')
   if (props.member) {
-    title = t('Edit member')
+    title = t('Member settings')
   }
   return (
     <Dialog
