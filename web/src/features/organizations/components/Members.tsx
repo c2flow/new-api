@@ -325,15 +325,6 @@ export function Members(props: { budgets?: boolean }) {
                       </>
                     )}
                     <TableCell className='text-end'>
-                      {manage && member.status === 1 && (
-                        <Button
-                          size='sm'
-                          variant='ghost'
-                          onClick={() => setMonthlyMembers([member])}
-                        >
-                          {t('Set monthly limit')}
-                        </Button>
-                      )}
                       {manage &&
                         (props.budgets ||
                           (team && member.role !== 'owner')) && (

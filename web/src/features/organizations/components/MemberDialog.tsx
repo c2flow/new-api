@@ -62,6 +62,7 @@ export function MemberDialog(props: {
       .number()
       .min(0)
       .max(Number.MAX_SAFE_INTEGER / getCurrencyDisplay().config.quotaPerUnit),
+    monthlyLimit: z.number().min(0).max(Number.MAX_SAFE_INTEGER / getCurrencyDisplay().config.quotaPerUnit),
   })
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -72,6 +73,9 @@ export function MemberDialog(props: {
       limit:
         (props.member?.spend_limit ?? 0) /
         getCurrencyDisplay().config.quotaPerUnit,
+      monthlyLimit:
+        (props.member?.monthly_spend_limit ?? 0) /
+        getCurrencyDisplay().config.quotaPerUnit,
     },
   })
   const mutation = useMutation({
@@ -80,11 +84,15 @@ export function MemberDialog(props: {
         const spend_limit = Math.round(
           values.limit * getCurrencyDisplay().config.quotaPerUnit
         )
+        const monthly_spend_limit = Math.round(
+          values.monthlyLimit * getCurrencyDisplay().config.quotaPerUnit
+        )
         const path = `members/${props.member.user_id}${props.budget ? '/budget' : ''}`
         await organizationMutation('put', path, {
           role: values.role,
           status: Number(values.status),
           spend_limit,
+          ...(!props.budget ? { monthly_spend_limit } : {}),
         })
       } else {
         if (!values.username) {
@@ -145,6 +153,13 @@ export function MemberDialog(props: {
                     {form.formState.errors.username?.message}
                   </FieldDescription>
                 </Field>
+                {!props.budget && (
+                  <Field data-invalid={!!form.formState.errors.monthlyLimit}>
+                    <FieldLabel htmlFor='member-monthly-limit'>{t('Monthly spending limit (USD)')}</FieldLabel>
+                    <Input id='member-monthly-limit' type='number' step='0.01' min='0' {...form.register('monthlyLimit', { valueAsNumber: true })} />
+                    <FieldDescription>{t('Zero means unlimited. Resets on the first day of each month at 00:00 Beijing time.')}</FieldDescription>
+                  </Field>
+                )}
                 <Field>
                   <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
                   <NativeSelect id='member-role' {...form.register('role')}>

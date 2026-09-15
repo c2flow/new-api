@@ -152,15 +152,16 @@ func UpdateOrganizationMember(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Role       string `json:"role"`
-		Status     int    `json:"status"`
-		SpendLimit int64  `json:"spend_limit"`
+		Role              string `json:"role"`
+		Status            int    `json:"status"`
+		SpendLimit        int64  `json:"spend_limit"`
+		MonthlySpendLimit int64  `json:"monthly_spend_limit"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	if err := model.UpdateOrganizationMember(c.GetInt("org_id"), c.GetInt("id"), userID, input.Role, input.Status, input.SpendLimit); err != nil {
+	if err := model.UpdateOrganizationMember(c.GetInt("org_id"), c.GetInt("id"), userID, input.Role, input.Status, input.SpendLimit, input.MonthlySpendLimit); err != nil {
 		organizationError(c, err)
 		return
 	}
