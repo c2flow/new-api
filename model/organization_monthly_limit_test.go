@@ -18,7 +18,7 @@ func TestOrganizationMonthlyLimitIsOptionalAndIndependent(t *testing.T) {
 	receipt, err := ReserveOrganizationCharge(org.Id, uid, 0, "before-enabled", 150)
 	require.NoError(t, err)
 	require.NoError(t, FinalizeOrganizationCharge(org.Id, receipt.RequestId, 120, false))
-	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{uid}, 130))
+	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{uid}, 130))
 	// Existing spending counts even when it predates enabling the cap.
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "over-month", 11)
 	assert.ErrorIs(t, err, ErrMemberSpendLimit)
@@ -31,11 +31,12 @@ func TestOrganizationMonthlyLimitIsOptionalAndIndependent(t *testing.T) {
 	require.NoError(t, FinalizeOrganizationCharge(org.Id, "remaining-month", 0, true))
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "refund-releases", 10)
 	require.NoError(t, err)
-	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{uid}, 0))
+	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{uid}, 0))
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "disabled-month", 200)
 	require.NoError(t, err)
 	// The total cap still works independently.
-	require.NoError(t, SetOrganizationMemberBudget(org.Id, users[0].Id, uid, 210))
+	total := int64(210)
+	require.NoError(t, SetOrganizationMemberLimits(org.Id, users[0].Id, []int{uid}, &total, nil))
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "old-budget", 1)
 	assert.ErrorIs(t, err, ErrMemberSpendLimit)
 }
@@ -50,7 +51,7 @@ func TestOrganizationTotalLimitSurvivesPeriodsAndMonths(t *testing.T) {
 	// Changing both the budget period and month must not release total allowance.
 	require.NoError(t, db.Model(charge).Updates(map[string]interface{}{"period_start": 1, "created_at": month - 1}).Error)
 	require.NoError(t, db.Model(org).Updates(map[string]interface{}{"budget_period_start": 2, "budget_period_end": common.GetTimestamp() + 3600}).Error)
-	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{uid}, 100))
+	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{uid}, 100))
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "above-total", 81)
 	assert.ErrorIs(t, err, ErrMemberSpendLimit)
 	current, err := ReserveOrganizationCharge(org.Id, uid, 0, "remaining-total", 80)
@@ -95,19 +96,19 @@ func TestOrganizationLimitsPatchIsAtomicAndPreservesOmittedFields(t *testing.T) 
 func TestOrganizationMonthlyLimitBatchIsAtomicAndAuthorized(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
 	ids := []int{users[0].Id, users[1].Id}
-	assert.Error(t, SetOrganizationMemberMonthlyLimits(org.Id, users[1].Id, ids, 99))
-	assert.Error(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{ids[0], 999999}, 99))
+	assert.Error(t, setMonthlyLimitForTest(org.Id, users[1].Id, ids, 99))
+	assert.Error(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{ids[0], 999999}, 99))
 	for _, invalid := range [][]int{nil, {ids[0], ids[0]}, {-1}} {
-		assert.ErrorIs(t, SetOrganizationMemberMonthlyLimits(org.Id, ids[0], invalid, 10), ErrOrganizationInput)
+		assert.ErrorIs(t, setMonthlyLimitForTest(org.Id, ids[0], invalid, 10), ErrOrganizationInput)
 	}
-	assert.ErrorIs(t, SetOrganizationMemberMonthlyLimits(org.Id, ids[0], ids, -1), ErrOrganizationInput)
-	assert.ErrorIs(t, SetOrganizationMemberMonthlyLimits(org.Id, ids[0], ids, int64(common.MaxWalletQuota)+1), ErrOrganizationInput)
+	assert.ErrorIs(t, setMonthlyLimitForTest(org.Id, ids[0], ids, -1), ErrOrganizationInput)
+	assert.ErrorIs(t, setMonthlyLimitForTest(org.Id, ids[0], ids, int64(common.MaxWalletQuota)+1), ErrOrganizationInput)
 	var members []OrganizationMember
 	require.NoError(t, db.Where("org_id = ?", org.Id).Order("user_id").Find(&members).Error)
 	for _, member := range members {
 		assert.Zero(t, member.MonthlySpendLimit)
 	}
-	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, ids[0], ids, 99))
+	require.NoError(t, setMonthlyLimitForTest(org.Id, ids[0], ids, 99))
 	var updated []OrganizationMember
 	require.NoError(t, db.Where("org_id = ?", org.Id).Order("user_id").Find(&updated).Error)
 	for i := range members {
@@ -128,7 +129,7 @@ func TestOrganizationMonthlyWindowAndCrossMonthRefund(t *testing.T) {
 	assert.Equal(t, boundary, previousEnd)
 	db, org, users := organizationBillingFixture(t)
 	uid := users[1].Id
-	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{uid}, 100))
+	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{uid}, 100))
 	r, err := ReserveOrganizationCharge(org.Id, uid, 0, "old-month", 100)
 	require.NoError(t, err)
 	currentStart, _ := OrganizationMonthlyWindow(time.Now().Unix())
@@ -151,7 +152,7 @@ func TestOrganizationMonthlyLimitConcurrentReservations(t *testing.T) {
 	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
 		sqlDB.SetMaxOpenConns(1)
 	}
-	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{users[1].Id}, 100))
+	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{users[1].Id}, 100))
 	start := make(chan struct{})
 	results := make(chan error, 2)
 	var wg sync.WaitGroup
@@ -199,7 +200,7 @@ func TestOrganizationMonthlyLimitUpgradePreservesMembers(t *testing.T) {
 func TestOrganizationMonthlyLimitCombinesWalletAndSubscription(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
 	uid := users[1].Id
-	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{uid}, 150))
+	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{uid}, 150))
 	_, err := ReserveOrganizationCharge(org.Id, uid, 0, "wallet-monthly", 50)
 	require.NoError(t, err)
 	require.NoError(t, FinalizeOrganizationCharge(org.Id, "wallet-monthly", 50, false))
@@ -223,4 +224,8 @@ func TestOrganizationMonthlyLimitCombinesWalletAndSubscription(t *testing.T) {
 	assert.Zero(t, sub.AmountUsed)
 	require.NoError(t, db.First(org, org.Id).Error)
 	assert.Equal(t, int64(950), org.Quota)
+}
+
+func setMonthlyLimitForTest(orgID, actorID int, userIDs []int, limit int64) error {
+	return SetOrganizationMemberLimits(orgID, actorID, userIDs, nil, &limit)
 }

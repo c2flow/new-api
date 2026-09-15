@@ -39,7 +39,6 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
-import { getCurrencyDisplay } from '@/lib/currency'
 import { getServerErrorMessageKey } from '@/lib/server-error-message'
 
 import { organizationMutation } from '../api'
@@ -48,7 +47,6 @@ import type { OrganizationMember } from '../types'
 
 export function MemberDialog(props: {
   member?: OrganizationMember
-  budget?: boolean
   close: () => void
 }) {
   const { t } = useTranslation()
@@ -58,10 +56,6 @@ export function MemberDialog(props: {
     username: z.string().trim(),
     role: z.enum(['admin', 'member']),
     status: z.enum(['1', '2', '3']),
-    limit: z
-      .number()
-      .min(0)
-      .max(Number.MAX_SAFE_INTEGER / getCurrencyDisplay().config.quotaPerUnit),
   })
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -69,22 +63,14 @@ export function MemberDialog(props: {
       username: props.member?.username ?? '',
       role: props.member?.role === 'admin' ? 'admin' : 'member',
       status: String(props.member?.status ?? 1) as '1' | '2' | '3',
-      limit:
-        (props.member?.spend_limit ?? 0) /
-        getCurrencyDisplay().config.quotaPerUnit,
     },
   })
   const mutation = useMutation({
     mutationFn: async (values: z.infer<typeof schema>) => {
       if (props.member) {
-        const spend_limit = Math.round(
-          values.limit * getCurrencyDisplay().config.quotaPerUnit
-        )
-        const path = `members/${props.member.user_id}${props.budget ? '/budget' : ''}`
-        await organizationMutation('put', path, {
+        await organizationMutation('put', `members/${props.member.user_id}`, {
           role: values.role,
           status: Number(values.status),
-          spend_limit,
         })
       } else {
         if (!values.username) {
@@ -109,7 +95,7 @@ export function MemberDialog(props: {
   })
   let title = t('Invite member')
   if (props.member) {
-    title = props.budget ? t('Set spending limit') : t('Edit member')
+    title = t('Edit member')
   }
   return (
     <Dialog
@@ -128,82 +114,50 @@ export function MemberDialog(props: {
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup>
-            {!props.budget && (
-              <>
-                <Field data-invalid={!!form.formState.errors.username}>
-                  <FieldLabel htmlFor='member-username'>
-                    {t('Username')}
-                  </FieldLabel>
-                  <Input
-                    id='member-username'
-                    type='text'
-                    disabled={!!props.member}
-                    aria-invalid={!!form.formState.errors.username}
-                    {...form.register('username')}
-                  />
-                  <FieldDescription>
-                    {form.formState.errors.username?.message}
-                  </FieldDescription>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
-                  <NativeSelect id='member-role' {...form.register('role')}>
-                    <NativeSelectOption value='member'>
-                      {t('Member')}
-                    </NativeSelectOption>
-                    <NativeSelectOption value='admin'>
-                      {t('Admin')}
-                    </NativeSelectOption>
-                  </NativeSelect>
-                </Field>
-              </>
-            )}
+            <Field data-invalid={!!form.formState.errors.username}>
+              <FieldLabel htmlFor='member-username'>{t('Username')}</FieldLabel>
+              <Input
+                id='member-username'
+                type='text'
+                disabled={!!props.member}
+                aria-invalid={!!form.formState.errors.username}
+                {...form.register('username')}
+              />
+              <FieldDescription>
+                {form.formState.errors.username?.message}
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
+              <NativeSelect id='member-role' {...form.register('role')}>
+                <NativeSelectOption value='member'>
+                  {t('Member')}
+                </NativeSelectOption>
+                <NativeSelectOption value='admin'>
+                  {t('Admin')}
+                </NativeSelectOption>
+              </NativeSelect>
+            </Field>
             {props.member && (
-              <>
-                <Field data-invalid={!!form.formState.errors.limit}>
-                  <FieldLabel htmlFor='member-limit'>
-                    {t('Total spending limit')} (USD)
-                  </FieldLabel>
-                  <Input
-                    id='member-limit'
-                    type='number'
-                    step='0.01'
-                    min='0'
-                    {...form.register('limit', { valueAsNumber: true })}
-                  />
-                  <FieldDescription>
-                    {t(
-                      'Zero means unlimited. This limit does not reserve money from the shared pool.'
-                    )}
-                  </FieldDescription>
-                </Field>
-                {!props.budget && (
-                  <Field>
-                    <FieldLabel htmlFor='member-status'>
-                      {t('Status')}
-                    </FieldLabel>
-                    <NativeSelect
-                      id='member-status'
-                      {...form.register('status')}
-                    >
-                      <NativeSelectOption value='1'>
-                        {t('Active')}
-                      </NativeSelectOption>
-                      <NativeSelectOption value='2'>
-                        {t('Disabled')}
-                      </NativeSelectOption>
-                      <NativeSelectOption value='3'>
-                        {t('Removed')}
-                      </NativeSelectOption>
-                    </NativeSelect>
-                    <FieldDescription>
-                      {t(
-                        'Disabling or removing a member disables their organization API keys. Historical usage is retained.'
-                      )}
-                    </FieldDescription>
-                  </Field>
-                )}
-              </>
+              <Field>
+                <FieldLabel htmlFor='member-status'>{t('Status')}</FieldLabel>
+                <NativeSelect id='member-status' {...form.register('status')}>
+                  <NativeSelectOption value='1'>
+                    {t('Active')}
+                  </NativeSelectOption>
+                  <NativeSelectOption value='2'>
+                    {t('Disabled')}
+                  </NativeSelectOption>
+                  <NativeSelectOption value='3'>
+                    {t('Removed')}
+                  </NativeSelectOption>
+                </NativeSelect>
+                <FieldDescription>
+                  {t(
+                    'Disabling or removing a member disables their organization API keys. Historical usage is retained.'
+                  )}
+                </FieldDescription>
+              </Field>
             )}
             {mutation.isError && (
               <p role='alert' className='text-destructive text-sm'>

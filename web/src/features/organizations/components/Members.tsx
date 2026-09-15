@@ -241,12 +241,6 @@ export function Members(props: { budgets?: boolean }) {
                       </span>
                     </TableHead>
                   )}
-                  {props.budgets && (
-                    <>
-                      <TableHead>{t('Total spending')}</TableHead>
-                      <TableHead>{t('Pending reservations')}</TableHead>
-                    </>
-                  )}
                   <TableHead className='text-end'>{t('Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -285,51 +279,40 @@ export function Members(props: { budgets?: boolean }) {
                     <TableCell>
                       {member.status === 1 ? t('Active') : t('Inactive')}
                     </TableCell>
-                    <TableCell>
-                      {member.spend_limit
-                        ? formatQuotaWithCurrency(member.spend_limit)
-                        : t('Unlimited')}
-                    </TableCell>
-                    {showMonthly && (
-                      <TableCell>
-                        {(member.monthly_spend_limit ?? 0) > 0 ? (
-                          <>
-                            <p>
-                              {formatQuotaWithCurrency(
-                                member.monthly_spend_limit ?? 0
-                              )}
-                            </p>
-                            <p className='text-muted-foreground text-xs'>
-                              {t('Remaining')}:{' '}
-                              {formatQuotaWithCurrency(
-                                Math.max(
-                                  0,
-                                  (member.monthly_spend_limit ?? 0) -
-                                    (member.monthly_usage?.used ?? 0) -
-                                    (member.monthly_usage?.reserved ?? 0)
-                                )
-                              )}
-                            </p>
-                          </>
-                        ) : (
-                          '—'
+                    {[
+                      {
+                        key: 'total',
+                        limit: member.spend_limit,
+                        usage: member.total_usage,
+                      },
+                      ...(showMonthly
+                        ? [
+                            {
+                              key: 'monthly',
+                              limit: member.monthly_spend_limit,
+                              usage: member.monthly_usage,
+                            },
+                          ]
+                        : []),
+                    ].map(({ key, limit, usage }) => (
+                      <TableCell key={key} className='tabular-nums'>
+                        <p>
+                          {limit
+                            ? formatQuotaWithCurrency(limit)
+                            : t('Unlimited')}
+                        </p>
+                        <p className='text-muted-foreground text-xs'>
+                          {t('Used')}:{' '}
+                          {formatQuotaWithCurrency(usage?.used ?? 0)}
+                        </p>
+                        {(usage?.reserved ?? 0) > 0 && (
+                          <p className='text-muted-foreground text-xs'>
+                            {t('Pending reservations')}:{' '}
+                            {formatQuotaWithCurrency(usage?.reserved ?? 0)}
+                          </p>
                         )}
                       </TableCell>
-                    )}
-                    {props.budgets && (
-                      <>
-                        <TableCell>
-                          {formatQuotaWithCurrency(
-                            member.total_usage?.used ?? 0
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {formatQuotaWithCurrency(
-                            member.total_usage?.reserved ?? 0
-                          )}
-                        </TableCell>
-                      </>
-                    )}
+                    ))}
                     <TableCell className='text-end'>
                       {manage && (props.budgets || team) && (
                         <>
@@ -433,7 +416,6 @@ export function Members(props: { budgets?: boolean }) {
       {dialog && (
         <MemberDialog
           member={dialog === 'invite' ? undefined : dialog}
-          budget={props.budgets}
           close={() => setDialog(null)}
         />
       )}

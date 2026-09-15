@@ -83,8 +83,8 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 	org.GET("/context", GetOrganizationContext)
 	org.GET("/members", GetOrganizationMembers)
 	org.GET("/summary", GetOrganizationSummary)
-	org.PUT("/members/monthly-limit", middleware.RequireOrgPermission("org.member", "write"), SetOrganizationMemberMonthlyLimits)
 	org.PUT("/members/limits", middleware.RequireOrgPermission("org.member", "write"), SetOrganizationMemberLimits)
+	org.PUT("/members/:user_id", middleware.RequireOrgPermission("org.member", "write"), UpdateOrganizationMember)
 
 	request := func(method, path, header, body string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, bytes.NewBufferString(body))
@@ -133,17 +133,58 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		assert.NotContains(t, result.Body.String(), `"kind":"personal"`)
 	})
 
-	t.Run("monthly limit is optional and batch settings are exposed only when enabled", func(t *testing.T) {
+	t.Run("monthly usage is available independently of limits", func(t *testing.T) {
 		path := fmt.Sprint(team.Id)
 		result := request("GET", "/org/members", path, "")
 		require.Equal(t, 200, result.Code)
-		assert.NotContains(t, result.Body.String(), "monthly_usage")
-		result = request("PUT", "/org/members/monthly-limit", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":100}`, owner.Id))
+		assert.Contains(t, result.Body.String(), "monthly_usage")
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":100}`, owner.Id))
 		require.Equal(t, 200, result.Code, result.Body.String())
 		result = request("GET", "/org/members", path, "")
 		require.Equal(t, 200, result.Code, result.Body.String())
 		assert.Contains(t, result.Body.String(), `"monthly_spend_limit":100`)
 		assert.Contains(t, result.Body.String(), `"monthly_usage"`)
+		unlimited := model.User{Username: "unlimited-usage", AffCode: "unlimited-usage", Status: 1}
+		require.NoError(t, db.Create(&unlimited).Error)
+		membership := model.OrganizationMember{OrgId: team.Id, UserId: unlimited.Id, Role: model.OrgRoleMember, Status: model.OrganizationActive}
+		require.NoError(t, db.Create(&membership).Error)
+		monthlyCharge := model.OrganizationCharge{OrgId: team.Id, UserId: unlimited.Id, RequestId: "unlimited-monthly-usage", Quota: 17, Status: "settled", CreatedAt: common.GetTimestamp()}
+		require.NoError(t, db.Create(&monthlyCharge).Error)
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":0}`, owner.Id))
+		require.Equal(t, 200, result.Code)
+		result = request("GET", "/org/members", path, "")
+		var response struct {
+			Data []struct {
+				UserID       int                            `json:"user_id"`
+				MonthlyUsage *model.OrganizationBudgetUsage `json:"monthly_usage"`
+			} `json:"data"`
+		}
+		require.NoError(t, common.Unmarshal(result.Body.Bytes(), &response))
+		found := false
+		for _, member := range response.Data {
+			if member.UserID == unlimited.Id {
+				found = true
+				require.NotNil(t, member.MonthlyUsage)
+				assert.Equal(t, int64(17), member.MonthlyUsage.Used)
+			}
+		}
+		require.True(t, found)
+		// Identity-only edits must preserve limits even if stale clients send them.
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"spend_limit":200,"monthly_spend_limit":100}`, unlimited.Id))
+		require.Equal(t, 200, result.Code)
+		for _, extra := range []string{"", `,"spend_limit":0,"monthly_spend_limit":0`} {
+			result = request("PUT", fmt.Sprintf("/org/members/%d", unlimited.Id), path, `{"role":"admin","status":1`+extra+`}`)
+			require.Equal(t, 200, result.Code)
+			require.NoError(t, db.First(&membership, membership.Id).Error)
+			assert.Equal(t, model.OrgRoleAdmin, membership.Role)
+			assert.Equal(t, int64(200), membership.SpendLimit)
+			assert.Equal(t, int64(100), membership.MonthlySpendLimit)
+		}
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":100}`, owner.Id))
+		require.Equal(t, 200, result.Code)
+		require.NoError(t, db.Delete(&monthlyCharge).Error)
+		require.NoError(t, db.Delete(&membership).Error)
+		require.NoError(t, db.Unscoped().Delete(&unlimited).Error)
 		require.NoError(t, db.Model(team).Update("quota", 1000).Error)
 		charge := model.OrganizationCharge{OrgId: team.Id, UserId: owner.Id, RequestId: "monthly-summary", Quota: 40, Status: "reserved", CreatedAt: common.GetTimestamp()}
 		require.NoError(t, db.Create(&charge).Error)
@@ -154,13 +195,13 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		require.NoError(t, db.Model(team).Update("quota", 0).Error)
 
 		for _, body := range []string{`{}`, `{"user_ids":[],"monthly_spend_limit":0}`, fmt.Sprintf(`{"user_ids":[%d]}`, owner.Id)} {
-			result = request("PUT", "/org/members/monthly-limit", path, body)
+			result = request("PUT", "/org/members/limits", path, body)
 			assert.Equal(t, 400, result.Code)
 		}
-		result = request("PUT", "/org/members/monthly-limit", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":0}`, owner.Id))
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":0}`, owner.Id))
 		require.Equal(t, 200, result.Code)
 		result = request("GET", "/org/members", path, "")
-		assert.NotContains(t, result.Body.String(), "monthly_usage")
+		assert.Contains(t, result.Body.String(), "monthly_usage")
 	})
 	t.Run("member total limit includes historical periods and supports partial limit updates", func(t *testing.T) {
 		path := fmt.Sprint(team.Id)

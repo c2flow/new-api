@@ -48,7 +48,7 @@ func TestOrganizationMembershipIsIndependentOfCachedToken(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = GetOrganizationMembership(org.Id, token.UserId)
 	require.NoError(t, err)
-	require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, OrganizationDisabled, 200))
+	require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, OrganizationDisabled))
 	_, err = ValidateUserToken(token.Key)
 	assert.ErrorIs(t, err, ErrTokenInvalid, "member revocation must invalidate a warm relay token cache")
 }

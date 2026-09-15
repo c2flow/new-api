@@ -26,7 +26,7 @@ func TestOrganizationMemberRevocationDisablesOnlyTheirKeysAndPreservesSettlement
 			require.NoError(t, err)
 			_, err = ReserveOrganizationRequest(org.Id, users[1].Id, keys[0].Id, "before-disable-refund", 50)
 			require.NoError(t, err)
-			require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, status, 200))
+			require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, status))
 			for i, key := range keys {
 				var saved Token
 				require.NoError(t, db.First(&saved, key.Id).Error)
@@ -48,7 +48,7 @@ func TestOrganizationMemberRevocationDisablesOnlyTheirKeysAndPreservesSettlement
 			require.NoError(t, db.First(org, org.Id).Error)
 			assert.Equal(t, int64(920), org.Quota)
 			assert.Equal(t, int64(80), org.UsedQuota)
-			require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, OrganizationActive, 200))
+			require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, OrganizationActive))
 			_, err = ValidateUserToken(keys[0].Key)
 			assert.ErrorIs(t, err, ErrTokenInvalid, "restoring membership must not revive old keys")
 			scope := TokenScope{OrgID: org.Id, UserID: users[1].Id}

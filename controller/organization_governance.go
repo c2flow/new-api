@@ -136,26 +136,6 @@ func UpdateOrganizationSettings(c *gin.Context) {
 	common.ApiSuccess(c, nil)
 }
 
-func SetOrganizationMemberBudget(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		organizationError(c, model.ErrOrganizationInput)
-		return
-	}
-	var input struct {
-		SpendLimit int64 `json:"spend_limit"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		organizationError(c, model.ErrOrganizationInput)
-		return
-	}
-	if err := model.SetOrganizationMemberBudget(c.GetInt("org_id"), c.GetInt("id"), userID, input.SpendLimit); err != nil {
-		organizationError(c, err)
-		return
-	}
-	common.ApiSuccess(c, nil)
-}
-
 func GetOrganizationDeletionImpact(c *gin.Context) {
 	orgID, err := strconv.Atoi(c.Param("org_id"))
 	if err != nil {
@@ -248,22 +228,6 @@ func GetOrganizationOrders(c *gin.Context) {
 	page.SetTotal(int(total))
 	page.SetItems(items)
 	common.ApiSuccess(c, page)
-}
-
-func SetOrganizationMemberMonthlyLimits(c *gin.Context) {
-	var input struct {
-		UserIDs []int  `json:"user_ids"`
-		Limit   *int64 `json:"monthly_spend_limit"`
-	}
-	if c.ShouldBindJSON(&input) != nil || input.Limit == nil {
-		organizationError(c, model.ErrOrganizationInput)
-		return
-	}
-	if err := model.SetOrganizationMemberMonthlyLimits(c.GetInt("org_id"), c.GetInt("id"), input.UserIDs, *input.Limit); err != nil {
-		organizationError(c, err)
-		return
-	}
-	common.ApiSuccess(c, nil)
 }
 
 func SetOrganizationMemberLimits(c *gin.Context) {

@@ -23,6 +23,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { createInstance } from 'i18next'
@@ -303,13 +304,15 @@ test.each([false, true])(
   }
 )
 
-test('ordinary members see monthly usage only when their cap is enabled', async () => {
+test('total and monthly limits show matching usage rows with nonzero reservations', async () => {
   client.setQueryData(
     ['organization-members', 10],
     [
       {
         ...member,
         monthly_spend_limit: 1000000,
+        spend_limit: 2000000,
+        total_usage: { used: 500000, reserved: 0 },
         monthly_usage: { used: 100, reserved: 200 },
         monthly_reset_at: 1790784000,
       },
@@ -326,8 +329,12 @@ test('ordinary members see monthly usage only when their cap is enabled', async 
     screen.getByRole('columnheader', { name: 'Monthly spending limit' })
   ).toBeVisible()
   expect(screen.queryByText(/Next reset/)).not.toBeInTheDocument()
-  expect(screen.queryByText(/Pending reservations/)).not.toBeInTheDocument()
-  expect(screen.getByText(/Remaining/)).toBeVisible()
+  expect(screen.getAllByText(/^Used:/)).toHaveLength(2)
+  expect(screen.getAllByText(/Pending reservations/)).toHaveLength(1)
+  expect(screen.queryByText(/Remaining/)).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('columnheader', { name: 'Total spending' })
+  ).not.toBeInTheDocument()
   expect(screen.getByText('Monthly spending limit')).toHaveAttribute(
     'title',
     'Resets on the first day of each month at 00:00 Beijing time.'
@@ -335,5 +342,37 @@ test('ordinary members see monthly usage only when their cap is enabled', async 
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   expect(
     screen.queryByRole('button', { name: 'Set monthly limit' })
+  ).not.toBeInTheDocument()
+})
+
+test('unlimited members still show both usage amounts when the monthly column is visible', () => {
+  client.setQueryData(
+    ['organization-members', 10],
+    [
+      { ...member, id: 2, user_id: 2, monthly_spend_limit: 1000000 },
+      {
+        ...member,
+      username: 'unlimited',
+      display_name: 'unlimited',
+        total_usage: { used: 1500000, reserved: 0 },
+        monthly_usage: { used: 500000, reserved: 0 },
+      },
+    ]
+  )
+  render(
+    <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={client}>
+        <Members budgets />
+      </QueryClientProvider>
+    </I18nextProvider>
+  )
+  const row = within(screen.getByRole('row', { name: /unlimited/ }))
+  expect(row.getAllByText('Unlimited')).toHaveLength(2)
+  expect(row.getAllByText(/^Used:/)).toHaveLength(2)
+  expect(row.getByText('Used: $3')).toBeVisible()
+  expect(row.getByText('Used: $1')).toBeVisible()
+  expect(row.queryByText(/Pending reservations/)).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('columnheader', { name: 'Total spending' })
   ).not.toBeInTheDocument()
 })

@@ -15,12 +15,6 @@ func OrganizationMonthlyWindow(timestamp int64) (int64, int64) {
 	return start.Unix(), start.AddDate(0, 1, 0).Unix()
 }
 
-// SetOrganizationMemberMonthlyLimits atomically overrides only the optional monthly cap.
-// Zero disables the cap; total caps and roles are never changed.
-func SetOrganizationMemberMonthlyLimits(orgID, actorID int, userIDs []int, limit int64) error {
-	return SetOrganizationMemberLimits(orgID, actorID, userIDs, nil, &limit)
-}
-
 // SetOrganizationMemberLimits patches only supplied limits. Zero removes a limit.
 func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, total, monthly *int64) error {
 	if len(userIDs) == 0 || len(userIDs) > 500 || (total == nil && monthly == nil) {

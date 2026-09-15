@@ -216,8 +216,8 @@ func AcceptOrganizationInvite(userID, inviteID int) (int, error) {
 	return acceptedOrgID, err
 }
 
-func UpdateOrganizationMember(orgID, actorID, userID int, role string, status int, spendLimit int64) error {
-	if (role != OrgRoleAdmin && role != OrgRoleMember) || (status != OrganizationActive && status != OrganizationDisabled && status != OrganizationDeleting) || spendLimit < 0 || spendLimit > int64(common.MaxWalletQuota) {
+func UpdateOrganizationMember(orgID, actorID, userID int, role string, status int) error {
+	if (role != OrgRoleAdmin && role != OrgRoleMember) || (status != OrganizationActive && status != OrganizationDisabled && status != OrganizationDeleting) {
 		return ErrOrganizationInput
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
@@ -252,7 +252,7 @@ func UpdateOrganizationMember(orgID, actorID, userID int, role string, status in
 				return err
 			}
 		}
-		if err := tx.Model(&member).Updates(map[string]interface{}{"role": role, "status": status, "spend_limit": spendLimit}).Error; err != nil {
+		if err := tx.Model(&member).Updates(map[string]interface{}{"role": role, "status": status}).Error; err != nil {
 			return err
 		}
 		return tx.Create(&OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "member.update", ObjectId: fmt.Sprint(userID), Result: "success"}).Error

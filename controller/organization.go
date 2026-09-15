@@ -133,16 +133,14 @@ func GetOrganizationMembers(c *gin.Context) {
 		members[i].TotalUsage = totals[members[i].UserId]
 		members[i].TotalUsage.UserId = members[i].UserId
 	}
-	var limitedIDs []int
+	var memberIDs []int
 	for _, member := range members {
-		if member.MonthlySpendLimit > 0 {
-			limitedIDs = append(limitedIDs, member.UserId)
-		}
+		memberIDs = append(memberIDs, member.UserId)
 	}
-	if len(limitedIDs) > 0 {
+	if len(memberIDs) > 0 {
 		start, end := model.OrganizationMonthlyWindow(common.GetTimestamp())
 		var usage []model.OrganizationBudgetUsage
-		err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(c.GetInt("org_id"))).Where("user_id IN ? AND created_at >= ? AND created_at < ?", limitedIDs, start, end).Select("user_id, SUM(CASE WHEN status = 'settled' THEN quota ELSE 0 END) AS used, SUM(CASE WHEN status = 'reserved' THEN quota ELSE 0 END) AS reserved").Group("user_id").Scan(&usage).Error
+		err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(c.GetInt("org_id"))).Where("user_id IN ? AND created_at >= ? AND created_at < ?", memberIDs, start, end).Select("user_id, SUM(CASE WHEN status = 'settled' THEN quota ELSE 0 END) AS used, SUM(CASE WHEN status = 'reserved' THEN quota ELSE 0 END) AS reserved").Group("user_id").Scan(&usage).Error
 		if err != nil {
 			common.ApiError(c, err)
 			return
@@ -152,12 +150,10 @@ func GetOrganizationMembers(c *gin.Context) {
 			byUser[row.UserId] = row
 		}
 		for i := range members {
-			if members[i].MonthlySpendLimit > 0 {
-				row := byUser[members[i].UserId]
-				row.UserId = members[i].UserId
-				members[i].MonthlyUsage = &row
-				members[i].MonthlyResetAt = end
-			}
+			row := byUser[members[i].UserId]
+			row.UserId = members[i].UserId
+			members[i].MonthlyUsage = &row
+			members[i].MonthlyResetAt = end
 		}
 	}
 	common.ApiSuccess(c, members)
@@ -170,15 +166,14 @@ func UpdateOrganizationMember(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Role       string `json:"role"`
-		Status     int    `json:"status"`
-		SpendLimit int64  `json:"spend_limit"`
+		Role   string `json:"role"`
+		Status int    `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	if err := model.UpdateOrganizationMember(c.GetInt("org_id"), c.GetInt("id"), userID, input.Role, input.Status, input.SpendLimit); err != nil {
+	if err := model.UpdateOrganizationMember(c.GetInt("org_id"), c.GetInt("id"), userID, input.Role, input.Status); err != nil {
 		organizationError(c, err)
 		return
 	}

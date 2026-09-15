@@ -174,7 +174,7 @@ test('a rejected invitation preserves the username and presents the server error
   expect(close).not.toHaveBeenCalled()
 })
 
-test('saving a member budget sends the converted quota to the budget endpoint without exposing role controls', async () => {
+test('editing member identity does not submit spending limits', async () => {
   const close = vi.fn()
   renderDialog({
     close,
@@ -184,15 +184,13 @@ test('saving a member budget sends the converted quota to the budget endpoint wi
       role: 'member',
       email: 'member@example.test',
     },
-    budget: true,
   })
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
-  fireEvent.change(
-    screen.getByRole('spinbutton', { name: 'Total spending limit (USD)' }),
-    { target: { value: '12.50' } }
-  )
+  expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+  fireEvent.change(screen.getByRole('combobox', { name: 'Role' }), {
+    target: { value: 'admin' },
+  })
   fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
   await waitFor(() => expect(close).toHaveBeenCalledOnce())
-  expect(requests[0].url).toBe('/api/org/members/2/budget')
-  expect(JSON.parse(requests[0].data).spend_limit).toBe(6250000)
+  expect(requests[0].url).toBe('/api/org/members/2')
+  expect(JSON.parse(requests[0].data)).toEqual({ role: 'admin', status: 1 })
 })

@@ -108,12 +108,12 @@ func TestOrganizationInvitationRequiresMatchingIdentityAndPreservesAssets(t *tes
 	assert.ErrorIs(t, err, ErrOrganizationAccess)
 	key := Token{OrgId: org.Id, UserId: users[1].Id, Key: "retained-key"}
 	require.NoError(t, db.Create(&key).Error)
-	require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, OrganizationDeleting, 100))
+	require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, users[1].Id, OrgRoleMember, OrganizationDeleting))
 	_, _, err = GetOrganizationMembership(org.Id, users[1].Id)
 	assert.ErrorIs(t, err, ErrOrganizationAccess)
 	require.NoError(t, db.First(&key, key.Id).Error)
 	assert.Equal(t, org.Id, key.OrgId)
-	assert.ErrorIs(t, UpdateOrganizationMember(org.Id, users[0].Id, users[0].Id, OrgRoleAdmin, OrganizationDeleting, 0), ErrOrganizationOwner)
+	assert.ErrorIs(t, UpdateOrganizationMember(org.Id, users[0].Id, users[0].Id, OrgRoleAdmin, OrganizationDeleting), ErrOrganizationOwner)
 	for _, scopeID := range []int{0, -1, org.Id + 1} {
 		t.Run(fmt.Sprint(scopeID), func(t *testing.T) {
 			var tokens []Token
