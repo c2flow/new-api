@@ -9,12 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -37,7 +31,6 @@ import {
 import { formatQuotaWithCurrency } from '@/lib/currency'
 
 import {
-  getOrganizationSummary,
   getOrganizationInvites,
   getOrganizationMembers,
   organizationMutation,
@@ -63,7 +56,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { MonthlyLimitDialog } from './MonthlyLimitDialog'
+import { MemberLimitsDialog } from './MemberLimitsDialog'
 
 export function Members(props: { budgets?: boolean }) {
   const { t } = useTranslation()
@@ -83,20 +76,16 @@ export function Members(props: { budgets?: boolean }) {
   })
   const [search, setSearch] = useState('')
   const [selectedIDs, setSelectedIDs] = useState<number[]>([])
-  const [monthlyMembers, setMonthlyMembers] = useState<
-    OrganizationMember[] | null
-  >(null)
+  const [limitsDialog, setLimitsDialog] = useState<{
+    members: OrganizationMember[]
+    batch: boolean
+  } | null>(null)
   const [dialog, setDialog] = useState<OrganizationMember | 'invite' | null>(
     null
   )
   const members = useQuery({
     queryKey: ['organization-members', context?.organization.id],
     queryFn: getOrganizationMembers,
-  })
-  const summary = useQuery({
-    queryKey: ['organization-summary', context?.organization.id],
-    queryFn: getOrganizationSummary,
-    enabled: !!props.budgets,
   })
   const invites = useQuery({
     queryKey: ['organization-invites', context?.organization.id],
@@ -146,11 +135,12 @@ export function Members(props: { budgets?: boolean }) {
   }
   return (
     <div className='flex flex-col gap-5'>
-      {monthlyMembers && (
-        <MonthlyLimitDialog
-          members={monthlyMembers}
+      {limitsDialog && (
+        <MemberLimitsDialog
+          members={limitsDialog.members}
+          batch={limitsDialog.batch}
           close={() => {
-            setMonthlyMembers(null)
+            setLimitsDialog(null)
             setSelectedIDs([])
           }}
         />
@@ -174,14 +164,28 @@ export function Members(props: { budgets?: boolean }) {
           </Button>
         )}
       </div>
-      {manage && selectedMembers.length > 0 && (
-        <Button
-          variant='outline'
-          disabled={selectedMembers.length > 500}
-          onClick={() => setMonthlyMembers(selectedMembers)}
-        >
-          {t('Set monthly limit')} ({selectedMembers.length})
-        </Button>
+      {manage && (
+        <div className='bg-muted/30 flex flex-wrap items-center gap-3 rounded-lg border p-3'>
+          <span className='text-muted-foreground text-sm'>
+            {t('Selected {{count}} members', { count: selectedMembers.length })}
+          </span>
+          <Button
+            variant='outline'
+            disabled={
+              selectedMembers.length === 0 || selectedMembers.length > 500
+            }
+            onClick={() =>
+              setLimitsDialog({ members: selectedMembers, batch: true })
+            }
+          >
+            {t('Batch edit spending limits')}
+          </Button>
+          {selectedMembers.length > 0 && (
+            <Button variant='ghost' onClick={() => setSelectedIDs([])}>
+              {t('Clear selection')}
+            </Button>
+          )}
+        </div>
       )}
       {manage && selectedMembers.length > 500 && (
         <p role='alert'>{t('Select up to 500 members per batch.')}</p>
@@ -224,7 +228,7 @@ export function Members(props: { budgets?: boolean }) {
                   <TableHead>{t('Member')}</TableHead>
                   <TableHead>{t('Role')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
-                  <TableHead>{t('Billing-period spending limit')}</TableHead>
+                  <TableHead>{t('Total spending limit')}</TableHead>
                   {showMonthly && (
                     <TableHead>
                       <span
@@ -239,7 +243,7 @@ export function Members(props: { budgets?: boolean }) {
                   )}
                   {props.budgets && (
                     <>
-                      <TableHead>{t('Current period usage')}</TableHead>
+                      <TableHead>{t('Total spending')}</TableHead>
                       <TableHead>{t('Pending reservations')}</TableHead>
                     </>
                   )}
@@ -316,46 +320,42 @@ export function Members(props: { budgets?: boolean }) {
                       <>
                         <TableCell>
                           {formatQuotaWithCurrency(
-                            summary.data?.usage.find(
-                              (row) => row.user_id === member.user_id
-                            )?.used ?? 0
+                            member.total_usage?.used ?? 0
                           )}
                         </TableCell>
                         <TableCell>
                           {formatQuotaWithCurrency(
-                            summary.data?.usage.find(
-                              (row) => row.user_id === member.user_id
-                            )?.reserved ?? 0
+                            member.total_usage?.reserved ?? 0
                           )}
                         </TableCell>
                       </>
                     )}
                     <TableCell className='text-end'>
                       {manage && (props.budgets || team) && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={<Button size='sm' variant='ghost' />}
+                        <>
+                          <Button
+                            size='sm'
+                            variant='ghost'
+                            disabled={member.status !== 1}
+                            onClick={() =>
+                              setLimitsDialog({
+                                members: [member],
+                                batch: false,
+                              })
+                            }
                           >
                             {t('Edit')}
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align='end'>
-                            {(props.budgets || member.role !== 'owner') && (
-                              <DropdownMenuItem
-                                onClick={() => setDialog(member)}
-                              >
-                                {props.budgets
-                                  ? t('Billing-period spending limit')
-                                  : t('Edit member')}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              disabled={member.status !== 1}
-                              onClick={() => setMonthlyMembers([member])}
+                          </Button>
+                          {!props.budgets && member.role !== 'owner' && (
+                            <Button
+                              size='sm'
+                              variant='ghost'
+                              onClick={() => setDialog(member)}
                             >
-                              {t('Monthly spending limit')}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {t('Edit member')}
+                            </Button>
+                          )}
+                        </>
                       )}
                     </TableCell>
                   </TableRow>

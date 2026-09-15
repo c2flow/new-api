@@ -188,7 +188,7 @@ test('saving a member budget sends the converted quota to the budget endpoint wi
   })
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   fireEvent.change(
-    screen.getByRole('spinbutton', { name: 'Spending limit (USD)' }),
+    screen.getByRole('spinbutton', { name: 'Total spending limit (USD)' }),
     { target: { value: '12.50' } }
   )
   fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))

@@ -135,7 +135,7 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 		}
 		if member.SpendLimit > 0 {
 			var used int64
-			if err := tx.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("user_id = ? AND period_start = ? AND status IN ?", userID, period, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
+			if err := tx.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("user_id = ? AND status IN ?", userID, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 				return err
 			}
 			if used > member.SpendLimit || delta > member.SpendLimit-used {

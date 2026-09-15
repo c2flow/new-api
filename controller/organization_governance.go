@@ -76,14 +76,12 @@ func GetOrganizationSummary(c *gin.Context) {
 		available += min(max(int64(0), sub.AmountTotal-sub.AmountUsed), int64(common.MaxWalletQuota)-available)
 	}
 	if member.SpendLimit > 0 {
-		remaining := member.SpendLimit
-		for _, row := range usage {
-			if row.UserId == member.UserId {
-				remaining -= min(remaining, row.Used)
-				remaining -= min(remaining, row.Reserved)
-			}
+		var used int64
+		if err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(org.Id)).Where("user_id = ? AND status IN ?", member.UserId, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
+			common.ApiError(c, err)
+			return
 		}
-		available = min(available, max(int64(0), remaining))
+		available = min(available, max(int64(0), member.SpendLimit-used))
 	}
 
 	if member.MonthlySpendLimit > 0 {
@@ -262,6 +260,23 @@ func SetOrganizationMemberMonthlyLimits(c *gin.Context) {
 		return
 	}
 	if err := model.SetOrganizationMemberMonthlyLimits(c.GetInt("org_id"), c.GetInt("id"), input.UserIDs, *input.Limit); err != nil {
+		organizationError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
+}
+
+func SetOrganizationMemberLimits(c *gin.Context) {
+	var input struct {
+		UserIDs []int  `json:"user_ids"`
+		Total   *int64 `json:"spend_limit"`
+		Monthly *int64 `json:"monthly_spend_limit"`
+	}
+	if c.ShouldBindJSON(&input) != nil {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	if err := model.SetOrganizationMemberLimits(c.GetInt("org_id"), c.GetInt("id"), input.UserIDs, input.Total, input.Monthly); err != nil {
 		organizationError(c, err)
 		return
 	}

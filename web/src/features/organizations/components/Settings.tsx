@@ -234,7 +234,7 @@ function SettingsForm(props: {
               <div className='grid gap-4 md:grid-cols-3'>
                 <Field>
                   <FieldLabel htmlFor='org-default-limit'>
-                    {t('Default member limit (USD)')}
+                    {t('Default member total limit (USD)')}
                   </FieldLabel>
                   <Input
                     id='org-default-limit'

@@ -34,10 +34,62 @@ func TestOrganizationMonthlyLimitIsOptionalAndIndependent(t *testing.T) {
 	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{uid}, 0))
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "disabled-month", 200)
 	require.NoError(t, err)
-	// The original per-period cap still works independently.
+	// The total cap still works independently.
 	require.NoError(t, SetOrganizationMemberBudget(org.Id, users[0].Id, uid, 210))
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "old-budget", 1)
 	assert.ErrorIs(t, err, ErrMemberSpendLimit)
+}
+
+func TestOrganizationTotalLimitSurvivesPeriodsAndMonths(t *testing.T) {
+	db, org, users := organizationBillingFixture(t)
+	uid := users[1].Id
+	month, _ := OrganizationMonthlyWindow(common.GetTimestamp())
+	charge, err := ReserveOrganizationCharge(org.Id, uid, 0, "historic-total", 120)
+	require.NoError(t, err)
+	require.NoError(t, FinalizeOrganizationCharge(org.Id, charge.RequestId, 120, false))
+	// Changing both the budget period and month must not release total allowance.
+	require.NoError(t, db.Model(charge).Updates(map[string]interface{}{"period_start": 1, "created_at": month - 1}).Error)
+	require.NoError(t, db.Model(org).Updates(map[string]interface{}{"budget_period_start": 2, "budget_period_end": common.GetTimestamp() + 3600}).Error)
+	require.NoError(t, SetOrganizationMemberMonthlyLimits(org.Id, users[0].Id, []int{uid}, 100))
+	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "above-total", 81)
+	assert.ErrorIs(t, err, ErrMemberSpendLimit)
+	current, err := ReserveOrganizationCharge(org.Id, uid, 0, "remaining-total", 80)
+	require.NoError(t, err)
+	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "reserved-counts", 1)
+	assert.ErrorIs(t, err, ErrMemberSpendLimit)
+	require.NoError(t, FinalizeOrganizationCharge(org.Id, current.RequestId, 0, true))
+	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "refund-releases-total", 80)
+	require.NoError(t, err)
+}
+
+func TestOrganizationLimitsPatchIsAtomicAndPreservesOmittedFields(t *testing.T) {
+	db, org, users := organizationBillingFixture(t)
+	ids := []int{users[0].Id, users[1].Id}
+	total, monthly := int64(300), int64(100)
+	require.NoError(t, SetOrganizationMemberLimits(org.Id, ids[0], ids, &total, &monthly))
+	total = 400
+	require.NoError(t, SetOrganizationMemberLimits(org.Id, ids[0], ids, &total, nil))
+	var before []OrganizationMember
+	require.NoError(t, db.Where("org_id = ?", org.Id).Order("id").Find(&before).Error)
+	for _, member := range before {
+		assert.Equal(t, total, member.SpendLimit)
+		assert.Equal(t, monthly, member.MonthlySpendLimit)
+	}
+	invalid := int64(-1)
+	assert.ErrorIs(t, SetOrganizationMemberLimits(org.Id, ids[0], ids, &total, &invalid), ErrOrganizationInput)
+	assert.ErrorIs(t, SetOrganizationMemberLimits(org.Id, ids[0], ids, nil, nil), ErrOrganizationInput)
+	assert.Error(t, SetOrganizationMemberLimits(org.Id, ids[1], ids, &total, nil))
+	assert.Error(t, SetOrganizationMemberLimits(org.Id, ids[0], []int{ids[0], 999999}, &total, nil))
+	var after []OrganizationMember
+	require.NoError(t, db.Where("org_id = ?", org.Id).Order("id").Find(&after).Error)
+	assert.Equal(t, before, after)
+	monthly = 0
+	require.NoError(t, SetOrganizationMemberLimits(org.Id, ids[0], ids, nil, &monthly))
+	require.NoError(t, db.Where("org_id = ?", org.Id).Order("id").Find(&after).Error)
+	for _, member := range after {
+		assert.Equal(t, total, member.SpendLimit)
+		assert.Zero(t, member.MonthlySpendLimit)
+	}
 }
 
 func TestOrganizationMonthlyLimitBatchIsAtomicAndAuthorized(t *testing.T) {

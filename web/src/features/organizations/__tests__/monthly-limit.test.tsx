@@ -32,8 +32,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { api } from '@/lib/http-client'
 import { useOrganizationStore } from '@/stores/organization-store'
 
+import { MemberLimitsDialog } from '../components/MemberLimitsDialog'
 import { Members } from '../components/Members'
-import { MonthlyLimitDialog } from '../components/MonthlyLimitDialog'
 import type { OrganizationMember } from '../types'
 
 const i18n = createInstance()
@@ -115,32 +115,69 @@ afterEach(() => {
   localStorage.clear()
 })
 
-function renderDialog(props: Parameters<typeof MonthlyLimitDialog>[0]) {
+function renderDialog(props: Parameters<typeof MemberLimitsDialog>[0]) {
   return render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
-        <MonthlyLimitDialog {...props} />
+        <MemberLimitsDialog {...props} />
       </QueryClientProvider>
     </I18nextProvider>
   )
 }
 
-test('monthly cap is optional and batch submission changes no existing member fields', async () => {
-  const close = vi.fn()
-  renderDialog({ members: [member, { ...member, id: 2, user_id: 2 }], close })
-  expect(screen.getByRole('spinbutton')).toHaveValue(0)
-  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } })
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
-  )
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
-  await waitFor(() => expect(close).toHaveBeenCalledOnce())
-  expect(requests[0].url).toBe('/api/org/members/monthly-limit')
-  const body = JSON.parse(requests[0].data)
-  expect(Object.keys(body).sort()).toEqual(['monthly_spend_limit', 'user_ids'])
-  expect(body.user_ids).toEqual([1, 2])
-  expect(body.monthly_spend_limit).toBeGreaterThan(0)
-})
+test.each(['Total spending limit', 'Monthly spending limit'])(
+  'batch editing only %s preserves the other limit',
+  async (label) => {
+    const close = vi.fn()
+    renderDialog({ members: [member, { ...member, id: 2, user_id: 2 }], close })
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: new RegExp(label) }),
+      { target: { value: '2' } }
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(requests[0].url).toBe('/api/org/members/limits')
+    const body = JSON.parse(requests[0].data)
+    const field =
+      label === 'Total spending limit' ? 'spend_limit' : 'monthly_spend_limit'
+    expect(body).toEqual({ user_ids: [1, 2], [field]: 1000000 })
+  }
+)
+
+test.each([false, true])(
+  'single submission saves both limits with batch=%s',
+  async (batch) => {
+    const close = vi.fn()
+    renderDialog({
+      members: batch ? [member, { ...member, id: 2, user_id: 2 }] : [member],
+      batch,
+      close,
+    })
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: /Total spending limit/ }),
+      { target: { value: '20' } }
+    )
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
+      { target: { value: '5' } }
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(requests).toHaveLength(1)
+    expect(JSON.parse(requests[0].data)).toEqual({
+      user_ids: batch ? [1, 2] : [1],
+      spend_limit: 10000000,
+      monthly_spend_limit: 2500000,
+    })
+  }
+)
 
 test('turning off an existing monthly cap submits zero', async () => {
   const close = vi.fn()
@@ -148,12 +185,17 @@ test('turning off an existing monthly cap submits zero', async () => {
     members: [{ ...member, monthly_spend_limit: 1000000 }],
     close,
   })
-  expect(screen.getByRole('spinbutton')).toHaveValue(2)
-  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '0' } })
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
+  expect(
+    screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
+  ).toHaveValue(2)
+  fireEvent.change(
+    screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
+    { target: { value: '0' } }
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(close).toHaveBeenCalledOnce())
   expect(JSON.parse(requests[0].data)).toEqual({
     user_ids: [1],
@@ -165,21 +207,26 @@ test('invalid monthly amounts cannot submit and failed requests retain the form'
   const close = vi.fn()
   response.success = false
   renderDialog({ members: [member], close })
-  fireEvent.change(screen.getByRole('spinbutton'), {
-    target: { value: '1e100' },
-  })
-  await waitFor(() =>
-    expect(screen.getByRole('spinbutton')).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    )
+  fireEvent.change(
+    screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
+    {
+      target: { value: '1e100' },
+    }
   )
-  expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled()
-  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '1' } })
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
+    expect(
+      screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
+    ).toHaveAttribute('aria-invalid', 'true')
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  fireEvent.change(
+    screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
+    { target: { value: '1' } }
+  )
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Request failed')
   expect(close).not.toHaveBeenCalled()
 })
@@ -211,14 +258,16 @@ test('members without caps have no monthly column; managers can select members f
   fireEvent.click(
     screen.getByRole('checkbox', { name: 'Select filtered members' })
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Set monthly limit (2)' }))
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Batch edit spending limits' })
+  )
   expect(await screen.findByRole('dialog')).toHaveAccessibleName(
-    'Monthly spending limit'
+    'Batch edit spending limits'
   )
 })
 
 test.each([false, true])(
-  'Edit menu exposes the existing monthly dialog with budgets=%s and no monthly column',
+  'Edit opens both limits directly with budgets=%s and no monthly column',
   async (budgets) => {
     const context = useOrganizationStore.getState().context
     if (!context) throw new Error('Missing organization fixture')
@@ -242,14 +291,14 @@ test.each([false, true])(
       screen.queryByRole('columnheader', { name: 'Monthly spending limit' })
     ).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: 'Monthly spending limit' })
-    )
     expect(await screen.findByRole('dialog')).toHaveAccessibleName(
-      'Monthly spending limit'
+      'Edit spending limits'
     )
     expect(
       screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
+    ).toHaveValue(0)
+    expect(
+      screen.getByRole('spinbutton', { name: /Total spending limit/ })
     ).toHaveValue(0)
   }
 )

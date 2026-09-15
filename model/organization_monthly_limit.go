@@ -16,10 +16,25 @@ func OrganizationMonthlyWindow(timestamp int64) (int64, int64) {
 }
 
 // SetOrganizationMemberMonthlyLimits atomically overrides only the optional monthly cap.
-// Zero disables the cap; existing period budgets and roles are never changed.
+// Zero disables the cap; total caps and roles are never changed.
 func SetOrganizationMemberMonthlyLimits(orgID, actorID int, userIDs []int, limit int64) error {
-	if len(userIDs) == 0 || len(userIDs) > 500 || limit < 0 || limit > int64(common.MaxWalletQuota) {
+	return SetOrganizationMemberLimits(orgID, actorID, userIDs, nil, &limit)
+}
+
+// SetOrganizationMemberLimits patches only supplied limits. Zero removes a limit.
+func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, total, monthly *int64) error {
+	if len(userIDs) == 0 || len(userIDs) > 500 || (total == nil && monthly == nil) {
 		return ErrOrganizationInput
+	}
+	updates := make(map[string]interface{}, 2)
+	for field, value := range map[string]*int64{"spend_limit": total, "monthly_spend_limit": monthly} {
+		if value == nil {
+			continue
+		}
+		if *value < 0 || *value > int64(common.MaxWalletQuota) {
+			return ErrOrganizationInput
+		}
+		updates[field] = *value
 	}
 	seen := make(map[int]bool, len(userIDs))
 	for _, id := range userIDs {
@@ -39,11 +54,18 @@ func SetOrganizationMemberMonthlyLimits(orgID, actorID int, userIDs []int, limit
 		if len(members) != len(userIDs) {
 			return ErrOrganizationAccess
 		}
-		if err := tx.Model(&OrganizationMember{}).Scopes(OrgScope(orgID)).Where("user_id IN ?", userIDs).Update("monthly_spend_limit", limit).Error; err != nil {
+		if err := tx.Model(&OrganizationMember{}).Scopes(OrgScope(orgID)).Where("user_id IN ?", userIDs).Updates(updates).Error; err != nil {
 			return err
 		}
 		for _, member := range members {
-			audit := OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "member.monthly_limit", ObjectId: fmt.Sprint(member.UserId), Result: "success", Reason: fmt.Sprintf("monthly_spend_limit: %d -> %d", member.MonthlySpendLimit, limit)}
+			audit := OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "member.monthly_limit", ObjectId: fmt.Sprint(member.UserId), Result: "success"}
+			if monthly != nil {
+				audit.Reason = fmt.Sprintf("monthly_spend_limit: %d -> %d", member.MonthlySpendLimit, *monthly)
+			}
+			if total != nil {
+				audit.Action = "member.limits"
+				audit.Reason += fmt.Sprintf(" spend_limit: %d -> %d", member.SpendLimit, *total)
+			}
 			if err := tx.Create(&audit).Error; err != nil {
 				return err
 			}

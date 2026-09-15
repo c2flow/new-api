@@ -100,6 +100,7 @@ func GetOrganizationContext(c *gin.Context) {
 func GetOrganizationMembers(c *gin.Context) {
 	var members []struct {
 		model.OrganizationMember
+		TotalUsage     model.OrganizationBudgetUsage  `json:"total_usage" gorm:"-"`
 		MonthlyUsage   *model.OrganizationBudgetUsage `json:"monthly_usage,omitempty" gorm:"-"`
 		MonthlyResetAt int64                          `json:"monthly_reset_at,omitempty" gorm:"-"`
 		Username       string                         `json:"username"`
@@ -115,6 +116,23 @@ func GetOrganizationMembers(c *gin.Context) {
 		return
 	}
 
+	var totalUsage []model.OrganizationBudgetUsage
+	totalQuery := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(c.GetInt("org_id")))
+	if c.GetString("org_role") == model.OrgRoleMember {
+		totalQuery = totalQuery.Where("user_id = ?", c.GetInt("id"))
+	}
+	if err := totalQuery.Select("user_id, SUM(CASE WHEN status = 'settled' THEN quota ELSE 0 END) AS used, SUM(CASE WHEN status = 'reserved' THEN quota ELSE 0 END) AS reserved").Group("user_id").Scan(&totalUsage).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	totals := make(map[int]model.OrganizationBudgetUsage, len(totalUsage))
+	for _, row := range totalUsage {
+		totals[row.UserId] = row
+	}
+	for i := range members {
+		members[i].TotalUsage = totals[members[i].UserId]
+		members[i].TotalUsage.UserId = members[i].UserId
+	}
 	var limitedIDs []int
 	for _, member := range members {
 		if member.MonthlySpendLimit > 0 {

@@ -55,7 +55,7 @@ type OrganizationMember struct {
 	OrgId             int    `json:"org_id" gorm:"uniqueIndex:idx_org_member,priority:1;not null"`
 	UserId            int    `json:"user_id" gorm:"uniqueIndex:idx_org_member,priority:2;index;not null"`
 	Role              string `json:"role" gorm:"type:varchar(16);not null"`
-	SpendLimit        int64  `json:"spend_limit" gorm:"type:bigint;not null"`
+	SpendLimit        int64  `json:"spend_limit" gorm:"type:bigint;not null"` // Lifetime organization spending cap; zero is unlimited.
 	Status            int    `json:"status" gorm:"not null"`
 	CreatedAt         int64  `json:"created_at" gorm:"autoCreateTime"`
 }

@@ -34,6 +34,7 @@ export type OrganizationMembership = Organization & {
   spend_limit: number
 }
 export type OrganizationMember = {
+  total_usage?: { used: number; reserved: number }
   monthly_spend_limit?: number
   monthly_usage?: { used: number; reserved: number }
   monthly_reset_at?: number

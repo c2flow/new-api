@@ -162,7 +162,7 @@ export function MemberDialog(props: {
               <>
                 <Field data-invalid={!!form.formState.errors.limit}>
                   <FieldLabel htmlFor='member-limit'>
-                    {t('Spending limit (USD)')}
+                    {t('Total spending limit')} (USD)
                   </FieldLabel>
                   <Input
                     id='member-limit'

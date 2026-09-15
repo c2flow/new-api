@@ -60,8 +60,8 @@ export function Billing() {
           </CardHeader>
           <CardContent>
             <p>
-              {t('Current period usage')}:{' '}
-              {formatQuotaWithCurrency(own?.used ?? 0)}
+              {t('Total spending')}:{' '}
+              {formatQuotaWithCurrency(data.used_quota)}
             </p>
             <p>
               {t('Pending reservations')}:{' '}

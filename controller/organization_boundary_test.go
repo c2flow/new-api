@@ -84,6 +84,7 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 	org.GET("/members", GetOrganizationMembers)
 	org.GET("/summary", GetOrganizationSummary)
 	org.PUT("/members/monthly-limit", middleware.RequireOrgPermission("org.member", "write"), SetOrganizationMemberMonthlyLimits)
+	org.PUT("/members/limits", middleware.RequireOrgPermission("org.member", "write"), SetOrganizationMemberLimits)
 
 	request := func(method, path, header, body string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, bytes.NewBufferString(body))
@@ -160,6 +161,30 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		require.Equal(t, 200, result.Code)
 		result = request("GET", "/org/members", path, "")
 		assert.NotContains(t, result.Body.String(), "monthly_usage")
+	})
+	t.Run("member total limit includes historical periods and supports partial limit updates", func(t *testing.T) {
+		path := fmt.Sprint(team.Id)
+		result := request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"spend_limit":100}`, owner.Id))
+		require.Equal(t, 200, result.Code, result.Body.String())
+		require.NoError(t, db.Model(team).Update("quota", 1000).Error)
+		charge := model.OrganizationCharge{OrgId: team.Id, UserId: owner.Id, RequestId: "historic-total-summary", Quota: 40, Status: "settled", PeriodStart: 1, CreatedAt: 1}
+		require.NoError(t, db.Create(&charge).Error)
+		result = request("GET", "/org/summary", path, "")
+		require.Equal(t, 200, result.Code)
+		assert.Contains(t, result.Body.String(), `"available_quota":60`)
+		result = request("GET", "/org/members", path, "")
+		assert.Contains(t, result.Body.String(), `"used":40`)
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":20}`, owner.Id))
+		require.Equal(t, 200, result.Code)
+		result = request("GET", "/org/members", path, "")
+		assert.Contains(t, result.Body.String(), `"spend_limit":100`)
+		assert.Contains(t, result.Body.String(), `"monthly_spend_limit":20`)
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d]}`, owner.Id))
+		assert.Equal(t, 400, result.Code)
+		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"spend_limit":0,"monthly_spend_limit":0}`, owner.Id))
+		require.Equal(t, 200, result.Code)
+		require.NoError(t, db.Delete(&charge).Error)
+		require.NoError(t, db.Model(team).Update("quota", 0).Error)
 	})
 	t.Run("personal account has no organization identity but retains wallet and keys", func(t *testing.T) {
 		result := request("GET", "/account/context", "", "")
