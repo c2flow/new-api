@@ -145,14 +145,13 @@ func SetOrganizationMemberBudget(c *gin.Context) {
 		return
 	}
 	var input struct {
-		SpendLimit        int64  `json:"spend_limit"`
-		MonthlySpendLimit *int64 `json:"monthly_spend_limit"`
+		SpendLimit int64 `json:"spend_limit"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	if err := model.SetOrganizationMemberBudget(c.GetInt("org_id"), c.GetInt("id"), userID, input.SpendLimit, input.MonthlySpendLimit); err != nil {
+	if err := model.SetOrganizationMemberBudget(c.GetInt("org_id"), c.GetInt("id"), userID, input.SpendLimit); err != nil {
 		organizationError(c, err)
 		return
 	}

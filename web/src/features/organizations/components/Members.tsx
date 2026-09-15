@@ -9,6 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -326,13 +332,30 @@ export function Members(props: { budgets?: boolean }) {
                     )}
                     <TableCell className='text-end'>
                       {manage && (props.budgets || team) && (
-                        <Button
-                          size='sm'
-                          variant='ghost'
-                          onClick={() => setDialog(member)}
-                        >
-                          {t('Edit')}
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button size='sm' variant='ghost' />}
+                          >
+                            {t('Edit')}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align='end'>
+                            {(props.budgets || member.role !== 'owner') && (
+                              <DropdownMenuItem
+                                onClick={() => setDialog(member)}
+                              >
+                                {props.budgets
+                                  ? t('Billing-period spending limit')
+                                  : t('Edit member')}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              disabled={member.status !== 1}
+                              onClick={() => setMonthlyMembers([member])}
+                            >
+                              {t('Monthly spending limit')}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </TableCell>
                   </TableRow>
@@ -411,9 +434,6 @@ export function Members(props: { budgets?: boolean }) {
         <MemberDialog
           member={dialog === 'invite' ? undefined : dialog}
           budget={props.budgets}
-          monthlyOnly={
-            dialog !== 'invite' && dialog.role === 'owner' && !props.budgets
-          }
           close={() => setDialog(null)}
         />
       )}

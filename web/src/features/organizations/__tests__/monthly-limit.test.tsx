@@ -128,8 +128,7 @@ function renderDialog(props: Parameters<typeof MonthlyLimitDialog>[0]) {
 test('monthly cap is optional and batch submission changes no existing member fields', async () => {
   const close = vi.fn()
   renderDialog({ members: [member, { ...member, id: 2, user_id: 2 }], close })
-  expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yes' } })
+  expect(screen.getByRole('spinbutton')).toHaveValue(0)
   fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } })
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
@@ -149,7 +148,8 @@ test('turning off an existing monthly cap submits zero', async () => {
     members: [{ ...member, monthly_spend_limit: 1000000 }],
     close,
   })
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no' } })
+  expect(screen.getByRole('spinbutton')).toHaveValue(2)
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '0' } })
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
   )
@@ -165,7 +165,6 @@ test('invalid monthly amounts cannot submit and failed requests retain the form'
   const close = vi.fn()
   response.success = false
   renderDialog({ members: [member], close })
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yes' } })
   fireEvent.change(screen.getByRole('spinbutton'), {
     target: { value: '1e100' },
   })
@@ -218,36 +217,42 @@ test('members without caps have no monthly column; managers can select members f
   )
 })
 
-test('budget page Edit exposes monthly settings even when the monthly column is hidden', async () => {
-  const context = useOrganizationStore.getState().context
-  if (!context) throw new Error('Missing organization fixture')
-  useOrganizationStore.setState({
-    context: {
-      ...context,
-      capabilities: { platform: {}, org: { 'org.member': { write: true } } },
-    },
-  })
-  client.setQueryData(['organization-members', 10], [member])
-  client.setQueryData(['organization-summary', 10], { usage: [] })
-  render(
-    <I18nextProvider i18n={i18n}>
-      <QueryClientProvider client={client}>
-        <Members budgets />
-      </QueryClientProvider>
-    </I18nextProvider>
-  )
-  expect(
-    screen.queryByRole('columnheader', { name: 'Monthly spending limit' })
-  ).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-  expect(
-    await screen.findByRole('spinbutton', { name: /Monthly spending limit/ })
-  ).toHaveValue(0)
-  expect(
-    screen.getByRole('spinbutton', { name: /Billing-period spending limit/ })
-  ).toHaveValue(0)
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
-})
+test.each([false, true])(
+  'Edit menu exposes the existing monthly dialog with budgets=%s and no monthly column',
+  async (budgets) => {
+    const context = useOrganizationStore.getState().context
+    if (!context) throw new Error('Missing organization fixture')
+    useOrganizationStore.setState({
+      context: {
+        ...context,
+        capabilities: { platform: {}, org: { 'org.member': { write: true } } },
+      },
+    })
+    client.setQueryData(['organization-members', 10], [member])
+    client.setQueryData(['organization-invites', 10], [])
+    client.setQueryData(['organization-summary', 10], { usage: [] })
+    render(
+      <I18nextProvider i18n={i18n}>
+        <QueryClientProvider client={client}>
+          <Members budgets={budgets} />
+        </QueryClientProvider>
+      </I18nextProvider>
+    )
+    expect(
+      screen.queryByRole('columnheader', { name: 'Monthly spending limit' })
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Monthly spending limit' })
+    )
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+      'Monthly spending limit'
+    )
+    expect(
+      screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
+    ).toHaveValue(0)
+  }
+)
 
 test('ordinary members see monthly usage only when their cap is enabled', async () => {
   client.setQueryData(

@@ -5706,7 +5706,6 @@
     "Your transaction history will appear here": "您的交易历史会显示在这里",
     "Your Turnstile secret key": "您的 Turnstile 密钥",
     "Your Turnstile site key": "您的 Turnstile 站点密钥",
-    "Zero means unlimited.": "0 表示不限额。",
     "Zero means unlimited. This limit does not reserve money from the shared pool.": "0 表示不限，此上限不会从共享余额中预留资金。",
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",

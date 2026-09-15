@@ -6,9 +6,13 @@ import { z } from 'zod'
 
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 
 import { organizationMutation } from '../api'
@@ -21,34 +25,30 @@ export function MonthlyLimitDialog(props: {
   const { t } = useTranslation()
   const client = useQueryClient()
   const unit = getCurrencyDisplay().config.quotaPerUnit
-  const schema = z
-    .object({ enabled: z.enum(['yes', 'no']), amount: z.string() })
-    .refine(
-      (input) =>
-        input.enabled === 'no' ||
-        (Number.isFinite(Number(input.amount)) &&
-          Number(input.amount) > 0 &&
-          Number.isSafeInteger(Math.round(Number(input.amount) * unit)) &&
-          Math.round(Number(input.amount) * unit) > 0),
-      { path: ['amount'] }
-    )
+  const schema = z.object({
+    amount: z
+      .number()
+      .min(0)
+      .refine(
+        (amount) =>
+          Number.isSafeInteger(Math.round(amount * unit)) &&
+          (amount === 0 || Math.round(amount * unit) > 0)
+      ),
+  })
   const initial =
     props.members.length === 1 ? (props.members[0].monthly_spend_limit ?? 0) : 0
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      enabled: initial > 0 ? 'yes' : 'no',
-      amount: initial > 0 ? String(initial / unit) : '',
+      amount: initial / unit,
     },
     mode: 'onChange',
   })
-  const enabled = form.watch('enabled') === 'yes'
   const mutation = useMutation({
     mutationFn: (input: z.infer<typeof schema>) =>
       organizationMutation('put', 'members/monthly-limit', {
         user_ids: props.members.map((member) => member.user_id),
-        monthly_spend_limit:
-          input.enabled === 'yes' ? Math.round(Number(input.amount) * unit) : 0,
+        monthly_spend_limit: Math.round(input.amount * unit),
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['organization-members'] })
@@ -92,44 +92,28 @@ export function MonthlyLimitDialog(props: {
         })}
       >
         <FieldGroup>
-          <p className='text-muted-foreground text-sm'>
-            {t(
-              'Optional additional cap. Resets on the first day of each month at 00:00 Beijing time. Existing budgets and subscriptions are unchanged.'
-            )}
-          </p>
-          <Field>
-            <FieldLabel htmlFor='monthly-enabled'>
-              {t('Monthly spending limit')}
+          <Field data-invalid={!!form.formState.errors.amount}>
+            <FieldLabel htmlFor='monthly-amount'>
+              {t('Monthly spending limit')} ({getCurrencyLabel()})
             </FieldLabel>
-            <NativeSelect
-              id='monthly-enabled'
+            <Input
+              id='monthly-amount'
+              type='number'
+              min='0'
+              step='any'
               disabled={mutation.isPending}
-              {...form.register('enabled')}
-            >
-              <NativeSelectOption value='no'>
-                {t('Unlimited')}
-              </NativeSelectOption>
-              <NativeSelectOption value='yes'>
-                {t('Set monthly limit')}
-              </NativeSelectOption>
-            </NativeSelect>
+              aria-invalid={!!form.formState.errors.amount}
+              {...form.register('amount', { valueAsNumber: true })}
+            />
+            <FieldDescription>
+              {t(
+                'Zero means unlimited. This limit does not reserve money from the shared pool.'
+              )}{' '}
+              {t(
+                'Resets on the first day of each month at 00:00 Beijing time.'
+              )}
+            </FieldDescription>
           </Field>
-          {enabled && (
-            <Field data-invalid={!!form.formState.errors.amount}>
-              <FieldLabel htmlFor='monthly-amount'>
-                {t('Amount')} ({getCurrencyLabel()})
-              </FieldLabel>
-              <Input
-                id='monthly-amount'
-                type='number'
-                min='0'
-                step='any'
-                disabled={mutation.isPending}
-                aria-invalid={!!form.formState.errors.amount}
-                {...form.register('amount')}
-              />
-            </Field>
-          )}
           <p className='text-muted-foreground text-sm'>
             {t(
               'This replaces each selected member’s monthly limit immediately. Usage already incurred this month is retained.'

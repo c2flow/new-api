@@ -5706,7 +5706,6 @@
     "Your transaction history will appear here": "取引履歴はここに表示されます",
     "Your Turnstile secret key": "あなたのTurnstileシークレットキー",
     "Your Turnstile site key": "あなたのTurnstileサイトキー",
-    "Zero means unlimited.": "0 は無制限を意味します。",
     "Zero means unlimited. This limit does not reserve money from the shared pool.": "0 は無制限です。この上限は共有残高から資金を確保しません。",
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",

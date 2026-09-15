@@ -40,51 +40,6 @@ func TestOrganizationMonthlyLimitIsOptionalAndIndependent(t *testing.T) {
 	assert.ErrorIs(t, err, ErrMemberSpendLimit)
 }
 
-func TestOrganizationMemberEditMonthlyLimitIsAtomicAndOptional(t *testing.T) {
-	db, org, users := organizationBillingFixture(t)
-	uid := users[1].Id
-	limit := int64(120)
-	require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, uid, OrgRoleMember, OrganizationActive, 0, &limit))
-	require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, uid, OrgRoleMember, OrganizationActive, 0))
-	var member OrganizationMember
-	require.NoError(t, db.Where("org_id = ? AND user_id = ?", org.Id, uid).First(&member).Error)
-	assert.Equal(t, limit, member.MonthlySpendLimit)
-	_, err := ReserveOrganizationCharge(org.Id, uid, 0, "edited-limit-denies", 121)
-	assert.ErrorIs(t, err, ErrMemberSpendLimit)
-	invalid := int64(-1)
-	assert.ErrorIs(t, UpdateOrganizationMember(org.Id, users[0].Id, uid, OrgRoleAdmin, OrganizationDisabled, 100, &invalid), ErrOrganizationInput)
-	var unchanged OrganizationMember
-	require.NoError(t, db.First(&unchanged, member.Id).Error)
-	assert.Equal(t, member, unchanged)
-	limit = 0
-	require.NoError(t, UpdateOrganizationMember(org.Id, users[0].Id, uid, OrgRoleMember, OrganizationActive, 0, &limit))
-	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "cleared-limit-allows", 121)
-	require.NoError(t, err)
-}
-
-func TestOrganizationMemberBudgetEditsBothLimitsAtomically(t *testing.T) {
-	db, org, users := organizationBillingFixture(t)
-	owner := users[0].Id
-	monthly := int64(200)
-	require.NoError(t, SetOrganizationMemberBudget(org.Id, owner, owner, 100, &monthly))
-	require.NoError(t, SetOrganizationMemberBudget(org.Id, owner, owner, 150))
-	var member OrganizationMember
-	require.NoError(t, db.Where("org_id = ? AND user_id = ?", org.Id, owner).First(&member).Error)
-	assert.Equal(t, int64(150), member.SpendLimit)
-	assert.Equal(t, monthly, member.MonthlySpendLimit)
-	invalid := int64(-1)
-	assert.ErrorIs(t, SetOrganizationMemberBudget(org.Id, owner, owner, 999, &invalid), ErrOrganizationInput)
-	assert.Error(t, SetOrganizationMemberBudget(org.Id, users[1].Id, owner, 999, &monthly))
-	var unchanged OrganizationMember
-	require.NoError(t, db.First(&unchanged, member.Id).Error)
-	assert.Equal(t, member, unchanged)
-	monthly = 0
-	require.NoError(t, SetOrganizationMemberBudget(org.Id, owner, owner, 0, &monthly))
-	require.NoError(t, db.First(&member, member.Id).Error)
-	assert.Zero(t, member.MonthlySpendLimit)
-	assert.Zero(t, member.SpendLimit)
-}
-
 func TestOrganizationMonthlyLimitBatchIsAtomicAndAuthorized(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
 	ids := []int{users[0].Id, users[1].Id}
