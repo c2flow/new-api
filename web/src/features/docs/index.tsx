@@ -38,7 +38,6 @@ import { ToolGuides } from './tool-guides'
 
 const sections = [
   ['quick-start', 'Quick start'],
-  ['authentication', 'Authentication'],
   ['first-request', 'Send your first request'],
   ['client-setup', 'Client configuration'],
   ['coding-tools', 'Coding tools'],
@@ -149,31 +148,15 @@ export function DocumentationContent(props: DocumentationContentProps) {
             </div>
           </section>
 
-          <section id='authentication' className='scroll-mt-24'>
-            <SectionHeading
-              icon={Key01Icon}
-              title={t('Authentication')}
-              description={t(
-                'Send your API key as a Bearer token in the Authorization header.'
-              )}
-            />
-            <div className='bg-muted/40 mt-6 rounded-xl p-4 font-mono text-sm'>
-              Authorization: Bearer YOUR_API_KEY
-            </div>
-            <p className='text-muted-foreground mt-4 text-sm leading-6'>
-              {t(
-                'Treat API keys like passwords. Do not expose them in browser code or public repositories.'
-              )}
-            </p>
-          </section>
-
           <section id='first-request' className='scroll-mt-24'>
             <SectionHeading
               icon={ApiIcon}
               title={t('Send your first request')}
-              description={t(
+              description={`${t(
                 'The API is compatible with the OpenAI chat completions format.'
-              )}
+              )} ${t(
+                'Send your API key as a Bearer token in the Authorization header.'
+              )}`}
             />
             <div className='mt-6'>
               <CodeBlock code={curlExample} label='cURL' />
@@ -181,6 +164,9 @@ export function DocumentationContent(props: DocumentationContentProps) {
             <p className='text-muted-foreground mt-4 text-sm leading-6'>
               {t(
                 'Replace YOUR_API_KEY and the model name with values available in your account.'
+              )}{' '}
+              {t(
+                'Treat API keys like passwords. Do not expose them in browser code or public repositories.'
               )}
             </p>
           </section>
