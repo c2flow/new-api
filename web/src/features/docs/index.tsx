@@ -24,12 +24,30 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Main } from '@/components/layout'
 
 import { CodeBlock } from './code-block'
 import { ToolGuides } from './tool-guides'
+
+const sections = [
+  ['quick-start', 'Quick start'],
+  ['first-request', 'Send your first request'],
+  ['client-setup', 'Client configuration'],
+  ['coding-tools', 'Connect Agent/Harness'],
+  ['console', 'Manage and troubleshoot'],
+] as const
+
+const toolSections = [
+  ['cc-switch', 'CC Switch'],
+  ['codex', 'Codex'],
+  ['claude-code', 'Claude Code'],
+  ['opencode', 'OpenCode'],
+  ['hermes', 'Hermes'],
+  ['deepseek-harness', 'DeepSeek Harness'],
+] as const
 
 type DocumentationContentProps = {
   gatewayUrl: string
@@ -38,6 +56,7 @@ type DocumentationContentProps = {
 
 export function DocumentationContent(props: DocumentationContentProps) {
   const { t } = useTranslation()
+  const [activeTool, setActiveTool] = useState('cc-switch')
   const curlExample = `curl ${props.baseUrl}/chat/completions \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -50,134 +69,177 @@ export function DocumentationContent(props: DocumentationContentProps) {
 
   return (
     <div className='mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8'>
-      <article className='mx-auto max-w-5xl min-w-0 space-y-16'>
-        <section id='quick-start' className='scroll-mt-24'>
-          <SectionHeading
-            icon={Rocket01Icon}
-            title={t('Quick start')}
-            description={t('Create a key in the console and keep it secure.')}
-          />
-          <Link
-            to='/keys'
-            className='border-border hover:bg-muted/50 group mt-5 inline-flex items-center gap-2 rounded-xl border px-4 py-3 font-medium transition-colors'
-          >
-            {t('Create an API key')}
-            <HugeiconsIcon
-              icon={ArrowRight01Icon}
-              className='text-muted-foreground transition-transform group-hover:translate-x-0.5'
-            />
-          </Link>
-        </section>
-
-        <section id='first-request' className='scroll-mt-24'>
-          <SectionHeading
-            icon={ApiIcon}
-            title={t('Send your first request')}
-            description={`${t(
-              'The API is compatible with the OpenAI chat completions format.'
-            )} ${t(
-              'Send your API key as a Bearer token in the Authorization header.'
-            )}`}
-          />
-          <div className='mt-6'>
-            <CodeBlock code={curlExample} label='cURL' />
-          </div>
-          <p className='text-muted-foreground mt-4 text-sm leading-6'>
-            {t(
-              'Replace YOUR_API_KEY and the model name with values available in your account.'
-            )}{' '}
-            {t(
-              'Treat API keys like passwords. Do not expose them in browser code or public repositories.'
-            )}
-          </p>
-        </section>
-
-        <section id='client-setup' className='scroll-mt-24'>
-          <SectionHeading
-            icon={BookOpen01Icon}
-            title={t('Client configuration')}
-            description={t(
-              'Use these values in any client that supports OpenAI-compatible services.'
-            )}
-          />
-          <dl className='border-border mt-6 divide-y rounded-xl border'>
-            <ConfigRow label={t('API base URL')} value={props.baseUrl} />
-            <ConfigRow label={t('API key')} value='YOUR_API_KEY' />
-            <ConfigRow
-              label={t('Model')}
-              value={t('Choose from Model Square')}
-            />
-          </dl>
-        </section>
-
-        <section id='coding-tools' className='scroll-mt-24'>
-          <SectionHeading
-            icon={ApiIcon}
-            title={t('Connect coding assistants')}
-            description={t(
-              'Use your API key with CC Switch, Codex, Claude Code, OpenCode, Hermes, and DeepSeek Harness.'
-            )}
-          />
-          <p className='text-muted-foreground mt-4 text-sm leading-6'>
-            {t(
-              'Choose an enabled model from Model Square before configuring a tool.'
-            )}
-          </p>
-          <ToolGuides gatewayUrl={props.gatewayUrl} baseUrl={props.baseUrl} />
-        </section>
-
-        <section id='console' className='scroll-mt-24'>
-          <SectionHeading
-            icon={Rocket01Icon}
-            title={t('Manage and troubleshoot')}
-            description={t(
-              'Use the console to test requests, inspect usage, and resolve common errors.'
-            )}
-          />
-          <div className='mt-6 grid gap-3 sm:grid-cols-2'>
-            <ConsoleLink
-              to='/playground'
-              title={t('Playground')}
-              description={t('Test a model before integrating it.')}
-            />
-            <ConsoleLink
-              to='/usage-logs'
-              title={t('Usage logs')}
-              description={t('Review requests, token usage, and errors.')}
-            />
-            <ConsoleLink
-              to='/keys'
-              title={t('API keys')}
-              description={t('Create, disable, or rotate access keys.')}
-            />
-            <ConsoleLink
-              to='/wallet'
-              title={t('Wallet')}
-              description={t('Check balance and recharge records.')}
-            />
-          </div>
-          <div className='border-border bg-muted/30 mt-6 rounded-xl border p-5'>
-            <h3 className='font-semibold'>{t('Common checks')}</h3>
-            <ul className='text-muted-foreground mt-3 list-disc space-y-2 pl-5 text-sm leading-6'>
-              <li>
-                {t(
-                  'For 401 errors, confirm that the API key is valid and enabled.'
-                )}
-              </li>
-              <li>
-                {t(
-                  'For 429 errors, check your balance and request rate limits.'
-                )}
-              </li>
-              <li>
-                {t(
-                  'For model errors, copy an enabled model name from Model Square.'
-                )}
-              </li>
+      <div className='grid items-start gap-10 lg:grid-cols-[180px_minmax(0,1fr)]'>
+        <aside className='sticky top-24 hidden lg:block'>
+          <nav aria-label={t('Documentation sections')}>
+            <ul className='space-y-1'>
+              {sections.map(([id, title]) => (
+                <li key={id}>
+                  <a
+                    href={`#${id}`}
+                    className='text-muted-foreground hover:bg-muted hover:text-foreground block rounded-md px-2 py-1.5 text-sm transition-colors'
+                  >
+                    {t(title)}
+                  </a>
+                  {id === 'coding-tools' && (
+                    <ul className='border-border mt-1 ml-3 space-y-0.5 border-l pl-2'>
+                      {toolSections.map(([toolId, toolName]) => (
+                        <li key={toolId}>
+                          <a
+                            href='#coding-tools'
+                            onClick={() => setActiveTool(toolId)}
+                            className={`hover:bg-muted hover:text-foreground block rounded-md px-2 py-1 text-xs transition-colors ${
+                              activeTool === toolId
+                                ? 'text-foreground font-medium'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {t(toolName)}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
             </ul>
-          </div>
-        </section>
-      </article>
+          </nav>
+        </aside>
+
+        <article className='max-w-5xl min-w-0 space-y-16'>
+          <section id='quick-start' className='scroll-mt-24'>
+            <SectionHeading
+              icon={Rocket01Icon}
+              title={t('Quick start')}
+              description={t('Create a key in the console and keep it secure.')}
+            />
+            <Link
+              to='/keys'
+              className='border-border hover:bg-muted/50 group mt-5 inline-flex items-center gap-2 rounded-xl border px-4 py-3 font-medium transition-colors'
+            >
+              {t('Create an API key')}
+              <HugeiconsIcon
+                icon={ArrowRight01Icon}
+                className='text-muted-foreground transition-transform group-hover:translate-x-0.5'
+              />
+            </Link>
+          </section>
+
+          <section id='first-request' className='scroll-mt-24'>
+            <SectionHeading
+              icon={ApiIcon}
+              title={t('Send your first request')}
+              description={`${t(
+                'The API is compatible with the OpenAI chat completions format.'
+              )} ${t(
+                'Send your API key as a Bearer token in the Authorization header.'
+              )}`}
+            />
+            <div className='mt-6'>
+              <CodeBlock code={curlExample} label='cURL' />
+            </div>
+            <p className='text-muted-foreground mt-4 text-sm leading-6'>
+              {t(
+                'Replace YOUR_API_KEY and the model name with values available in your account.'
+              )}{' '}
+              {t(
+                'Treat API keys like passwords. Do not expose them in browser code or public repositories.'
+              )}
+            </p>
+          </section>
+
+          <section id='client-setup' className='scroll-mt-24'>
+            <SectionHeading
+              icon={BookOpen01Icon}
+              title={t('Client configuration')}
+              description={t(
+                'Use these values in any client that supports OpenAI-compatible services.'
+              )}
+            />
+            <dl className='border-border mt-6 divide-y rounded-xl border'>
+              <ConfigRow label={t('API base URL')} value={props.baseUrl} />
+              <ConfigRow label={t('API key')} value='YOUR_API_KEY' />
+              <ConfigRow
+                label={t('Model')}
+                value={t('Choose from Model Square')}
+              />
+            </dl>
+          </section>
+
+          <section id='coding-tools' className='scroll-mt-24'>
+            <SectionHeading
+              icon={ApiIcon}
+              title={t('Connect Agent/Harness')}
+              description={t(
+                'Use your API key with CC Switch, Codex, Claude Code, OpenCode, Hermes, and DeepSeek Harness.'
+              )}
+            />
+            <p className='text-muted-foreground mt-4 text-sm leading-6'>
+              {t(
+                'Choose an enabled model from Model Square before configuring a tool.'
+              )}
+            </p>
+            <ToolGuides
+              gatewayUrl={props.gatewayUrl}
+              baseUrl={props.baseUrl}
+              value={activeTool}
+              onValueChange={setActiveTool}
+            />
+          </section>
+
+          <section id='console' className='scroll-mt-24'>
+            <SectionHeading
+              icon={Rocket01Icon}
+              title={t('Manage and troubleshoot')}
+              description={t(
+                'Use the console to test requests, inspect usage, and resolve common errors.'
+              )}
+            />
+            <div className='mt-6 grid gap-3 sm:grid-cols-2'>
+              <ConsoleLink
+                to='/playground'
+                title={t('Playground')}
+                description={t('Test a model before integrating it.')}
+              />
+              <ConsoleLink
+                to='/usage-logs'
+                title={t('Usage logs')}
+                description={t('Review requests, token usage, and errors.')}
+              />
+              <ConsoleLink
+                to='/keys'
+                title={t('API keys')}
+                description={t('Create, disable, or rotate access keys.')}
+              />
+              <ConsoleLink
+                to='/wallet'
+                title={t('Wallet')}
+                description={t('Check balance and recharge records.')}
+              />
+            </div>
+            <div className='border-border bg-muted/30 mt-6 rounded-xl border p-5'>
+              <h3 className='font-semibold'>{t('Common checks')}</h3>
+              <ul className='text-muted-foreground mt-3 list-disc space-y-2 pl-5 text-sm leading-6'>
+                <li>
+                  {t(
+                    'For 401 errors, confirm that the API key is valid and enabled.'
+                  )}
+                </li>
+                <li>
+                  {t(
+                    'For 429 errors, check your balance and request rate limits.'
+                  )}
+                </li>
+                <li>
+                  {t(
+                    'For model errors, copy an enabled model name from Model Square.'
+                  )}
+                </li>
+              </ul>
+            </div>
+          </section>
+        </article>
+      </div>
     </div>
   )
 }

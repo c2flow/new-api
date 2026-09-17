@@ -25,6 +25,8 @@ import { CodeBlock } from './code-block'
 type ToolGuidesProps = {
   gatewayUrl: string
   baseUrl: string
+  value?: string
+  onValueChange?: (value: string) => void
 }
 
 export function ToolGuides(props: ToolGuidesProps) {
@@ -43,7 +45,7 @@ wire_api = "responses"`
 export ANTHROPIC_AUTH_TOKEN="YOUR_API_KEY"
 claude`
   const hermesConfig = `model:
-  default: Kimi-K2.5
+  default: YOUR_MODEL
   provider: custom
   base_url: "${props.baseUrl}"
   api_key: "YOUR_API_KEY"
@@ -59,14 +61,12 @@ claude`
         supportsDeveloperRole: false
         maxTokensField: max_tokens
       models:
-        - id: Kimi-K2.5
-          name: Kimi-K2.5
-          contextWindow: 262144
-          maxTokens: 32768
+        - id: YOUR_MODEL
+          name: YOUR_MODEL
 
 agent-default-model:
   provider: newapi
-  model: Kimi-K2.5`
+  model: YOUR_MODEL`
   const openCodeConfig = `{
   "$schema": "https://opencode.ai/config.json",
   "model": "newapi/YOUR_MODEL",
@@ -87,7 +87,12 @@ agent-default-model:
 }`
 
   return (
-    <Tabs defaultValue='cc-switch' className='mt-6 gap-5'>
+    <Tabs
+      value={props.value}
+      defaultValue='cc-switch'
+      onValueChange={props.onValueChange}
+      className='mt-6 gap-5'
+    >
       <TabsList className='grid w-full grid-cols-2 gap-1 py-1.5 group-data-horizontal/tabs:h-auto sm:grid-cols-3 lg:grid-cols-6'>
         <TabsTrigger
           value='cc-switch'
@@ -127,7 +132,7 @@ agent-default-model:
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value='cc-switch'>
+      <TabsContent value='cc-switch' id='tool-cc-switch'>
         <ol className='space-y-5'>
           <GuideStep
             number='1'
@@ -158,7 +163,7 @@ agent-default-model:
         </p>
       </TabsContent>
 
-      <TabsContent value='codex'>
+      <TabsContent value='codex' id='tool-codex'>
         <InteractiveSetup command={codexSetupCommand} />
         <MethodDivider />
         <p className='text-muted-foreground mb-4 text-sm leading-6'>
@@ -179,7 +184,7 @@ agent-default-model:
         </p>
       </TabsContent>
 
-      <TabsContent value='claude-code'>
+      <TabsContent value='claude-code' id='tool-claude-code'>
         <InteractiveSetup command={claudeSetupCommand} />
         <MethodDivider />
         <p className='text-muted-foreground mb-4 text-sm leading-6'>
@@ -196,7 +201,7 @@ agent-default-model:
         </p>
       </TabsContent>
 
-      <TabsContent value='opencode'>
+      <TabsContent value='opencode' id='tool-opencode'>
         <p className='text-muted-foreground mb-4 text-sm leading-6'>
           {t('Save this configuration as opencode.jsonc.')}
         </p>
@@ -212,7 +217,7 @@ agent-default-model:
         />
       </TabsContent>
 
-      <TabsContent value='hermes'>
+      <TabsContent value='hermes' id='tool-hermes'>
         <p className='text-muted-foreground mb-4 text-sm leading-6'>
           {t('Save this configuration to ~/.hermes/config.yaml.')}
         </p>
@@ -223,7 +228,7 @@ agent-default-model:
         <CodeBlock code='hermes chat' label={t('Shell')} />
       </TabsContent>
 
-      <TabsContent value='deepseek-harness'>
+      <TabsContent value='deepseek-harness' id='tool-deepseek-harness'>
         <ol className='space-y-5'>
           <GuideStep
             number='1'
@@ -237,13 +242,6 @@ agent-default-model:
             title={t('Add a custom provider')}
             description={t(
               'Open Settings → Models, set the provider ID to newapi, select openai-completions, and enter the API URL and key.'
-            )}
-          />
-          <GuideStep
-            number='3'
-            title={t('Add and select Kimi-K2.5')}
-            description={t(
-              'Add Kimi-K2.5 to the provider, save it, and select it for the new session.'
             )}
           />
         </ol>

@@ -84,18 +84,19 @@ test('switching tabs shows the selected tool configuration with the current gate
   ).toBeVisible()
 
   await userEvent.click(screen.getByRole('tab', { name: 'Hermes' }))
-  expect(screen.getByText(/default: Kimi-K2\.5/)).toBeVisible()
+  expect(screen.getByText(/default: YOUR_MODEL/)).toBeVisible()
   expect(
     screen.getByText(/base_url: "https:\/\/gateway\.example\.com\/v1"/)
   ).toBeVisible()
 
   await userEvent.click(screen.getByRole('tab', { name: 'DeepSeek Harness' }))
   expect(screen.getByText('npx @deepseek-ai/dsh web')).toBeVisible()
+  expect(screen.queryByText('Add and select Kimi-K2.5')).not.toBeInTheDocument()
   expect(screen.getByText(/api: openai-completions/)).toBeVisible()
   expect(
     screen.getByText(/baseURL: "https:\/\/gateway\.example\.com\/v1"/)
   ).toBeVisible()
-  expect(screen.getByText(/model: Kimi-K2\.5/)).toBeVisible()
+  expect(screen.getByText(/model: YOUR_MODEL/)).toBeVisible()
 })
 
 test('Codex and Claude Code provide their interactive curl setup commands', async () => {

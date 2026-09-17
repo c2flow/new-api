@@ -23,6 +23,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router'
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 
@@ -72,18 +73,32 @@ test('authentication guidance is included once with the first request', async ()
   ).toHaveLength(1)
 })
 
-test('documentation content uses a centered layout without a section sidebar', async () => {
+test('documentation content includes section and tool navigation', async () => {
   renderDocumentation()
 
-  const quickStartHeading = await screen.findByRole('heading', {
-    name: 'Quick start',
+  const navigation = await screen.findByRole('navigation', {
+    name: 'Documentation sections',
   })
-  const article = quickStartHeading.closest('article')
 
-  expect(
-    screen.queryByRole('navigation', { name: 'Documentation sections' })
-  ).not.toBeInTheDocument()
-  expect(article).toHaveClass('mx-auto', 'max-w-5xl')
+  expect(navigation).toHaveTextContent('Quick start')
+  expect(navigation).toHaveTextContent('Connect Agent/Harness')
+  expect(navigation.querySelectorAll('a')).toHaveLength(11)
+
+  const toolLinks = [
+    'CC Switch',
+    'Codex',
+    'Claude Code',
+    'OpenCode',
+    'Hermes',
+    'DeepSeek Harness',
+  ].map((name) => screen.getByRole('link', { name }))
+
+  toolLinks.forEach((link) => {
+    expect(link).toHaveAttribute('href', '#coding-tools')
+  })
+
+  await userEvent.click(screen.getByRole('link', { name: 'Hermes' }))
+  expect(screen.getByText('hermes chat')).toBeVisible()
 })
 
 test('documentation content omits the promotional header', async () => {
