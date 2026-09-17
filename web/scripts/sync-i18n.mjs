@@ -43,6 +43,7 @@ const BRAND_AND_LITERAL_KEYS = new Set([
   'CC Switch',
   'ChatGPT',
   'ChatGPT Subscription (Codex)',
+  'Claude Code',
   'Claude',
   'Client ID',
   'Client Secret',
@@ -75,6 +76,7 @@ const BRAND_AND_LITERAL_KEYS = new Set([
   'One API',
   'OpenAI',
   'OpenAIMax',
+  'OpenCode',
   'OpenRouter',
   'Pancake',
   'Passkey',
@@ -231,8 +233,9 @@ function isLikelyUntranslated({ locale, baseValue, value }) {
   if (locale === 'ru') return true
 
   // For fr/vi: still useful but noisier; keep it conservative.
-  if (locale === 'fr' || locale === 'vi')
+  if (locale === 'fr' || locale === 'vi') {
     return /\b(the|and|or|to|with|please)\b/i.test(s)
+  }
 
   return false
 }

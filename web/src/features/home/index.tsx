@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -19,22 +20,25 @@ For commercial licensing, please contact support@quantumnous.com
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PublicLayout } from '@/components/layout'
-import { Footer } from '@/components/layout/components/footer'
+import { PublicLayout } from '@/components/layout/components/public-layout'
 import { RichContent } from '@/components/rich-content'
 import { useTheme } from '@/context/theme-provider'
+import { useStatus } from '@/hooks/use-status'
 import { isLikelyHtml } from '@/lib/content-format'
 import { useAuthStore } from '@/stores/auth-store'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
-import { CTA, Features, Hero, HowItWorks, Stats } from './components'
+import { Hero } from './components/sections/hero'
 import { useHomePageContent } from './hooks'
 
 export function Home() {
   const { i18n, t } = useTranslation()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const { resolvedTheme } = useTheme()
-  const { auth } = useAuthStore()
-  const isAuthenticated = !!auth.user
+  const isAuthenticated = useAuthStore((state) => !!state.auth.user)
+  const systemName = useSystemConfigStore((state) => state.config.systemName)
+  const siteName = /^new\s*api$/i.test(systemName.trim()) ? 'AI' : systemName
+  const { status } = useStatus()
   const { content, isLoaded, isUrl } = useHomePageContent()
 
   const syncIframePreferences = useCallback(() => {
@@ -60,7 +64,11 @@ export function Home() {
 
   if (!isLoaded) {
     return (
-      <PublicLayout showMainContainer={false}>
+      <PublicLayout
+        showMainContainer={false}
+        siteName={siteName}
+        headerProps={{ serviceNavigationOnly: true }}
+      >
         <main className='flex min-h-screen items-center justify-center'>
           <div className='text-muted-foreground'>{t('Loading...')}</div>
         </main>
@@ -121,13 +129,29 @@ export function Home() {
   }
 
   return (
-    <PublicLayout showMainContainer={false}>
-      <Hero isAuthenticated={isAuthenticated} />
-      <Stats />
-      <Features />
-      <HowItWorks />
-      <CTA isAuthenticated={isAuthenticated} />
-      <Footer />
+    <PublicLayout
+      showMainContainer={false}
+      siteName={siteName}
+      headerProps={{ serviceNavigationOnly: true }}
+    >
+      <div className='flex min-h-svh flex-col'>
+        <Hero isAuthenticated={isAuthenticated} siteName={siteName} />
+        <footer className='text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-6 pt-8 pb-10 text-xs'>
+          <span>
+            &copy; {new Date().getFullYear()} {siteName}.
+          </span>
+          {status?.user_agreement_enabled && (
+            <Link to='/user-agreement' className='hover:text-foreground'>
+              {t('User Agreement')}
+            </Link>
+          )}
+          {status?.privacy_policy_enabled && (
+            <Link to='/privacy-policy' className='hover:text-foreground'>
+              {t('Privacy Policy')}
+            </Link>
+          )}
+        </footer>
+      </div>
     </PublicLayout>
   )
 }

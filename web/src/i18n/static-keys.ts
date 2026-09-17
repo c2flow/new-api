@@ -27,6 +27,19 @@ export const STATIC_I18N_KEYS = [
   'Docs',
   'About',
 
+  // Documentation
+  'Quick start',
+  'Authentication',
+  'Send your first request',
+  'Client configuration',
+  'Manage and troubleshoot',
+  'Create an API key',
+  'Create a key in the console and keep it secure.',
+  'Choose a model',
+  'Browse enabled models and copy the exact model name.',
+  'Make a request',
+  'Use the OpenAI-compatible endpoint with your key.',
+
   // Sidebar views (drill-in workspaces)
   'System Settings',
   'Back to Dashboard',
@@ -530,6 +543,9 @@ export const STATIC_I18N_KEYS = [
   'Detection complete: {{add}} to add, {{remove}} to remove',
   'Batch detection failed',
   'Batch detection complete: {{channels}} channels, {{add}} to add, {{remove}} to remove, {{fails}} failed',
+
+  // Documentation navigation labels passed to t at runtime
+  'Coding tools',
 
   // Advanced Custom model discovery
   'Only one OpenAI Models route is allowed',
