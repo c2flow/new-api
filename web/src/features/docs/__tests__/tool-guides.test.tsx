@@ -51,8 +51,12 @@ test('tool tabs keep a compact selected pill inside a padded track', () => {
   const tab = screen.getByRole('tab', { name: 'CC Switch' })
   const tabList = screen.getByRole('tablist')
 
-  expect(tab).toHaveClass('w-fit', 'min-w-28', 'justify-self-center')
-  expect(tabList).toHaveClass('py-1.5', 'group-data-horizontal/tabs:h-auto')
+  expect(tab).toHaveClass('w-fit', 'min-w-24', 'justify-self-center')
+  expect(tabList).toHaveClass(
+    'py-1.5',
+    'group-data-horizontal/tabs:h-auto',
+    'lg:grid-cols-6'
+  )
 })
 
 test('switching tabs shows the selected tool configuration with the current gateway URL', async () => {
@@ -78,6 +82,20 @@ test('switching tabs shows the selected tool configuration with the current gate
   expect(
     screen.getByText(/"baseURL": "https:\/\/gateway\.example\.com\/v1"/)
   ).toBeVisible()
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Hermes' }))
+  expect(screen.getByText(/default: Kimi-K2\.5/)).toBeVisible()
+  expect(
+    screen.getByText(/base_url: "https:\/\/gateway\.example\.com\/v1"/)
+  ).toBeVisible()
+
+  await userEvent.click(screen.getByRole('tab', { name: 'DeepSeek Harness' }))
+  expect(screen.getByText('npx @deepseek-ai/dsh web')).toBeVisible()
+  expect(screen.getByText(/api: openai-completions/)).toBeVisible()
+  expect(
+    screen.getByText(/baseURL: "https:\/\/gateway\.example\.com\/v1"/)
+  ).toBeVisible()
+  expect(screen.getByText(/model: Kimi-K2\.5/)).toBeVisible()
 })
 
 test('Codex and Claude Code provide their interactive curl setup commands', async () => {

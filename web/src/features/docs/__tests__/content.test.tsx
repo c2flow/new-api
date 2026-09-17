@@ -71,3 +71,47 @@ test('authentication guidance is included once with the first request', async ()
     document.body.textContent?.match(/Authorization: Bearer YOUR_API_KEY/g)
   ).toHaveLength(1)
 })
+
+test('documentation content uses a centered layout without a section sidebar', async () => {
+  renderDocumentation()
+
+  const quickStartHeading = await screen.findByRole('heading', {
+    name: 'Quick start',
+  })
+  const article = quickStartHeading.closest('article')
+
+  expect(
+    screen.queryByRole('navigation', { name: 'Documentation sections' })
+  ).not.toBeInTheDocument()
+  expect(article).toHaveClass('mx-auto', 'max-w-5xl')
+})
+
+test('documentation content omits the promotional header', async () => {
+  renderDocumentation()
+
+  await screen.findByRole('heading', { name: 'Quick start' })
+  expect(document.querySelector('header')).not.toBeInTheDocument()
+})
+
+test('quick start only links to API key creation', async () => {
+  renderDocumentation()
+
+  const quickStartHeading = await screen.findByRole('heading', {
+    name: 'Quick start',
+  })
+  const quickStartSection = quickStartHeading.closest('section')
+
+  expect(quickStartSection).toHaveTextContent('Create an API key')
+  expect(quickStartSection).not.toHaveTextContent('Choose a model')
+  expect(quickStartSection).not.toHaveTextContent('Make a request')
+})
+
+test('documentation omits the external documentation prompt', async () => {
+  renderDocumentation()
+
+  await screen.findByRole('heading', { name: 'Quick start' })
+  expect(screen.queryByText('Need more details?')).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('link', { name: 'Open the extended documentation' })
+  ).not.toBeInTheDocument()
+})

@@ -42,6 +42,31 @@ wire_api = "responses"`
   const claudeShell = `export ANTHROPIC_BASE_URL="${props.gatewayUrl}"
 export ANTHROPIC_AUTH_TOKEN="YOUR_API_KEY"
 claude`
+  const hermesConfig = `model:
+  default: Kimi-K2.5
+  provider: custom
+  base_url: "${props.baseUrl}"
+  api_key: "YOUR_API_KEY"
+  context_length: 262144`
+  const deepSeekHarnessConfig = `llm-pi-ai:
+  providers:
+    newapi:
+      displayName: New API
+      apiKeyEnv: NEW_API_KEY
+      api: openai-completions
+      baseURL: "${props.baseUrl}"
+      compat:
+        supportsDeveloperRole: false
+        maxTokensField: max_tokens
+      models:
+        - id: Kimi-K2.5
+          name: Kimi-K2.5
+          contextWindow: 262144
+          maxTokens: 32768
+
+agent-default-model:
+  provider: newapi
+  model: Kimi-K2.5`
   const openCodeConfig = `{
   "$schema": "https://opencode.ai/config.json",
   "model": "newapi/YOUR_MODEL",
@@ -63,30 +88,42 @@ claude`
 
   return (
     <Tabs defaultValue='cc-switch' className='mt-6 gap-5'>
-      <TabsList className='grid w-full grid-cols-2 gap-1 py-1.5 group-data-horizontal/tabs:h-auto sm:grid-cols-4'>
+      <TabsList className='grid w-full grid-cols-2 gap-1 py-1.5 group-data-horizontal/tabs:h-auto sm:grid-cols-3 lg:grid-cols-6'>
         <TabsTrigger
           value='cc-switch'
-          className='h-9 w-fit min-w-28 justify-self-center px-5'
+          className='h-9 w-fit min-w-24 justify-self-center px-4'
         >
           {t('CC Switch')}
         </TabsTrigger>
         <TabsTrigger
           value='codex'
-          className='h-9 w-fit min-w-28 justify-self-center px-5'
+          className='h-9 w-fit min-w-24 justify-self-center px-4'
         >
           {t('Codex')}
         </TabsTrigger>
         <TabsTrigger
           value='claude-code'
-          className='h-9 w-fit min-w-28 justify-self-center px-5'
+          className='h-9 w-fit min-w-24 justify-self-center px-4'
         >
           {t('Claude Code')}
         </TabsTrigger>
         <TabsTrigger
           value='opencode'
-          className='h-9 w-fit min-w-28 justify-self-center px-5'
+          className='h-9 w-fit min-w-24 justify-self-center px-4'
         >
           {t('OpenCode')}
+        </TabsTrigger>
+        <TabsTrigger
+          value='hermes'
+          className='h-9 w-fit min-w-24 justify-self-center px-4'
+        >
+          {t('Hermes')}
+        </TabsTrigger>
+        <TabsTrigger
+          value='deepseek-harness'
+          className='h-9 w-fit min-w-24 justify-self-center px-4'
+        >
+          {t('DeepSeek Harness')}
         </TabsTrigger>
       </TabsList>
 
@@ -173,6 +210,62 @@ claude`
           code={'export NEW_API_KEY="YOUR_API_KEY"\nopencode'}
           label={t('Shell')}
         />
+      </TabsContent>
+
+      <TabsContent value='hermes'>
+        <p className='text-muted-foreground mb-4 text-sm leading-6'>
+          {t('Save this configuration to ~/.hermes/config.yaml.')}
+        </p>
+        <CodeBlock code={hermesConfig} label='~/.hermes/config.yaml' />
+        <p className='text-muted-foreground mt-5 mb-4 text-sm leading-6'>
+          {t('Start Hermes Agent after saving the configuration.')}
+        </p>
+        <CodeBlock code='hermes chat' label={t('Shell')} />
+      </TabsContent>
+
+      <TabsContent value='deepseek-harness'>
+        <ol className='space-y-5'>
+          <GuideStep
+            number='1'
+            title={t('Start the DeepSeek Harness Web UI')}
+            description={t(
+              'Run the command below, then open the local Web UI.'
+            )}
+          />
+          <GuideStep
+            number='2'
+            title={t('Add a custom provider')}
+            description={t(
+              'Open Settings → Models, set the provider ID to newapi, select openai-completions, and enter the API URL and key.'
+            )}
+          />
+          <GuideStep
+            number='3'
+            title={t('Add and select Kimi-K2.5')}
+            description={t(
+              'Add Kimi-K2.5 to the provider, save it, and select it for the new session.'
+            )}
+          />
+        </ol>
+        <div className='mt-5'>
+          <CodeBlock code='npx @deepseek-ai/dsh web' label={t('Shell')} />
+        </div>
+        <MethodDivider />
+        <p className='text-muted-foreground mb-4 text-sm leading-6'>
+          {t(
+            'For manual configuration, set NEW_API_KEY in your shell and save this section to $DSH_HOME/settings.yaml.'
+          )}
+        </p>
+        <CodeBlock
+          code='export NEW_API_KEY="YOUR_API_KEY"'
+          label={t('Shell')}
+        />
+        <div className='mt-4'>
+          <CodeBlock
+            code={deepSeekHarnessConfig}
+            label='$DSH_HOME/settings.yaml'
+          />
+        </div>
       </TabsContent>
     </Tabs>
   )

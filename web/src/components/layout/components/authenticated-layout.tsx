@@ -1,3 +1,5 @@
+import { useRouterState } from '@tanstack/react-router'
+
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -37,6 +39,10 @@ type AuthenticatedLayoutProps = {
 export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
   const defaultOpen = getCookie('sidebar_state') !== 'false'
   const hasTeamOrganizations = useHasTeamOrganizations()
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const showSidebar = pathname !== '/docs' && !pathname.startsWith('/docs/')
 
   return (
     <OrganizationBoundary>
@@ -45,12 +51,13 @@ export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
           <SidebarProvider defaultOpen={defaultOpen} className='flex-col'>
             <SkipToMain />
             <AppHeader
+              showSidebarTrigger={showSidebar}
               leftContent={
                 hasTeamOrganizations ? <OrganizationSwitcher /> : undefined
               }
             />
             <div className='flex min-h-0 w-full flex-1'>
-              <AppSidebar />
+              {showSidebar ? <AppSidebar /> : null}
               <SidebarInset
                 className={cn(
                   '@container/content',
