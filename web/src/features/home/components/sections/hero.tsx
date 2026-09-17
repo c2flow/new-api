@@ -95,7 +95,7 @@ export function Hero(props: HeroProps) {
             className='hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:text-base'
           >
             <HermesAgent size={28} aria-hidden='true' />
-            Hermes
+            {t('Hermes Agent')}
           </a>
           <a
             href='https://deepseek.com/harness/'

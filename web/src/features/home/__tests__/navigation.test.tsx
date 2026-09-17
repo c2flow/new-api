@@ -110,7 +110,7 @@ test('default home keeps documentation with service and legal links', async () =
     'href',
     '/privacy-policy'
   )
-  expect(screen.getByRole('link', { name: 'Hermes' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Hermes Agent' })).toHaveAttribute(
     'href',
     'https://hermes-agent.nousresearch.com/'
   )
