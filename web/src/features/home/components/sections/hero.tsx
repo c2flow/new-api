@@ -87,12 +87,12 @@ export function Hero(props: HeroProps) {
         >
           {t('Everyday Tools')}
         </h2>
-        <div className='mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 sm:gap-x-12'>
+        <div className='mt-8 inline-grid grid-cols-1 items-center gap-y-3 sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none sm:gap-x-8'>
           <a
             href='https://hermes-agent.nousresearch.com/'
             target='_blank'
             rel='noopener noreferrer'
-            className='hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:text-base'
+            className='hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 items-center justify-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:text-base'
           >
             <HermesAgent size={28} aria-hidden='true' />
             {t('Hermes Agent')}
@@ -101,7 +101,7 @@ export function Hero(props: HeroProps) {
             href='https://deepseek.com/harness/'
             target='_blank'
             rel='noopener noreferrer'
-            className='hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:text-base'
+            className='hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 items-center justify-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:text-base'
           >
             <DeepSeekColor size={28} aria-hidden='true' />
             DeepSeek Harness
