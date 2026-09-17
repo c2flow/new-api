@@ -16,7 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import CherryStudioColor from '@lobehub/icons/es/CherryStudio/components/Color'
+import DeepSeekColor from '@lobehub/icons/es/DeepSeek/components/Color'
+import HermesAgent from '@lobehub/icons/es/HermesAgent/components/Mono'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -88,31 +89,22 @@ export function Hero(props: HeroProps) {
         </h2>
         <div className='mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 sm:gap-x-12'>
           <a
-            href='https://cherry-ai.com'
+            href='https://hermes-agent.nousresearch.com/'
             target='_blank'
             rel='noopener noreferrer'
             className='hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:text-base'
           >
-            <CherryStudioColor size={28} aria-hidden='true' />
-            Cherry Studio
+            <HermesAgent size={28} aria-hidden='true' />
+            Hermes
           </a>
           <a
-            href='https://ccswitch.io'
+            href='https://deepseek.com/harness/'
             target='_blank'
             rel='noopener noreferrer'
             className='hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:text-base'
           >
-            <img
-              src='https://ccswitch.io/favicon.png'
-              alt=''
-              width={28}
-              height={28}
-              className='size-7 object-contain'
-              onError={(event) => {
-                event.currentTarget.hidden = true
-              }}
-            />
-            CC Switch
+            <DeepSeekColor size={28} aria-hidden='true' />
+            DeepSeek Harness
           </a>
         </div>
       </section>

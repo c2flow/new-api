@@ -110,14 +110,13 @@ test('default home keeps documentation with service and legal links', async () =
     'href',
     '/privacy-policy'
   )
-  expect(screen.getByRole('link', { name: 'Cherry Studio' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Hermes' })).toHaveAttribute(
     'href',
-    'https://cherry-ai.com'
+    'https://hermes-agent.nousresearch.com/'
   )
-  expect(screen.getByRole('link', { name: 'CC Switch' })).toHaveAttribute(
-    'href',
-    'https://ccswitch.io'
-  )
+  expect(
+    screen.getByRole('link', { name: 'DeepSeek Harness' })
+  ).toHaveAttribute('href', 'https://deepseek.com/harness/')
 })
 
 test('signed-out console entry preserves the dashboard destination through sign-in', async () => {
