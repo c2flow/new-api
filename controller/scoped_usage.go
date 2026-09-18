@@ -36,11 +36,21 @@ func GetScopedLogs(c *gin.Context) {
 	}
 	if c.GetInt("org_id") == 0 {
 		model.FormatUserLogs(logs, page.GetStartIdx())
+		page.SetItems(logs)
 	} else {
 		model.FormatOrganizationLogs(logs)
+		type organizationLog struct {
+			*model.Log
+			Channel     *int    `json:"channel,omitempty"`
+			ChannelName *string `json:"channel_name,omitempty"`
+		}
+		items := make([]organizationLog, len(logs))
+		for i, log := range logs {
+			items[i] = organizationLog{Log: log}
+		}
+		page.SetItems(items)
 	}
 	page.SetTotal(int(total))
-	page.SetItems(logs)
 	common.ApiSuccess(c, page)
 }
 

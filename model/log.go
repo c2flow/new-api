@@ -139,8 +139,7 @@ func FormatRootLogs(logs []*Log) {
 	}
 }
 
-// Organization operators can inspect usage and public channel names, but
-// platform-only diagnostics and secrets remain outside their authority.
+// FormatOrganizationLogs strips platform-only diagnostics from organization usage metadata.
 func FormatOrganizationLogs(logs []*Log) {
 	for _, log := range logs {
 		log.Other = formatLogOtherJSON(log.Other, logOtherVisibilityUser)

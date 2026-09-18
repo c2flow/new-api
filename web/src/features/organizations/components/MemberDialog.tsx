@@ -56,14 +56,14 @@ export function MemberDialog(props: {
   const schema = z.object({
     username: z.string().trim(),
     role: z.enum(['admin', 'member']),
-    status: z.enum(['1', '2', '3']),
+    status: z.enum(['1', '2']),
   })
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       username: props.member?.username ?? '',
       role: props.member?.role === 'admin' ? 'admin' : 'member',
-      status: String(props.member?.status ?? 1) as '1' | '2' | '3',
+      status: props.member?.status === 2 ? '2' : '1',
     },
   })
   const mutation = useMutation({
@@ -149,10 +149,7 @@ export function MemberDialog(props: {
                     {t('Active')}
                   </NativeSelectOption>
                   <NativeSelectOption value='2'>
-                    {t('Disabled')}
-                  </NativeSelectOption>
-                  <NativeSelectOption value='3'>
-                    {t('Removed')}
+                    {t('Disable')}
                   </NativeSelectOption>
                 </NativeSelect>
                 <FieldDescription>

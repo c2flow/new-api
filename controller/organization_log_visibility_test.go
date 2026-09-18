@@ -65,7 +65,8 @@ func TestOrganizationLogVisibility(t *testing.T) {
 		channel, admin, root bool
 	}{
 		{"personal", common.RoleCommonUser, 0, false, false, false, false},
-		{"team", common.RoleCommonUser, 10, false, true, false, false},
+		{"team", common.RoleCommonUser, 10, false, false, false, false},
+		{"team with platform root account", common.RoleRootUser, 10, false, false, false, false},
 		{"platform admin", common.RoleAdminUser, 10, true, true, true, false},
 		{"platform root", common.RoleRootUser, 10, true, true, true, true},
 	} {
@@ -93,6 +94,20 @@ func TestOrganizationLogVisibility(t *testing.T) {
 			require.True(t, payload.Success)
 			require.Len(t, payload.Data.Items, 1)
 			log := payload.Data.Items[0]
+			if test.orgID != 0 && !test.platform {
+				var rawPayload struct {
+					Data struct {
+						Items []map[string]any `json:"items"`
+					} `json:"data"`
+				}
+				require.NoError(t, common.Unmarshal(response.Body.Bytes(), &rawPayload))
+				require.Len(t, rawPayload.Data.Items, 1)
+				assert.NotContains(t, rawPayload.Data.Items[0], "channel")
+				assert.NotContains(t, rawPayload.Data.Items[0], "channel_name")
+			}
+			if test.platform {
+				assert.Equal(t, 5, log.ChannelId)
+			}
 			assert.Contains(t, log.Other, "public-usage")
 			if !test.platform {
 				expectedChannel := ""
