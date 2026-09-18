@@ -763,6 +763,8 @@ test.each([false, true])(
     ).not.toBeInTheDocument()
     expect(requests).not.toContain('/api/org/members')
     if (manage) {
+      expect(screen.getByText('Monthly usage')).toBeVisible()
+      expect(screen.queryByText('Current period usage')).not.toBeInTheDocument()
       expect(
         screen.getByText('Please contact the system administrator to top up.')
       ).toBeVisible()

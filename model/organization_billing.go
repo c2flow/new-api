@@ -3,7 +3,6 @@ package model
 import (
 	"errors"
 	"math"
-	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
@@ -40,9 +39,10 @@ type OrganizationBudgetUsage struct {
 	Reserved int64 `json:"reserved"`
 }
 
-func GetOrganizationBudgetUsage(orgID int, periodStart int64) ([]OrganizationBudgetUsage, error) {
+func GetOrganizationMonthlyUsage(orgID int, timestamp int64) ([]OrganizationBudgetUsage, error) {
+	start, end := OrganizationMonthlyWindow(timestamp)
 	usage := make([]OrganizationBudgetUsage, 0)
-	err := DB.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("period_start = ?", periodStart).
+	err := DB.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("created_at >= ? AND created_at < ?", start, end).
 		Select("user_id, SUM(CASE WHEN status = 'settled' THEN quota ELSE 0 END) AS used, SUM(CASE WHEN status = 'reserved' THEN quota ELSE 0 END) AS reserved").Group("user_id").Scan(&usage).Error
 	return usage, err
 }
@@ -93,9 +93,7 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 		}
 		now := common.GetTimestamp()
 		if org.BudgetPeriodEnd <= now {
-			date := time.Unix(now, 0).UTC()
-			start := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.UTC)
-			org.BudgetPeriodStart, org.BudgetPeriodEnd = start.Unix(), start.AddDate(0, 1, 0).Unix()
+			org.BudgetPeriodStart, org.BudgetPeriodEnd = OrganizationMonthlyWindow(now)
 			if err := tx.Model(&org).Updates(map[string]interface{}{"budget_period_start": org.BudgetPeriodStart, "budget_period_end": org.BudgetPeriodEnd}).Error; err != nil {
 				return err
 			}

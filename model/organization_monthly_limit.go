@@ -8,7 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// OrganizationMonthlyWindow is independent of the wallet accounting period.
+// OrganizationMonthlyWindow defines the UTC+8 calendar month used by member
+// spending limits and organization wallet usage.
 func OrganizationMonthlyWindow(timestamp int64) (int64, int64) {
 	date := time.Unix(timestamp, 0).In(time.FixedZone("UTC+8", 8*60*60))
 	start := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())

@@ -188,10 +188,16 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		require.NoError(t, db.Model(team).Update("quota", 1000).Error)
 		charge := model.OrganizationCharge{OrgId: team.Id, UserId: owner.Id, RequestId: "monthly-summary", Quota: 40, Status: "reserved", CreatedAt: common.GetTimestamp()}
 		require.NoError(t, db.Create(&charge).Error)
+		monthStart, _ := model.OrganizationMonthlyWindow(common.GetTimestamp())
+		historical := model.OrganizationCharge{OrgId: team.Id, UserId: owner.Id, RequestId: "previous-month-summary", PeriodStart: team.BudgetPeriodStart, Quota: 999, Status: "settled", CreatedAt: monthStart - 1}
+		require.NoError(t, db.Create(&historical).Error)
 		result = request("GET", "/org/summary", path, "")
 		require.Equal(t, 200, result.Code, result.Body.String())
 		assert.Contains(t, result.Body.String(), `"available_quota":60`)
+		assert.Contains(t, result.Body.String(), `"reserved":40`)
+		assert.NotContains(t, result.Body.String(), `"used":999`)
 		require.NoError(t, db.Delete(&charge).Error)
+		require.NoError(t, db.Delete(&historical).Error)
 		require.NoError(t, db.Model(team).Update("quota", 0).Error)
 
 		for _, body := range []string{`{}`, `{"user_ids":[],"monthly_spend_limit":0}`, fmt.Sprintf(`{"user_ids":[%d]}`, owner.Id)} {

@@ -113,7 +113,7 @@ export function Billing() {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>{t('Current period usage')}</CardDescription>
+            <CardDescription>{t('Monthly usage')}</CardDescription>
             <CardTitle className='text-2xl'>
               {formatQuotaWithCurrency(used)}
             </CardTitle>

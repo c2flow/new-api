@@ -15,7 +15,7 @@ func GetOrganizationSummary(c *gin.Context) {
 		organizationError(c, err)
 		return
 	}
-	usage, err := model.GetOrganizationBudgetUsage(org.Id, org.BudgetPeriodStart)
+	usage, err := model.GetOrganizationMonthlyUsage(org.Id, common.GetTimestamp())
 	if err != nil {
 		common.ApiError(c, err)
 		return

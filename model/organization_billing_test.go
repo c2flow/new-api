@@ -47,7 +47,11 @@ func TestOrganizationChargeCapPrecheckNeverDebitsAnotherWallet(t *testing.T) {
 	assert.Equal(t, 999, users[0].Quota)
 	assert.Equal(t, 888, users[1].Quota)
 	assert.Error(t, FinalizeOrganizationCharge(org.Id+1, "first", 0, true))
-	usage, err := GetOrganizationBudgetUsage(org.Id, org.BudgetPeriodStart)
+	now := common.GetTimestamp()
+	monthStart, _ := OrganizationMonthlyWindow(now)
+	historical := OrganizationCharge{OrgId: org.Id, UserId: users[1].Id, RequestId: "previous-month", PeriodStart: org.BudgetPeriodStart, Quota: 77, Status: "settled", CreatedAt: monthStart - 1}
+	require.NoError(t, db.Create(&historical).Error)
+	usage, err := GetOrganizationMonthlyUsage(org.Id, now)
 	require.NoError(t, err)
 	require.Len(t, usage, 1)
 	assert.Equal(t, int64(120), usage[0].Used)
