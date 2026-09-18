@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
@@ -93,31 +92,25 @@ func TestOrganizationReservationsSerializeSharedMemberCap(t *testing.T) {
 	assert.Equal(t, int64(850), org.Quota)
 }
 
-func TestOrganizationSubscriptionSnapshotAndRefundAcrossReset(t *testing.T) {
+func TestOrganizationChargeUsesWalletWhenLegacySubscriptionExists(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
-	no := false
-	plan := SubscriptionPlan{Title: "Team plan", Enabled: true, Audience: "org", DurationUnit: SubscriptionDurationMonth, DurationValue: 1, TotalAmount: 300, QuotaResetPeriod: SubscriptionResetDaily, MaxMembers: 2, AllowWalletOverflow: &no}
-	require.NoError(t, db.Create(&plan).Error)
-	var sub *UserSubscription
-	require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
-		var err error
-		sub, err = CreateOrganizationSubscriptionFromPlanTx(tx, org.Id, users[0].Id, &plan, "order")
-		return err
-	}))
-	receipt, err := ReserveOrganizationCharge(org.Id, users[1].Id, 0, "before-reset", 100)
+	legacy := UserSubscription{
+		OrgId:               org.Id,
+		UserId:              users[0].Id,
+		Status:              "active",
+		EndTime:             common.GetTimestamp() + 3600,
+		AmountTotal:         1000,
+		AllowWalletOverflow: false,
+	}
+	require.NoError(t, db.Create(&legacy).Error)
+
+	receipt, err := ReserveOrganizationCharge(org.Id, users[1].Id, 0, "wallet-only", 100)
 	require.NoError(t, err)
-	assert.Equal(t, sub.Id, receipt.SubscriptionId)
-	// Editing/removing the catalog cannot alter purchased terms or break settlement.
-	require.NoError(t, db.Delete(&plan).Error)
-	snapshot, err := GetPurchasedSubscriptionPlan(db, sub)
-	require.NoError(t, err)
-	assert.Equal(t, 2, snapshot.MaxMembers)
-	require.NoError(t, db.Model(sub).Updates(map[string]interface{}{"last_reset_time": sub.LastResetTime + 86400, "amount_used": 50}).Error)
-	require.NoError(t, FinalizeOrganizationCharge(org.Id, "before-reset", 0, true))
-	require.NoError(t, db.First(sub, sub.Id).Error)
-	assert.Equal(t, int64(50), sub.AmountUsed, "refund of expired allowance must not credit the next period")
+	assert.Zero(t, receipt.SubscriptionId)
 	require.NoError(t, db.First(org, org.Id).Error)
-	assert.Equal(t, int64(1000), org.Quota)
+	assert.Equal(t, int64(900), org.Quota)
+	require.NoError(t, db.First(&legacy, legacy.Id).Error)
+	assert.Zero(t, legacy.AmountUsed)
 }
 
 func TestOrganizationTaskRefundIsAtomicAcrossPollRetries(t *testing.T) {
@@ -158,10 +151,6 @@ func TestOrganizationLifecycleRequiresAcceptedTransferAndSettledFunds(t *testing
 	assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Name), ErrOrganizationUnsettled)
 	require.NoError(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationActive, ""))
 	require.NoError(t, db.Model(org).Update("quota", 0).Error)
-	subscription := UserSubscription{OrgId: org.Id, UserId: users[1].Id, Status: "active", EndTime: time.Now().Add(time.Hour).Unix()}
-	require.NoError(t, db.Create(&subscription).Error)
-	assert.ErrorIs(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Name), ErrOrganizationUnsettled)
-	require.NoError(t, db.Model(&subscription).Update("status", "expired").Error)
 	require.NoError(t, ChangeOrganizationStatus(org.Id, users[1].Id, OrganizationDeleting, org.Name))
 	assert.ErrorIs(t, db.First(&Organization{}, org.Id).Error, gorm.ErrRecordNotFound)
 }

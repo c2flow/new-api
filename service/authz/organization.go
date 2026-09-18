@@ -16,18 +16,17 @@ func init() {
 // Organization permissions are fixed product roles, independent of platform
 // Casbin policies. Unknown resources, actions and roles have no grants.
 var organizationPermissions = map[Permission][]string{
-	{Resource: "org.member", Action: "read"}:           {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
-	{Resource: "org.member", Action: "write"}:          {model.OrgRoleOwner, model.OrgRoleAdmin},
-	{Resource: "org.token", Action: "read"}:            {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
-	{Resource: "org.token", Action: "write"}:           {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
-	{Resource: "org.usage", Action: "read"}:            {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
-	{Resource: "org.usage", Action: "read_all"}:        {model.OrgRoleOwner, model.OrgRoleAdmin},
-	{Resource: "org.billing", Action: "read"}:          {model.OrgRoleOwner, model.OrgRoleAdmin},
-	{Resource: "org.billing", Action: "write"}:         {model.OrgRoleOwner, model.OrgRoleAdmin},
-	{Resource: "org.subscription", Action: "purchase"}: {model.OrgRoleOwner, model.OrgRoleAdmin},
-	{Resource: "org.settings", Action: "read"}:         {model.OrgRoleOwner, model.OrgRoleAdmin},
-	{Resource: "org.settings", Action: "write"}:        {model.OrgRoleOwner, model.OrgRoleAdmin},
-	{Resource: "org.lifecycle", Action: "write"}:       {model.OrgRoleOwner},
+	{Resource: "org.member", Action: "read"}:     {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
+	{Resource: "org.member", Action: "write"}:    {model.OrgRoleOwner, model.OrgRoleAdmin},
+	{Resource: "org.token", Action: "read"}:      {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
+	{Resource: "org.token", Action: "write"}:     {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
+	{Resource: "org.usage", Action: "read"}:      {model.OrgRoleOwner, model.OrgRoleAdmin, model.OrgRoleMember},
+	{Resource: "org.usage", Action: "read_all"}:  {model.OrgRoleOwner, model.OrgRoleAdmin},
+	{Resource: "org.billing", Action: "read"}:    {model.OrgRoleOwner, model.OrgRoleAdmin},
+	{Resource: "org.billing", Action: "write"}:   {model.OrgRoleOwner, model.OrgRoleAdmin},
+	{Resource: "org.settings", Action: "read"}:   {model.OrgRoleOwner, model.OrgRoleAdmin},
+	{Resource: "org.settings", Action: "write"}:  {model.OrgRoleOwner, model.OrgRoleAdmin},
+	{Resource: "org.lifecycle", Action: "write"}: {model.OrgRoleOwner},
 }
 
 // CanOrg requires a role from a freshly validated membership. The IDs guard

@@ -34,7 +34,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { useOrganization } from '@/features/organizations/context'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { formatQuota } from '@/lib/format'
 import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
@@ -71,7 +70,6 @@ interface Props {
 
 export function SubscriptionPurchaseDialog(props: Props) {
   const { t } = useTranslation()
-  const organization = useOrganization()
   const { currency } = useSystemConfig()
   const [paying, setPaying] = useState(false)
   const [selectedEpayMethod, setSelectedEpayMethod] = useState('')
@@ -273,13 +271,6 @@ export function SubscriptionPurchaseDialog(props: Props) {
       bodyClassName='space-y-4'
     >
       <div className='space-y-3 sm:space-y-4'>
-        <Alert>
-          <AlertDescription>
-            {t('Purchasing for {{name}}', {
-              name: organization?.organization.name ?? t('Personal'),
-            })}
-          </AlertDescription>
-        </Alert>
         <div className='bg-muted/50 space-y-2.5 rounded-lg border p-3 sm:space-y-3 sm:p-4'>
           <div className='flex justify-between'>
             <span className='text-muted-foreground text-sm'>

@@ -26,10 +26,9 @@ const serverErrorMessageKeys = {
   ORG_INVALID: 'Invalid organization details',
   ORG_INVITE_USER: 'No active account matches this username.',
   ORG_INVITE: 'Invitation unavailable or identity does not match',
-  ORG_SEATS: 'Organization member limit reached',
   ORG_OWNER: 'Ownership operation is not allowed',
   ORG_UNSETTLED:
-    'Settle the balance and active subscriptions before deleting this organization.',
+    'Deletion is blocked while a balance, pending payment or unfinished request remains. Disable the team and contact the platform to settle funds.',
   ORG_QUOTA: 'Organization quota insufficient',
   ORG_MEMBER_LIMIT: 'Member spending limit reached',
 

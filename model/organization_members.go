@@ -65,28 +65,6 @@ func lockOrganizationManager(tx *gorm.DB, orgID, actorID int, ownerOnly bool) (*
 	return &org, nil
 }
 
-func organizationSeatLimit(tx *gorm.DB, orgID int) (int, error) {
-	var subs []UserSubscription
-	err := tx.Scopes(OrgScope(orgID)).Where("status = ? AND end_time > ?", "active", common.GetTimestamp()).Find(&subs).Error
-	if err != nil {
-		return 0, err
-	}
-	max := 0
-	for _, sub := range subs {
-		plan, err := GetPurchasedSubscriptionPlan(tx, &sub)
-		if err != nil {
-			return 0, err
-		}
-		if plan.MaxMembers == 0 {
-			return 0, nil
-		}
-		if plan.MaxMembers > max {
-			max = plan.MaxMembers
-		}
-	}
-	return max, nil
-}
-
 func CreateOrganizationInvite(orgID, actorID int, username, role string) (*OrganizationInvite, error) {
 	username = strings.TrimSpace(username)
 	if username == "" || utf8.RuneCountInString(username) > 20 || (role != OrgRoleAdmin && role != OrgRoleMember) {
@@ -125,22 +103,6 @@ func CreateOrganizationInvite(orgID, actorID int, username, role string) (*Organ
 		}
 		if count > 0 {
 			return ErrOrganizationInvitePending
-		}
-		max, err := organizationSeatLimit(tx, orgID)
-		if err != nil {
-			return err
-		}
-		if max > 0 {
-			var pending int64
-			if err := tx.Model(&OrganizationMember{}).Scopes(OrgScope(orgID)).Where("status = ?", OrganizationActive).Count(&count).Error; err != nil {
-				return err
-			}
-			if err := tx.Model(&OrganizationInvite{}).Scopes(OrgScope(orgID)).Where("status = ? AND expires_at > ?", "pending", common.GetTimestamp()).Count(&pending).Error; err != nil {
-				return err
-			}
-			if count+pending >= int64(max) {
-				return ErrOrganizationSeats
-			}
 		}
 		if err := tx.Create(&invite).Error; err != nil {
 			return err
@@ -189,17 +151,6 @@ func AcceptOrganizationInvite(userID, inviteID int) (int, error) {
 		if member.Id != 0 && member.Status == OrganizationActive {
 			return ErrOrganizationInvite
 		}
-		max, err := organizationSeatLimit(tx, org.Id)
-		if err != nil {
-			return err
-		}
-		var count int64
-		if err := tx.Model(&OrganizationMember{}).Scopes(OrgScope(org.Id)).Where("status = ?", OrganizationActive).Count(&count).Error; err != nil {
-			return err
-		}
-		if max > 0 && count >= int64(max) {
-			return ErrOrganizationSeats
-		}
 		settings, err := org.EffectiveSettings()
 		if err != nil {
 			return err
@@ -238,22 +189,6 @@ func UpdateOrganizationMember(orgID, actorID, userID int, role string, status in
 		}
 		if actorID != org.OwnerId && (member.Role == OrgRoleAdmin || role == OrgRoleAdmin) {
 			return ErrOrganizationAccess
-		}
-		if status == OrganizationActive && member.Status != OrganizationActive {
-			max, err := organizationSeatLimit(tx, orgID)
-			if err != nil {
-				return err
-			}
-			var count, pending int64
-			if err := tx.Model(&OrganizationMember{}).Scopes(OrgScope(orgID)).Where("status = ?", OrganizationActive).Count(&count).Error; err != nil {
-				return err
-			}
-			if err := tx.Model(&OrganizationInvite{}).Scopes(OrgScope(orgID)).Where("status = ? AND expires_at > ?", "pending", common.GetTimestamp()).Count(&pending).Error; err != nil {
-				return err
-			}
-			if max > 0 && count+pending >= int64(max) {
-				return ErrOrganizationSeats
-			}
 		}
 		if status != OrganizationActive {
 			if err := DisableOrganizationMemberTokensTx(tx, orgID, userID); err != nil {
@@ -307,20 +242,7 @@ func ResendOrganizationInvite(orgID, actorID, inviteID int) (*OrganizationInvite
 		}
 		invite.Username = target.Username
 		if invite.ExpiresAt <= common.GetTimestamp() {
-			max, err := organizationSeatLimit(tx, orgID)
-			if err != nil {
-				return err
-			}
-			var members, pending int64
-			if err := tx.Model(&OrganizationMember{}).Scopes(OrgScope(orgID)).Where("status = ?", OrganizationActive).Count(&members).Error; err != nil {
-				return err
-			}
-			if err := tx.Model(&OrganizationInvite{}).Scopes(OrgScope(orgID)).Where("status = ? AND expires_at > ?", "pending", common.GetTimestamp()).Count(&pending).Error; err != nil {
-				return err
-			}
-			if max > 0 && members+pending >= int64(max) {
-				return ErrOrganizationSeats
-			}
+			var pending int64
 			if err := tx.Model(&OrganizationInvite{}).Scopes(OrgScope(orgID)).Where("invitee_id = ? AND id <> ? AND status = ? AND expires_at > ?", invite.InviteeId, invite.Id, "pending", common.GetTimestamp()).Count(&pending).Error; err != nil {
 				return err
 			}

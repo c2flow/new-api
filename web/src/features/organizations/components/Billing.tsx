@@ -84,13 +84,6 @@ export function Billing() {
       </div>
     )
   }
-  const active = data.subscriptions.filter(
-    (sub) => sub.status === 'active' && sub.end_time > Date.now() / 1000
-  )
-  const remaining = active.reduce(
-    (sum, sub) => sum + Math.max(0, sub.amount_total - sub.amount_used),
-    0
-  )
   const used = data.usage.reduce((sum, row) => sum + row.used, 0)
   const reserved = data.usage.reduce((sum, row) => sum + row.reserved, 0)
   return (
@@ -102,7 +95,7 @@ export function Billing() {
           )}
         </AlertDescription>
       </Alert>
-      <div className='grid gap-4 md:grid-cols-3'>
+      <div className='grid gap-4 md:grid-cols-2'>
         <Card>
           <CardHeader>
             <CardDescription>{t('Organization wallet')}</CardDescription>
@@ -115,21 +108,6 @@ export function Billing() {
               <Button variant='outline' render={<Link to='/wallet' />}>
                 {t('Top up')}
               </Button>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>{t('Subscription remaining')}</CardDescription>
-            <CardTitle className='text-2xl'>
-              {active.some((sub) => sub.amount_total === 0)
-                ? t('Unlimited')
-                : formatQuotaWithCurrency(remaining)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className='text-muted-foreground text-sm'>
-            {t(
-              'Subscription quota is used first. Wallet fallback follows the purchased plan.'
             )}
           </CardContent>
         </Card>

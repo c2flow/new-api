@@ -52,8 +52,6 @@ import type { PlatformOrganization, Page } from './types'
 const resourceColumns = {
   members: ['user_id', 'role', 'status', 'spend_limit'],
   logs: ['created_at', 'user_id', 'model_name', 'quota', 'request_id'],
-  orders: ['trade_no', 'plan_id', 'user_id', 'money', 'status'],
-  subscriptions: ['id', 'plan_id', 'amount_total', 'amount_used', 'status'],
   audit: ['created_at', 'actor_id', 'action', 'object_id', 'result', 'reason'],
 } as const
 
@@ -130,8 +128,6 @@ export function PlatformOrganizations() {
   const labels: Record<string, string> = {
     members: t('Members'),
     logs: t('Usage Logs'),
-    orders: t('Orders'),
-    subscriptions: t('Subscriptions'),
     audit: t('Organization audit'),
     user_id: t('User ID'),
     role: t('Role'),
@@ -144,12 +140,6 @@ export function PlatformOrganizations() {
     model_name: t('Model'),
     quota: t('Quota'),
     request_id: t('Request ID'),
-    trade_no: t('Order number'),
-    plan_id: t('Plan ID'),
-    money: t('Amount'),
-    id: t('ID'),
-    amount_total: t('Total Quota'),
-    amount_used: t('Used Quota'),
     actor_id: t('Actor'),
     action: t('Action'),
     object_id: t('Object'),

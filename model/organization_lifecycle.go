@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var ErrOrganizationUnsettled = errors.New("organization has a balance, active subscriptions, pending payments or unfinished requests")
+var ErrOrganizationUnsettled = errors.New("organization has a balance, pending payments or unfinished requests")
 var ErrUserOwnsOrganizations = errors.New("transfer or delete owned organizations before deleting this account")
 
 // lockUserForDeletion serializes deletion with team creation and incoming
@@ -31,13 +31,11 @@ func lockUserForDeletion(tx *gorm.DB, userID int) error {
 }
 
 type OrganizationDeletionImpact struct {
-	Members       int64 `json:"members"`
-	Tokens        int64 `json:"tokens"`
-	Logs          int64 `json:"logs"`
-	Orders        int64 `json:"orders"`
-	Subscriptions int64 `json:"subscriptions"`
-	Quota         int64 `json:"quota"`
-	Blocked       bool  `json:"blocked"`
+	Members int64 `json:"members"`
+	Tokens  int64 `json:"tokens"`
+	Logs    int64 `json:"logs"`
+	Quota   int64 `json:"quota"`
+	Blocked bool  `json:"blocked"`
 }
 
 // A disabled team remains accessible only through this explicit owner lifecycle
@@ -63,8 +61,6 @@ func OrganizationHasUnsettledFunds(tx *gorm.DB, org *Organization) (bool, error)
 		return true, nil
 	}
 	queries := []*gorm.DB{
-		tx.Model(&UserSubscription{}).Scopes(OrgScope(org.Id)).Where("status = ? AND end_time > ?", "active", common.GetTimestamp()),
-		tx.Model(&SubscriptionOrder{}).Scopes(OrgScope(org.Id)).Where("status = ?", common.TopUpStatusPending),
 		tx.Model(&TopUp{}).Scopes(OrgScope(org.Id)).Where("status = ?", common.TopUpStatusPending),
 		tx.Model(&OrganizationCharge{}).Scopes(OrgScope(org.Id)).Where("status = ?", "reserved"),
 		tx.Model(&Midjourney{}).Scopes(OrgScope(org.Id)).Where("status NOT IN ?", []string{"SUCCESS", "FAILURE"}),
@@ -98,7 +94,7 @@ func GetOrganizationDeletionImpact(orgID, actorID int) (*OrganizationDeletionImp
 			resource interface{}
 			count    *int64
 		}{
-			{&OrganizationMember{}, &impact.Members}, {&Token{}, &impact.Tokens}, {&SubscriptionOrder{}, &impact.Orders}, {&UserSubscription{}, &impact.Subscriptions},
+			{&OrganizationMember{}, &impact.Members}, {&Token{}, &impact.Tokens},
 		} {
 			if err := tx.Model(entry.resource).Scopes(OrgScope(orgID)).Count(entry.count).Error; err != nil {
 				return err

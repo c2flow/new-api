@@ -22,9 +22,9 @@ import { useTranslation } from 'react-i18next'
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 
+import { Audit } from './components/Audit'
 import { Billing } from './components/Billing'
 import { Members } from './components/Members'
-import { Audit, PlansAndOrders } from './components/Orders'
 import { OrganizationSummary } from './components/OrganizationSummary'
 import { Settings } from './components/Settings'
 import { useOrganization } from './context'
@@ -44,12 +44,6 @@ export function OrganizationPage(props: { section: string }) {
     case 'billing':
       title = t('Billing & budgets')
       content = <Billing />
-      break
-    case 'plans':
-      title = t('Plans & orders')
-      content = <PlansAndOrders />
-      permitted =
-        context?.capabilities.org['org.subscription']?.purchase === true
       break
     case 'settings':
       title = t('Organization settings')

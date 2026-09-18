@@ -198,6 +198,11 @@ test('personal and team selection preserve admin navigation and show team tools 
       group.items.map((item) => item.url)
     )
   ).not.toContain('/wallet')
+  expect(
+    result.current.sidebar.navGroups.flatMap((group) =>
+      group.items.map((item) => item.url)
+    )
+  ).not.toContain('/organization/plans')
   expect(result.current.sidebar.navGroups.map((group) => group.id)).toContain(
     'organization'
   )
@@ -547,8 +552,6 @@ test('organization deletion requires its name and sends confirm_name', async () 
     members: 1,
     tokens: 0,
     logs: 0,
-    orders: 0,
-    subscriptions: 0,
   })
   const bodies: unknown[] = []
   api.defaults.adapter = async (config) => {
@@ -730,7 +733,6 @@ test.each([false, true])(
       quota: 0,
       used_quota: 0,
       usage: [],
-      subscriptions: [],
     })
     const requests: string[] = []
     api.defaults.adapter = async (config) => {

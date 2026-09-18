@@ -296,13 +296,13 @@ function SettingsForm(props: {
             <FieldGroup>
               <p>
                 {t(
-                  'Deletion is blocked while a balance, active subscription, pending payment or unfinished request remains. Disable the team and contact the platform to settle funds.'
+                  'Deletion is blocked while a balance, pending payment or unfinished request remains. Disable the team and contact the platform to settle funds.'
                 )}
               </p>
               {impact.data && (
                 <p>
                   {t(
-                    'Affected: {{members}} members, {{keys}} keys, {{logs}} logs, {{orders}} orders and {{subscriptions}} subscriptions.',
+                    'Affected: {{members}} members, {{keys}} keys and {{logs}} logs.',
                     { ...impact.data, keys: impact.data.tokens }
                   )}
                 </p>

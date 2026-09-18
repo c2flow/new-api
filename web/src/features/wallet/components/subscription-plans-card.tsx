@@ -45,7 +45,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useOrganization } from '@/features/organizations/context'
 import {
   getPublicPlans,
   getSelfSubscriptionFull,
@@ -104,7 +103,6 @@ export function SubscriptionPlansCard({
   onPurchaseSuccess,
 }: SubscriptionPlansCardProps) {
   const { t } = useTranslation()
-  const organization = useOrganization()
 
   const [plans, setPlans] = useState<PlanRecord[]>([])
   const [activeSubscriptions, setActiveSubscriptions] = useState<
@@ -336,7 +334,6 @@ export function SubscriptionPlansCard({
                     label: getBillingPreferenceLabel('wallet_only', t),
                   },
                 ]}
-                disabled={organization !== null}
                 value={billingPreference}
                 onValueChange={(v) => v !== null && handlePreferenceChange(v)}
               >
@@ -539,13 +536,6 @@ export function SubscriptionPlansCard({
               const count = planPurchaseCountMap.get(plan.id) || 0
               const reached = limit > 0 && count >= limit
 
-              let audience = t('All')
-              if (plan.audience === 'org') {
-                audience = t('Team organizations')
-              }
-              if (plan.audience === 'personal') {
-                audience = t('Personal')
-              }
               const benefits = [
                 `${t('Validity Period')}: ${formatDuration(plan, t)}`,
                 formatResetPeriod(plan, t) !== t('No Reset')
@@ -555,10 +545,6 @@ export function SubscriptionPlansCard({
                   ? `${t('Total Quota')}: ${formatQuota(totalAmount)}`
                   : `${t('Total Quota')}: ${t('Unlimited')}`,
                 limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
-                organization
-                  ? `${t('Member limit')}: ${plan.max_members || t('Unlimited')}`
-                  : null,
-                `${t('Audience')}: ${audience}`,
                 plan.upgrade_group
                   ? `${t('Upgrade Group')}: ${plan.upgrade_group}`
                   : null,

@@ -108,7 +108,18 @@ func creditTopUpQuota(tx *gorm.DB, userId int, creditedQuota int, updates map[st
 				return err
 			}
 		}
-		return creditOrganizationTopUp(tx, orgID, creditedQuota)
+		maxCurrentQuota, err := topUpQuotaMaxCurrent(creditedQuota)
+		if err != nil {
+			return err
+		}
+		result := tx.Model(&Organization{}).Where("id = ? AND quota <= ?", orgID, maxCurrentQuota).Update("quota", gorm.Expr("quota + ?", creditedQuota))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrTopUpQuotaLimitExceeded
+		}
+		return nil
 	}
 	maxCurrentQuota, err := topUpQuotaMaxCurrent(creditedQuota)
 	if err != nil {

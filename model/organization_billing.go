@@ -16,8 +16,8 @@ var (
 )
 
 // OrganizationCharge is the durable request receipt and reservation. It is not
-// a member wallet: money is debited exclusively from the organization wallet
-// or its subscription. Receipts make retries and asynchronous refunds safe.
+// a member wallet: money is debited exclusively from the organization wallet.
+// Receipts make retries and asynchronous refunds safe.
 type OrganizationCharge struct {
 	Id                 int    `json:"id"`
 	RequestId          string `json:"request_id" gorm:"type:varchar(64);uniqueIndex;not null"`
@@ -92,33 +92,10 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 			return ErrOrganizationAccess
 		}
 		now := common.GetTimestamp()
-		var subs []UserSubscription
-		if err := lockForUpdate(tx).Scopes(OrgScope(orgID)).Where("status = ? AND end_time > ?", "active", now).Order("end_time, id").Find(&subs).Error; err != nil {
-			return err
-		}
-		for i := range subs {
-			plan, err := GetPurchasedSubscriptionPlan(tx, &subs[i])
-			if err != nil {
-				return err
-			}
-			if err := maybeResetUserSubscriptionWithPlanTx(tx, &subs[i], plan, now); err != nil {
-				return err
-			}
-		}
 		if org.BudgetPeriodEnd <= now {
 			date := time.Unix(now, 0).UTC()
 			start := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.UTC)
 			org.BudgetPeriodStart, org.BudgetPeriodEnd = start.Unix(), start.AddDate(0, 1, 0).Unix()
-			if len(subs) > 0 {
-				org.BudgetPeriodStart = subs[0].LastResetTime
-				if org.BudgetPeriodStart <= 0 {
-					org.BudgetPeriodStart = subs[0].StartTime
-				}
-				org.BudgetPeriodEnd = subs[0].NextResetTime
-				if org.BudgetPeriodEnd <= now {
-					org.BudgetPeriodEnd = subs[0].EndTime
-				}
-			}
 			if err := tx.Model(&org).Updates(map[string]interface{}{"budget_period_start": org.BudgetPeriodStart, "budget_period_end": org.BudgetPeriodEnd}).Error; err != nil {
 				return err
 			}
@@ -181,31 +158,11 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 			return nil
 		}
 		receipt = OrganizationCharge{RequestId: requestID, OrgId: orgID, UserId: userID, TokenId: tokenID, TokenQuotaManaged: manageToken, PeriodStart: period, Quota: amount, Status: "reserved", CreatedAt: now}
-		allowWallet := true
-		for _, sub := range subs {
-			if !sub.AllowWalletOverflow {
-				allowWallet = false
-			}
-			if sub.AmountTotal > 0 && sub.AmountTotal-sub.AmountUsed < amount {
-				continue
-			}
-			if sub.AmountUsed > int64(common.MaxWalletQuota)-amount {
-				return ErrOrganizationQuota
-			}
-			if err := tx.Model(&sub).Update("amount_used", gorm.Expr("amount_used + ?", amount)).Error; err != nil {
-				return err
-			}
-			receipt.SubscriptionId = sub.Id
-			receipt.SubscriptionPeriod = sub.LastResetTime
-			break
+		if org.Quota < amount {
+			return ErrOrganizationQuota
 		}
-		if receipt.SubscriptionId == 0 {
-			if !allowWallet || org.Quota < amount {
-				return ErrOrganizationQuota
-			}
-			if err := tx.Model(&org).Update("quota", gorm.Expr("quota - ?", amount)).Error; err != nil {
-				return err
-			}
+		if err := tx.Model(&org).Update("quota", gorm.Expr("quota - ?", amount)).Error; err != nil {
+			return err
 		}
 		if err := tx.Create(&receipt).Error; err != nil {
 			return err

@@ -41,13 +41,12 @@ func TestOrganizationPermissionsUseFixedMemberRoles(t *testing.T) {
 	assert.False(t, CanOrg(1, -1, model.OrgRoleOwner, permission))
 	assert.False(t, CanOrg(1, 10, "root", permission))
 	assert.Equal(t, PermissionsMap{
-		"org.member":       {"read": true, "write": false},
-		"org.token":        {"read": true, "write": true},
-		"org.usage":        {"read": true, "read_all": false},
-		"org.billing":      {"read": false, "write": false},
-		"org.subscription": {"purchase": false},
-		"org.settings":     {"read": false, "write": false},
-		"org.lifecycle":    {"write": false},
+		"org.member":    {"read": true, "write": false},
+		"org.token":     {"read": true, "write": true},
+		"org.usage":     {"read": true, "read_all": false},
+		"org.billing":   {"read": false, "write": false},
+		"org.settings":  {"read": false, "write": false},
+		"org.lifecycle": {"write": false},
 	}, OrganizationCapabilities(1, 10, model.OrgRoleMember))
 }
 

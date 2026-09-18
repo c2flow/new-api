@@ -27,7 +27,6 @@ import type {
   IncomingOrganizationInvite,
   OrganizationMember,
   OrganizationMembership,
-  OrganizationOrder,
   OrganizationSettings,
   OrganizationSettingsResponse,
   OrganizationSummary,
@@ -86,11 +85,6 @@ export const getOrganizationInvites = () =>
   organizationQuery<OrganizationInvite[]>('invites')
 export const getOrganizationSettings = () =>
   organizationQuery<OrganizationSettingsResponse>('settings')
-export const getOrganizationOrders = (page: number) =>
-  organizationQuery<Page<OrganizationOrder>>('orders', {
-    p: page,
-    page_size: 20,
-  })
 export const getOrganizationAudit = (page: number) =>
   organizationQuery<Page<OrganizationAudit>>('audit', {
     p: page,

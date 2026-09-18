@@ -27,12 +27,10 @@ func organizationError(c *gin.Context, err error) {
 		status, code, message = http.StatusBadRequest, "ORG_INVITE_USER", "No active account matches this username."
 	case errors.Is(err, model.ErrOrganizationInvite):
 		status, code, message = http.StatusBadRequest, "ORG_INVITE", "Invitation unavailable or identity does not match"
-	case errors.Is(err, model.ErrOrganizationSeats):
-		status, code, message = http.StatusBadRequest, "ORG_SEATS", "Organization member limit reached"
 	case errors.Is(err, model.ErrOrganizationOwner):
 		status, code, message = http.StatusForbidden, "ORG_OWNER", "Ownership operation is not allowed"
 	case errors.Is(err, model.ErrOrganizationUnsettled):
-		status, code, message = http.StatusBadRequest, "ORG_UNSETTLED", "Settle the balance and active subscriptions before deleting this organization."
+		status, code, message = http.StatusBadRequest, "ORG_UNSETTLED", "Settle the balance and pending payments before deleting this organization."
 	case errors.Is(err, model.ErrOrganizationQuota):
 		status, code, message = http.StatusBadRequest, "ORG_QUOTA", "Organization quota insufficient"
 	case errors.Is(err, model.ErrMemberSpendLimit):

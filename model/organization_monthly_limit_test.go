@@ -8,7 +8,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestOrganizationMonthlyLimitIsOptionalAndIndependent(t *testing.T) {
@@ -24,7 +23,7 @@ func TestOrganizationMonthlyLimitIsOptionalAndIndependent(t *testing.T) {
 	assert.ErrorIs(t, err, ErrMemberSpendLimit)
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "remaining-month", 10)
 	require.NoError(t, err)
-	// Resetting a subscription/organization period cannot reset the monthly allowance.
+	// Resetting the organization accounting period cannot reset the monthly allowance.
 	require.NoError(t, db.Model(org).Updates(map[string]interface{}{"budget_period_start": 42, "budget_period_end": time.Now().Add(time.Hour).Unix()}).Error)
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "new-period", 1)
 	assert.ErrorIs(t, err, ErrMemberSpendLimit)
@@ -195,35 +194,6 @@ func TestOrganizationMonthlyLimitUpgradePreservesMembers(t *testing.T) {
 		assert.True(t, db.Migrator().HasIndex(&OrganizationMember{}, "idx_org_member"))
 		assert.True(t, db.Migrator().HasIndex(&OrganizationCharge{}, "idx_org_charge_month"))
 	}
-}
-
-func TestOrganizationMonthlyLimitCombinesWalletAndSubscription(t *testing.T) {
-	db, org, users := organizationBillingFixture(t)
-	uid := users[1].Id
-	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{uid}, 150))
-	_, err := ReserveOrganizationCharge(org.Id, uid, 0, "wallet-monthly", 50)
-	require.NoError(t, err)
-	require.NoError(t, FinalizeOrganizationCharge(org.Id, "wallet-monthly", 50, false))
-	no := false
-	plan := SubscriptionPlan{Title: "Daily team plan", Enabled: true, Audience: "org", DurationUnit: SubscriptionDurationMonth, DurationValue: 1, TotalAmount: 300, QuotaResetPeriod: SubscriptionResetDaily, MaxMembers: 2, AllowWalletOverflow: &no}
-	require.NoError(t, db.Create(&plan).Error)
-	var sub *UserSubscription
-	require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
-		var err error
-		sub, err = CreateOrganizationSubscriptionFromPlanTx(tx, org.Id, users[0].Id, &plan, "order")
-		return err
-	}))
-	receipt, err := ReserveOrganizationCharge(org.Id, uid, 0, "subscription-monthly", 100)
-	require.NoError(t, err)
-	assert.Equal(t, sub.Id, receipt.SubscriptionId)
-	require.NoError(t, FinalizeOrganizationCharge(org.Id, receipt.RequestId, 100, false))
-	require.NoError(t, db.Model(sub).Updates(map[string]interface{}{"last_reset_time": sub.LastResetTime + 86400, "amount_used": 0}).Error)
-	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "after-daily-reset", 1)
-	assert.ErrorIs(t, err, ErrMemberSpendLimit)
-	require.NoError(t, db.First(sub, sub.Id).Error)
-	assert.Zero(t, sub.AmountUsed)
-	require.NoError(t, db.First(org, org.Id).Error)
-	assert.Equal(t, int64(950), org.Quota)
 }
 
 func setMonthlyLimitForTest(orgID, actorID int, userIDs []int, limit int64) error {

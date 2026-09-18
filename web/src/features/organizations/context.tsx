@@ -49,7 +49,7 @@ export function useSwitchOrganization() {
     useOrganizationStore.getState().select(orgID)
     if (pathname.startsWith('/platform/')) return
     const organizationSection = pathname.match(
-      /^\/organization\/(members|billing|plans|settings|audit)$/
+      /^\/organization\/(members|billing|settings|audit)$/
     )?.[1]
     const dashboardSection = pathname.match(/^\/dashboard\/([^/]+)$/)?.[1]
     if (organizationSection) {

@@ -35,19 +35,15 @@ func TestAccountTokenLifecycleDoesNotRequireOrganization(t *testing.T) {
 	assert.Zero(t, audits)
 }
 
-func TestAccountSubscriptionCannotSpendTeamAllowance(t *testing.T) {
+func TestAccountSubscriptionUsesPersonalAllowance(t *testing.T) {
 	db := organizationTestDatabase(t)
 	require.NoError(t, db.Migrator().DropTable(&SubscriptionPreConsumeRecord{}))
 	require.NoError(t, db.AutoMigrate(&SubscriptionPreConsumeRecord{}))
 	user := User{Username: "buyer", AffCode: "buyer", Quota: 2000000}
 	require.NoError(t, db.Create(&user).Error)
-	team, err := CreateTeamOrganization(user.Id, "Team")
-	require.NoError(t, err)
-	plan := SubscriptionPlan{Title: "Both", Enabled: true, Audience: "both", PriceAmount: 1,
+	plan := SubscriptionPlan{Title: "Personal", Enabled: true, PriceAmount: 1,
 		DurationUnit: SubscriptionDurationMonth, DurationValue: 1, TotalAmount: 1000, MaxPurchasePerUser: 1}
 	require.NoError(t, db.Create(&plan).Error)
-	teamSub, err := CreateOrganizationSubscriptionFromPlanTx(db, team.Id, user.Id, &plan, "admin")
-	require.NoError(t, err)
 	require.NoError(t, PurchaseSubscriptionWithBalance(user.Id, plan.Id))
 	var personal UserSubscription
 	require.NoError(t, (ResourceScope{UserID: user.Id}).Apply(db).First(&personal).Error)
@@ -60,8 +56,6 @@ func TestAccountSubscriptionCannotSpendTeamAllowance(t *testing.T) {
 	receipt, err := PreConsumeUserSubscription("account-request", user.Id, "", 0, 25)
 	require.NoError(t, err, "purchased snapshot survives catalog removal")
 	assert.Equal(t, personal.Id, receipt.UserSubscriptionId)
-	require.NoError(t, db.First(teamSub, teamSub.Id).Error)
-	assert.Zero(t, teamSub.AmountUsed)
 	require.NoError(t, RefundSubscriptionPreConsume("account-request"))
 	require.NoError(t, RefundSubscriptionPreConsume("account-request"))
 	require.NoError(t, db.First(&personal, personal.Id).Error)
@@ -69,5 +63,5 @@ func TestAccountSubscriptionCannotSpendTeamAllowance(t *testing.T) {
 	require.NoError(t, db.Model(&personal).Update("status", "cancelled").Error)
 	active, err := HasActiveUserSubscription(user.Id)
 	require.NoError(t, err)
-	assert.False(t, active, "a team subscription is not a personal subscription")
+	assert.False(t, active)
 }

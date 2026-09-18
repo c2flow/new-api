@@ -580,7 +580,7 @@ func AdminCompleteTopUp(c *gin.Context) {
 	common.ApiSuccess(c, nil)
 }
 
-// Payment pricing follows the selected organization, including team subscriptions.
+// Payment pricing follows the selected wallet.
 func getTopUpBillingGroup(c *gin.Context) (string, error) {
 	if c.GetInt("org_id") > 0 {
 		return c.GetString("group"), nil

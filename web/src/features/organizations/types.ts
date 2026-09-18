@@ -76,17 +76,6 @@ export type OrganizationSummary = {
   member_count: number
   key_count: number
   usage: Array<{ user_id: number; used: number; reserved: number }>
-  subscriptions: Array<{
-    id: number
-    plan_id: number
-    status: string
-    amount_total: number
-    amount_used: number
-    end_time: number
-    next_reset_time: number
-    allow_wallet_overflow: boolean
-    upgrade_group: string
-  }>
 }
 export type OrganizationSettings = {
   logo: string
@@ -96,18 +85,6 @@ export type OrganizationSettingsResponse = {
   name: string
   settings: OrganizationSettings
   transfers: Array<{ target_id: number; owner_id: number; expires_at: number }>
-}
-export type OrganizationOrder = {
-  plan_title: string
-  id: number
-  org_id: number
-  user_id: number
-  plan_id: number
-  money: number
-  trade_no: string
-  payment_method: string
-  status: string
-  create_time: number
 }
 export type OrganizationAudit = {
   id: number
@@ -121,8 +98,6 @@ export type OrganizationDeletionImpact = {
   members: number
   tokens: number
   logs: number
-  orders: number
-  subscriptions: number
   quota: number
   blocked: boolean
 }

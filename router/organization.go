@@ -30,7 +30,6 @@ func setOrganizationRoutes(api *gin.RouterGroup) {
 	org := api.Group("/org", middleware.UserAuth(), middleware.OrganizationContext(), middleware.RequireOrganization())
 	org.GET("/context", controller.GetOrganizationContext)
 	org.GET("/summary", controller.GetOrganizationSummary)
-	org.GET("/orders", middleware.RequireOrgPermission("org.billing", "read"), controller.GetOrganizationOrders)
 	org.GET("/settings", middleware.RequireOrgPermission("org.settings", "read"), controller.GetOrganizationSettings)
 	org.PUT("/settings", middleware.RequireOrgPermission("org.settings", "write"), controller.UpdateOrganizationSettings)
 	org.PUT("/members/limits", middleware.RequireOrgPermission("org.member", "write"), controller.SetOrganizationMemberLimits)

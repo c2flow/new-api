@@ -27,7 +27,6 @@ var (
 	ErrOrganizationAccess = errors.New("organization access unavailable")
 	ErrOrganizationInput  = errors.New("invalid organization details")
 	ErrOrganizationOwner  = errors.New("organization ownership operation is not allowed")
-	ErrOrganizationSeats  = errors.New("organization member limit reached")
 )
 
 // Organization owns a team wallet and resources. Personal resources belong

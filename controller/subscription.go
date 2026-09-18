@@ -42,13 +42,6 @@ func GetSubscriptionPlans(c *gin.Context) {
 	}
 	result := make([]SubscriptionPlanDTO, 0, len(plans))
 	for _, p := range plans {
-		audience := "personal"
-		if c.GetInt("org_id") > 0 {
-			audience = "org"
-		}
-		if p.Audience != "" && p.Audience != "both" && p.Audience != audience {
-			continue
-		}
 		p.NormalizeDefaults()
 		result = append(result, SubscriptionPlanDTO{
 			Plan: p,
@@ -62,24 +55,13 @@ func GetSubscriptionSelf(c *gin.Context) {
 	settingMap, _ := model.GetUserSetting(userId, false)
 	pref := common.NormalizeBillingPreference(settingMap.BillingPreference)
 
-	var subs []model.UserSubscription
-	if err := (model.ResourceScope{OrgID: c.GetInt("org_id"), UserID: userId, AllMembers: c.GetInt("org_id") > 0}).Apply(model.DB).Order("id desc").Find(&subs).Error; err != nil {
-		common.ApiError(c, err)
-		return
+	allSubscriptions, err := model.GetAllUserSubscriptions(userId)
+	if err != nil {
+		allSubscriptions = []model.SubscriptionSummary{}
 	}
-	allSubscriptions := make([]model.SubscriptionSummary, 0, len(subs))
-	activeSubscriptions := make([]model.SubscriptionSummary, 0, len(subs))
-	for i := range subs {
-		entry := model.SubscriptionSummary{Subscription: &subs[i]}
-		allSubscriptions = append(allSubscriptions, entry)
-		if subs[i].Status == "active" && subs[i].EndTime > common.GetTimestamp() {
-			activeSubscriptions = append(activeSubscriptions, entry)
-		}
-	}
-	if raw, exists := c.Get("organization"); exists {
-		if org, ok := raw.(*model.Organization); ok && org != nil {
-			pref = "subscription_first"
-		}
+	activeSubscriptions, err := model.GetAllActiveUserSubscriptions(userId)
+	if err != nil {
+		activeSubscriptions = []model.SubscriptionSummary{}
 	}
 
 	common.ApiSuccess(c, gin.H{
@@ -90,12 +72,6 @@ func GetSubscriptionSelf(c *gin.Context) {
 }
 
 func UpdateSubscriptionPreference(c *gin.Context) {
-	if raw, exists := c.Get("organization"); exists {
-		if org, ok := raw.(*model.Organization); ok && org != nil {
-			organizationError(c, model.ErrOrganizationInput)
-			return
-		}
-	}
 	userId := c.GetInt("id")
 	var req BillingPreferenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -130,12 +106,7 @@ func SubscriptionRequestBalancePay(c *gin.Context) {
 		return
 	}
 
-	var err error
-	if orgID := c.GetInt("org_id"); orgID > 0 {
-		err = model.PurchaseOrganizationSubscriptionWithBalance(orgID, userId, req.PlanId)
-	} else {
-		err = model.PurchaseSubscriptionWithBalance(userId, req.PlanId)
-	}
+	err := model.PurchaseSubscriptionWithBalance(userId, req.PlanId)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -203,13 +174,6 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 	}
 	if req.Plan.DurationValue <= 0 && req.Plan.DurationUnit != model.SubscriptionDurationCustom {
 		req.Plan.DurationValue = 1
-	}
-	if req.Plan.MaxMembers < 0 || (req.Plan.Audience != "" && req.Plan.Audience != "personal" && req.Plan.Audience != "org" && req.Plan.Audience != "both") {
-		common.ApiErrorMsg(c, "Invalid plan audience or member limit")
-		return
-	}
-	if req.Plan.Audience == "" {
-		req.Plan.Audience = "both"
 	}
 	if req.Plan.MaxPurchasePerUser < 0 {
 		common.ApiErrorMsg(c, "购买上限不能为负数")
@@ -285,13 +249,6 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 	if req.Plan.DurationValue <= 0 && req.Plan.DurationUnit != model.SubscriptionDurationCustom {
 		req.Plan.DurationValue = 1
 	}
-	if req.Plan.MaxMembers < 0 || (req.Plan.Audience != "" && req.Plan.Audience != "personal" && req.Plan.Audience != "org" && req.Plan.Audience != "both") {
-		common.ApiErrorMsg(c, "Invalid plan audience or member limit")
-		return
-	}
-	if req.Plan.Audience == "" {
-		req.Plan.Audience = "both"
-	}
 	if req.Plan.MaxPurchasePerUser < 0 {
 		common.ApiErrorMsg(c, "购买上限不能为负数")
 		return
@@ -335,8 +292,6 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 			"stripe_price_id":            req.Plan.StripePriceId,
 			"creem_product_id":           req.Plan.CreemProductId,
 			"waffo_pancake_product_id":   req.Plan.WaffoPancakeProductId,
-			"audience":                   req.Plan.Audience,
-			"max_members":                req.Plan.MaxMembers,
 			"max_purchase_per_user":      req.Plan.MaxPurchasePerUser,
 			"total_amount":               req.Plan.TotalAmount,
 			"upgrade_group":              req.Plan.UpgradeGroup,

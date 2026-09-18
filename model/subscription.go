@@ -144,9 +144,7 @@ func InvalidateSubscriptionPlanCache(planId int) {
 
 // Subscription plan
 type SubscriptionPlan struct {
-	Audience   string `json:"audience" gorm:"type:varchar(16);default:'both'"`
-	MaxMembers int    `json:"max_members" gorm:"default:0"`
-	Id         int    `json:"id"`
+	Id int `json:"id"`
 
 	Title    string `json:"title" gorm:"type:varchar(128);not null"`
 	Subtitle string `json:"subtitle" gorm:"type:varchar(255);default:''"`
@@ -215,7 +213,7 @@ func (p *SubscriptionPlan) NormalizeDefaults() {
 // Subscription order (payment -> webhook -> create UserSubscription)
 type SubscriptionOrder struct {
 	PlanSnapshot string  `json:"-" gorm:"type:text"`
-	OrgId        int     `json:"org_id" gorm:"index:idx_org_subscriptionorder,priority:1"`
+	OrgId        int     `json:"-" gorm:"index:idx_org_subscriptionorder,priority:1"`
 	Id           int     `json:"id"`
 	UserId       int     `json:"user_id" gorm:"index"`
 	PlanId       int     `json:"plan_id" gorm:"index"`
@@ -235,34 +233,7 @@ func (o *SubscriptionOrder) Insert() error {
 	if o.CreateTime == 0 {
 		o.CreateTime = common.GetTimestamp()
 	}
-	if o.OrgId > 0 {
-		return DB.Transaction(func(tx *gorm.DB) error {
-			org, err := lockOrganizationManager(tx, o.OrgId, o.UserId, false)
-			if err != nil {
-				return err
-			}
-			plan, err := getSubscriptionPlanByIdTx(tx, o.PlanId)
-			if err != nil {
-				return err
-			}
-			if plan.PriceAmount != o.Money {
-				return errors.New("plan changed during checkout; please try again")
-			}
-			if err := ValidateOrganizationPlan(tx, org, plan); err != nil {
-				return err
-			}
-			snapshot, err := common.Marshal(plan)
-			if err != nil {
-				return err
-			}
-			o.PlanSnapshot = string(snapshot)
-			if err := tx.Create(o).Error; err != nil {
-				return err
-			}
-			return tx.Create(&OrganizationAudit{OrgId: o.OrgId, ActorId: o.UserId, Action: "subscription.checkout", ObjectId: fmt.Sprint(o.Id), Result: "success"}).Error
-		})
-	}
-	if o.OrgId < 0 || o.UserId <= 0 {
+	if o.OrgId != 0 || o.UserId <= 0 {
 		return ErrOrganizationInput
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
@@ -502,9 +473,6 @@ func downgradeUserGroupForSubscriptionTx(tx *gorm.DB, sub *UserSubscription, now
 	if tx == nil || sub == nil {
 		return "", errors.New("invalid downgrade args")
 	}
-	if sub.OrgId > 0 {
-		return downgradeOrganizationSubscriptionTx(tx, sub, now)
-	}
 	downgradeGroup := strings.TrimSpace(sub.DowngradeGroup)
 	upgradeGroup := strings.TrimSpace(sub.UpgradeGroup)
 	// Nothing to do if neither an explicit downgrade target nor an upgrade snapshot exists.
@@ -547,15 +515,14 @@ func downgradeUserGroupForSubscriptionTx(tx *gorm.DB, sub *UserSubscription, now
 // ValidateAccountSubscriptionPlan is shared by checkout, balance purchases and
 // administrative grants. Completed orders honor their purchased snapshot.
 func ValidateAccountSubscriptionPlan(tx *gorm.DB, userID int, plan *SubscriptionPlan) error {
-	if userID <= 0 || plan == nil || !plan.Enabled ||
-		plan.Audience != "" && plan.Audience != "both" && plan.Audience != "personal" {
+	if userID <= 0 || plan == nil || !plan.Enabled {
 		return errors.New("plan is not available for this account")
 	}
 	return validateSubscriptionPurchaseLimit(tx, ResourceScope{UserID: userID}, plan)
 }
 
 // Checkout checks are advisory; issuance repeats this check under the account
-// or organization lock. Pending orders do not count as purchased subscriptions.
+// lock. Pending orders do not count as purchased subscriptions.
 func validateSubscriptionPurchaseLimit(tx *gorm.DB, scope ResourceScope, plan *SubscriptionPlan) error {
 	if plan.MaxPurchasePerUser <= 0 {
 		return nil
@@ -664,7 +631,7 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
 		refCol = `"trade_no"`
 	}
-	var logUserId, logOrgID int
+	var logUserId int
 	var logPlanTitle string
 	var logMoney float64
 	var logPaymentMethod string
@@ -683,18 +650,14 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 		if order.Status != common.TopUpStatusPending {
 			return ErrSubscriptionOrderStatusInvalid
 		}
+		if order.OrgId != 0 {
+			return ErrSubscriptionOrderStatusInvalid
+		}
 		// Lock before any catalog read so legacy orders without snapshots do
 		// not establish a stale MySQL repeatable-read snapshot while waiting.
-		if order.OrgId > 0 {
-			var org Organization
-			if err := lockForUpdate(tx).Select("id").Where("id = ?", order.OrgId).First(&org).Error; err != nil {
-				return err
-			}
-		} else {
-			var userRow User
-			if err := lockForUpdate(tx).Select("id").Where("id = ?", order.UserId).First(&userRow).Error; err != nil {
-				return err
-			}
+		var userRow User
+		if err := lockForUpdate(tx).Select("id").Where("id = ?", order.UserId).First(&userRow).Error; err != nil {
+			return err
 		}
 		var plan *SubscriptionPlan
 		var err error
@@ -707,12 +670,7 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 		if err != nil {
 			return err
 		}
-		var subscription *UserSubscription
-		if order.OrgId > 0 {
-			subscription, err = CreateOrganizationSubscriptionFromPlanTx(tx, order.OrgId, order.UserId, plan, "order")
-		} else {
-			subscription, err = CreateUserSubscriptionFromPlanTx(tx, order.UserId, plan, "order")
-		}
+		subscription, err := CreateUserSubscriptionFromPlanTx(tx, order.UserId, plan, "order")
 		if err != nil {
 			return err
 		}
@@ -733,13 +691,10 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 		if err := tx.Save(&order).Error; err != nil {
 			return err
 		}
-		logUserId, logOrgID = order.UserId, order.OrgId
+		logUserId = order.UserId
 		logPlanTitle = plan.Title
 		logMoney = order.Money
 		logPaymentMethod = order.PaymentMethod
-		if order.OrgId > 0 {
-			return tx.Create(&OrganizationAudit{OrgId: order.OrgId, ActorId: order.UserId, Action: "subscription.paid", ObjectId: fmt.Sprint(order.Id), Result: "success"}).Error
-		}
 		return nil
 	})
 	if err != nil {
@@ -750,7 +705,7 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 	}
 	if logUserId > 0 {
 		msg := fmt.Sprintf("订阅购买成功，套餐: %s，支付金额: %.2f，支付方式: %s", logPlanTitle, logMoney, logPaymentMethod)
-		RecordLog(logUserId, LogTypeTopup, msg, logOrgID)
+		RecordLog(logUserId, LogTypeTopup, msg)
 	}
 	return nil
 }
@@ -764,7 +719,6 @@ func upsertSubscriptionTopUpTx(tx *gorm.DB, order *SubscriptionOrder) error {
 	if err := tx.Where("trade_no = ?", order.TradeNo).First(&topup).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			topup = TopUp{
-				OrgId:         order.OrgId,
 				UserId:        order.UserId,
 				Amount:        0,
 				Money:         order.Money,
@@ -1043,7 +997,7 @@ func AdminInvalidateUserSubscription(userSubscriptionId int) (string, error) {
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var sub UserSubscription
 		if err := lockForUpdate(tx).
-			Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+			Where("(org_id IS NULL OR org_id = 0) AND id = ?", userSubscriptionId).First(&sub).Error; err != nil {
 			return err
 		}
 		userId = sub.UserId
@@ -1088,7 +1042,7 @@ func AdminDeleteUserSubscription(userSubscriptionId int) (string, error) {
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var sub UserSubscription
 		if err := lockForUpdate(tx).
-			Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+			Where("(org_id IS NULL OR org_id = 0) AND id = ?", userSubscriptionId).First(&sub).Error; err != nil {
 			return err
 		}
 		userId = sub.UserId
@@ -1183,7 +1137,7 @@ func adminResetPlanSubscriptionsTx(tx *gorm.DB, plan *SubscriptionPlan, now int6
 	}
 	var subs []UserSubscription
 	if err := lockForUpdate(tx).
-		Where("plan_id = ? AND status = ? AND end_time > ?", plan.Id, "active", now).
+		Where("(org_id IS NULL OR org_id = 0) AND plan_id = ? AND status = ? AND end_time > ?", plan.Id, "active", now).
 		Order("user_id asc, end_time asc, id asc").
 		Find(&subs).Error; err != nil {
 		return nil, err
@@ -1251,7 +1205,7 @@ func ExpireDueSubscriptions(limit int) (int, error) {
 	}
 	now := GetDBTimestamp()
 	var subs []UserSubscription
-	if err := DB.Where("status = ? AND end_time > 0 AND end_time <= ?", "active", now).
+	if err := DB.Where("(org_id IS NULL OR org_id = 0) AND status = ? AND end_time > 0 AND end_time <= ?", "active", now).
 		Order("end_time asc, id asc").
 		Limit(limit).
 		Find(&subs).Error; err != nil {
@@ -1263,30 +1217,6 @@ func ExpireDueSubscriptions(limit int) (int, error) {
 	expiredCount := 0
 	userIds := make(map[int]struct{}, len(subs))
 	for _, sub := range subs {
-		if sub.OrgId > 0 {
-			err := DB.Transaction(func(tx *gorm.DB) error {
-				var org Organization
-				if err := lockForUpdate(tx).Where("id = ?", sub.OrgId).First(&org).Error; err != nil {
-					return err
-				}
-				result := tx.Model(&UserSubscription{}).Scopes(OrgScope(sub.OrgId)).Where("id = ? AND status = ?", sub.Id, "active").Updates(map[string]interface{}{"status": "expired", "updated_at": now})
-				if result.Error != nil {
-					return result.Error
-				}
-				if result.RowsAffected == 0 {
-					return nil
-				}
-				if _, err := downgradeOrganizationSubscriptionTx(tx, &sub, now); err != nil {
-					return err
-				}
-				expiredCount++
-				return nil
-			})
-			if err != nil {
-				return expiredCount, err
-			}
-			continue
-		}
 		if sub.UserId > 0 {
 			userIds[sub.UserId] = struct{}{}
 		}
@@ -1571,7 +1501,7 @@ func ResetDueSubscriptions(limit int) (int, error) {
 	}
 	now := GetDBTimestamp()
 	var subs []UserSubscription
-	if err := DB.Where("next_reset_time > 0 AND next_reset_time <= ? AND status = ?", now, "active").
+	if err := DB.Where("(org_id IS NULL OR org_id = 0) AND next_reset_time > 0 AND next_reset_time <= ? AND status = ?", now, "active").
 		Order("next_reset_time asc").
 		Limit(limit).
 		Find(&subs).Error; err != nil {

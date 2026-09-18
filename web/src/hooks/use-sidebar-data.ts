@@ -216,15 +216,6 @@ export function useSidebarData(): SidebarData {
           url: '/organization/billing',
           icon: Wallet,
         },
-        ...(capabilities?.['org.subscription']?.purchase
-          ? [
-              {
-                title: t('Plans & orders'),
-                url: '/organization/plans',
-                icon: CreditCard,
-              },
-            ]
-          : []),
         ...(capabilities?.['org.settings']?.write
           ? [
               {

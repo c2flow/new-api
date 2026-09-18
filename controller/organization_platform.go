@@ -80,10 +80,6 @@ func PlatformOrganizationResources(c *gin.Context) {
 	switch c.Param("resource") {
 	case "members":
 		resource = &[]model.OrganizationMember{}
-	case "orders":
-		resource = &[]model.SubscriptionOrder{}
-	case "subscriptions":
-		resource = &[]model.UserSubscription{}
 	case "audit":
 		resource = &[]model.OrganizationAudit{}
 	case "logs":
@@ -110,14 +106,8 @@ func PlatformOrganizationResources(c *gin.Context) {
 			model.FormatRootLogs(*logs)
 		}
 	}
-	var items interface{} = resource
-	if orders, ok := resource.(*[]model.SubscriptionOrder); ok {
-		for i := range *orders {
-			(*orders)[i].ProviderPayload = ""
-		}
-	}
 	page.SetTotal(int(total))
-	page.SetItems(items)
+	page.SetItems(resource)
 	common.ApiSuccess(c, page)
 }
 
