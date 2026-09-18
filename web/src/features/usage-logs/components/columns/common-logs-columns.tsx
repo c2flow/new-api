@@ -297,6 +297,7 @@ export function useCommonLogsColumns(
   isRoot: boolean
 ): ColumnDef<UsageLog>[] {
   const { t } = useTranslation()
+  const platform = usePlatformView()
   const columns: ColumnDef<UsageLog>[] = [
     {
       accessorKey: 'created_at',
@@ -805,5 +806,7 @@ export function useCommonLogsColumns(
     }
   )
 
-  return columns
+  return platform
+    ? columns
+    : columns.filter((column) => column.id !== 'channel')
 }
