@@ -156,7 +156,7 @@ export function OrganizationSummary() {
           }
         >
           <Wallet />
-          {t('Billing & budgets')}
+          {t('Wallet')}
         </Button>
       </div>
     </div>

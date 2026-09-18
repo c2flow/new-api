@@ -21,7 +21,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -105,9 +105,9 @@ export function Billing() {
           </CardHeader>
           <CardContent>
             {context?.capabilities.org['org.billing']?.write && (
-              <Button variant='outline' render={<Link to='/wallet' />}>
-                {t('Top up')}
-              </Button>
+              <p className='text-muted-foreground text-sm'>
+                {t('Please contact the system administrator to top up.')}
+              </p>
             )}
           </CardContent>
         </Card>

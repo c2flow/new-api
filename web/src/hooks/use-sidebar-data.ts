@@ -212,7 +212,7 @@ export function useSidebarData(): SidebarData {
       items: [
         { title: t('Members'), url: '/organization/members', icon: Users },
         {
-          title: t('Billing & budgets'),
+          title: t('Wallet'),
           url: '/organization/billing',
           icon: Wallet,
         },

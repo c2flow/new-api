@@ -46,10 +46,10 @@ export function CreatedKeysDialog() {
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('Save your API keys')}</DialogTitle>
+          <DialogTitle>{t('API keys created')}</DialogTitle>
           <DialogDescription>
             {t(
-              'The full key is shown only once, when created. Copy it now and keep it secure.'
+              'You can view and copy these keys later from the API keys page.'
             )}
           </DialogDescription>
         </DialogHeader>
@@ -67,7 +67,7 @@ export function CreatedKeysDialog() {
           {t('Copy keys')}
         </Button>
         <Button variant='outline' onClick={() => setCreatedSecrets([])}>
-          {t('I have saved my keys')}
+          {t('Close')}
         </Button>
       </DialogContent>
     </Dialog>

@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
+
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -30,8 +31,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useOrganizationStore } from '@/stores/organization-store'
-
 import type { ApiKey } from '../types'
 import { useApiKeys } from './api-keys-context'
 import { ApiKeysMultiDeleteDialog } from './api-keys-multi-delete-dialog'
@@ -44,7 +43,6 @@ export function DataTableBulkActions<TData>({
   table,
 }: DataTableBulkActionsProps<TData>) {
   const { t } = useTranslation()
-  const orgID = useOrganizationStore((state) => state.activeOrgID)
   const { resolveRealKeysBatch } = useApiKeys()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isCopying, setIsCopying] = useState(false)
@@ -85,31 +83,29 @@ export function DataTableBulkActions<TData>({
   return (
     <>
       <BulkActionsToolbar table={table} entityName='API key'>
-        {orgID === null && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant='outline'
-                  size='icon'
-                  className='size-8'
-                  onClick={handleBatchCopy}
-                  disabled={isCopying}
-                  aria-label={t('Copy selected keys')}
-                />
-              }
-            >
-              {isCopying ? (
-                <Loader2 className='size-4 animate-spin' />
-              ) : (
-                <Copy className='size-4' />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t('Copy selected keys')}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant='outline'
+                size='icon'
+                className='size-8'
+                onClick={handleBatchCopy}
+                disabled={isCopying}
+                aria-label={t('Copy selected keys')}
+              />
+            }
+          >
+            {isCopying ? (
+              <Loader2 className='size-4 animate-spin' />
+            ) : (
+              <Copy className='size-4' />
+            )}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('Copy selected keys')}</p>
+          </TooltipContent>
+        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger

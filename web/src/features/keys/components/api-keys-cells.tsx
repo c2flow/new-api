@@ -35,31 +35,15 @@ import {
 } from '@/components/ui/tooltip'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { formatQuota } from '@/lib/format'
-import { useOrganizationStore } from '@/stores/organization-store'
 
 import type { ApiKey } from '../types'
 import { useApiKeys } from './api-keys-context'
 
 export function ApiKeyCell(props: { apiKey: ApiKey }) {
-  const orgID = useOrganizationStore((state) => state.activeOrgID)
-  return orgID === null ? (
-    <PersonalApiKeyCell {...props} />
-  ) : (
-    <OrganizationApiKeyCell {...props} />
-  )
+  return <ApiKeySecretCell {...props} />
 }
 
-function OrganizationApiKeyCell(props: { apiKey: ApiKey }) {
-  const { t } = useTranslation()
-  return (
-    <span
-      className='text-muted-foreground font-mono text-xs'
-      title={t('The full key is shown only once, when created.')}
-    >{`sk-${props.apiKey.key}`}</span>
-  )
-}
-
-function PersonalApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
+function ApiKeySecretCell({ apiKey }: { apiKey: ApiKey }) {
   const { t } = useTranslation()
   const {
     resolveRealKey,

@@ -68,7 +68,6 @@ function ApiKeysScopeProvider({ children }: { children: React.ReactNode }) {
 
   const resolveRealKey = useCallback(
     async (id: number): Promise<string | null> => {
-      if (useOrganizationStore.getState().activeOrgID !== null) return null
       if (resolvedKeys[id]) return resolvedKeys[id]
       if (id in pendingRequests.current) return pendingRequests.current[id]
 
@@ -104,7 +103,6 @@ function ApiKeysScopeProvider({ children }: { children: React.ReactNode }) {
 
   const resolveRealKeysBatch = useCallback(
     async (ids: number[]): Promise<Record<number, string>> => {
-      if (useOrganizationStore.getState().activeOrgID !== null) return {}
       const uncachedIds = ids.filter((id) => !resolvedKeys[id])
       if (uncachedIds.length === 0) {
         const result: Record<number, string> = {}

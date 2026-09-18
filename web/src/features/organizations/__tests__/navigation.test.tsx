@@ -40,6 +40,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 
 import { MobileDrawer } from '@/components/layout/components/mobile-drawer'
 import { ProfileDropdown } from '@/components/profile-dropdown'
+import { Wallet } from '@/features/wallet'
 import { useSidebarData } from '@/hooks/use-sidebar-data'
 import { useSidebarView } from '@/hooks/use-sidebar-view'
 import { api } from '@/lib/http-client'
@@ -206,6 +207,11 @@ test('personal and team selection preserve admin navigation and show team tools 
   expect(result.current.sidebar.navGroups.map((group) => group.id)).toContain(
     'organization'
   )
+  expect(
+    result.current.sidebar.navGroups
+      .find((group) => group.id === 'organization')
+      ?.items.find((item) => item.url === '/organization/billing')?.title
+  ).toBe('Wallet')
   expect(result.current.sidebar.navGroups.map((group) => group.id)).toContain(
     'admin'
   )
@@ -722,7 +728,7 @@ test.each([false, true])(
         capabilities: {
           platform: {},
           org: {
-            'org.billing': { read: manage },
+            'org.billing': { read: manage, write: manage },
             'org.member': { write: manage },
           },
         },
@@ -756,5 +762,63 @@ test.each([false, true])(
       screen.queryByRole('textbox', { name: 'Search members' })
     ).not.toBeInTheDocument()
     expect(requests).not.toContain('/api/org/members')
+    if (manage) {
+      expect(
+        screen.getByText('Please contact the system administrator to top up.')
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('link', { name: 'Top up' })
+      ).not.toBeInTheDocument()
+    }
   }
 )
+
+test('personal wallet replaces online top-up controls with administrator guidance', async () => {
+  api.defaults.adapter = async (config) => {
+    let data: unknown = { success: false }
+    if (config.url === '/api/user/self') {
+      data = {
+        success: true,
+        data: { id: 1, username: 'owner', quota: 0, used_quota: 0 },
+      }
+    } else if (config.url === '/api/account/summary') {
+      data = {
+        success: true,
+        data: {
+          available_quota: 0,
+          request_count: 0,
+          quota: 0,
+          used_quota: 0,
+          group: 'default',
+          key_count: 0,
+        },
+      }
+    } else if (config.url === '/api/subscription/plans') {
+      data = { success: true, data: [] }
+    } else if (config.url === '/api/subscription/self') {
+      data = {
+        success: true,
+        data: {
+          billing_preference: 'wallet_only',
+          subscriptions: [],
+          all_subscriptions: [],
+        },
+      }
+    }
+    return {
+      config,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      data,
+    }
+  }
+  renderPage(Wallet)
+  expect(
+    await screen.findByText('Please contact an administrator to top up.')
+  ).toBeVisible()
+  expect(screen.queryByText('Add funds')).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: 'Order history' })
+  ).not.toBeInTheDocument()
+})

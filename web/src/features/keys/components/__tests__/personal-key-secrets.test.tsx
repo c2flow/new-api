@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import type { Table } from '@tanstack/react-table'
 import {
   cleanup,
   fireEvent,
@@ -30,9 +31,10 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { api } from '@/lib/api'
 import { useOrganizationStore } from '@/stores/organization-store'
 
-import { apiKeySchema } from '../../types'
+import { apiKeySchema, type ApiKey } from '../../types'
 import { ApiKeyCell } from '../api-keys-cells'
 import { ApiKeysProvider } from '../api-keys-provider'
+import { DataTableBulkActions } from '../data-table-bulk-actions'
 
 const i18n = createInstance()
 await i18n
@@ -58,7 +60,7 @@ afterEach(() => {
   api.defaults.adapter = originalAdapter
   useOrganizationStore.setState(useOrganizationStore.getInitialState())
 })
-test('personal keys can be revealed and are cleared when switching to an organization', async () => {
+test('key secrets are cleared when switching account scopes', async () => {
   useOrganizationStore.setState({ activeOrgID: null, epoch: 0 })
   api.defaults.adapter = async (config) => {
     expect(config.url).toBe('/api/token/1/key')
@@ -91,12 +93,20 @@ test('personal keys can be revealed and are cleared when switching to an organiz
       screen.queryByDisplayValue('sk-personal-secret')
     ).not.toBeInTheDocument()
   )
-  expect(
-    screen.queryByRole('button', { name: 'sk-masked' })
-  ).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'sk-masked' })).toBeInTheDocument()
 })
-test('organization keys stay masked and do not request persisted secrets', () => {
+test('organization keys can be revealed and copied by their creator', async () => {
   useOrganizationStore.setState({ activeOrgID: 10 })
+  api.defaults.adapter = async (config) => {
+    expect(config.url).toBe('/api/token/1/key')
+    return {
+      config,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      data: { success: true, data: { key: 'organization-secret' } },
+    }
+  }
   render(
     <I18nextProvider i18n={i18n}>
       <ApiKeysProvider>
@@ -104,9 +114,54 @@ test('organization keys stay masked and do not request persisted secrets', () =>
       </ApiKeysProvider>
     </I18nextProvider>
   )
-  expect(screen.getByText('sk-masked')).toHaveAttribute(
-    'title',
-    'The full key is shown only once, when created.'
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  vi.stubGlobal('navigator', { clipboard: { writeText } })
+  fireEvent.click(screen.getByRole('button', { name: 'sk-masked' }))
+  expect(
+    await screen.findByDisplayValue('sk-organization-secret')
+  ).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Copy API key' }))
+  await waitFor(() =>
+    expect(writeText).toHaveBeenCalledWith('sk-organization-secret')
   )
-  expect(screen.queryByRole('button')).not.toBeInTheDocument()
+})
+
+test('selected organization keys can be copied in a batch', async () => {
+  useOrganizationStore.setState({ activeOrgID: 10 })
+  api.defaults.adapter = async (config) => {
+    expect(config.url).toBe('/api/token/batch/keys')
+    return {
+      config,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      data: {
+        success: true,
+        data: { keys: { 1: 'organization-secret', 2: 'second-secret' } },
+      },
+    }
+  }
+  const secondKey = { ...key, id: 2, name: 'Second key' }
+  const table = {
+    getFilteredSelectedRowModel: () => ({
+      rows: [{ original: key }, { original: secondKey }],
+    }),
+    resetRowSelection: vi.fn(),
+  } as unknown as Table<ApiKey>
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  vi.stubGlobal('navigator', { clipboard: { writeText } })
+
+  render(
+    <I18nextProvider i18n={i18n}>
+      <ApiKeysProvider>
+        <DataTableBulkActions table={table} />
+      </ApiKeysProvider>
+    </I18nextProvider>
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Copy selected keys' }))
+  await waitFor(() =>
+    expect(writeText).toHaveBeenCalledWith(
+      'Personal key\tsk-organization-secret\nSecond key\tsk-second-secret'
+    )
+  )
 })

@@ -42,7 +42,7 @@ export function OrganizationPage(props: { section: string }) {
   let permitted = true
   switch (props.section) {
     case 'billing':
-      title = t('Billing & budgets')
+      title = t('Organization wallet')
       content = <Billing />
       break
     case 'settings':

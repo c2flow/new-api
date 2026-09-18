@@ -174,10 +174,6 @@ func GetTokenAutoGroups(c *gin.Context) {
 }
 
 func GetTokenKey(c *gin.Context) {
-	if c.GetInt("org_id") != 0 {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "API key secrets are only available when created."})
-		return
-	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		common.ApiError(c, err)
@@ -454,10 +450,6 @@ func DeleteTokenBatch(c *gin.Context) {
 }
 
 func GetTokenKeysBatch(c *gin.Context) {
-	if c.GetInt("org_id") != 0 {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "API key secrets are only available when created."})
-		return
-	}
 	var batch TokenBatch
 	if err := c.ShouldBindJSON(&batch); err != nil || len(batch.Ids) == 0 {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
