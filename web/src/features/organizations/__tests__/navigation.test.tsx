@@ -88,6 +88,20 @@ const teamContext = {
   capabilities: { platform: {}, org: { 'org.settings': { write: true } } },
   pending_transfer: false,
 }
+const teamSettings = {
+  name: team.name,
+  available_models: [],
+  transfers: [],
+  settings: {
+    logo: '',
+    webhook: '',
+    alert_email: '',
+    default_spend_limit: 0,
+    budget_limit: 0,
+    alert_percent: 80,
+    allowed_models: [],
+  },
+}
 const originalAdapter = api.defaults.adapter
 let client: QueryClient
 let listKey: unknown[]
@@ -501,22 +515,23 @@ test('organization creation sends only its name, including non-Latin names', asy
   )
 })
 
+test('organization settings do not offer creating another organization', async () => {
+  useOrganizationStore.setState({ activeOrgID: team.id, context: teamContext })
+  client.setQueryData(['organization-settings', team.id], teamSettings)
+
+  renderPage(() => <OrganizationPage section='settings' />)
+
+  expect(
+    await screen.findByRole('button', { name: 'Save changes' })
+  ).toBeVisible()
+  expect(
+    screen.queryByRole('button', { name: 'Create organization' })
+  ).not.toBeInTheDocument()
+})
+
 test('organization deletion requires its name and sends confirm_name', async () => {
   useOrganizationStore.setState({ activeOrgID: team.id, context: teamContext })
-  client.setQueryData(['organization-settings', team.id], {
-    name: team.name,
-    available_models: [],
-    transfers: [],
-    settings: {
-      logo: '',
-      webhook: '',
-      alert_email: '',
-      default_spend_limit: 0,
-      budget_limit: 0,
-      alert_percent: 80,
-      allowed_models: [],
-    },
-  })
+  client.setQueryData(['organization-settings', team.id], teamSettings)
   client.setQueryData(['organization-deletion-impact', team.id], {
     blocked: false,
     members: 1,

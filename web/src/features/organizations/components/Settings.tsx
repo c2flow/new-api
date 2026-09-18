@@ -189,9 +189,6 @@ function SettingsForm(props: {
   const owner = context?.membership.role === 'owner'
   return (
     <div className='flex flex-col gap-5'>
-      <div className='flex justify-end'>
-        <CreateOrganization />
-      </div>
       <Card>
         <CardHeader>
           <CardTitle>{t('Organization settings')}</CardTitle>
