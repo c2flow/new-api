@@ -215,7 +215,7 @@ func CleanupDeletedOrganizations() error {
 			return err
 		}
 		if err := DB.Transaction(func(tx *gorm.DB) error {
-			for _, resource := range []interface{}{&Token{}, &OrganizationMember{}, &OrganizationInvite{}, &OrganizationTransfer{}, &OrganizationCharge{}, &OrganizationNotification{}, &OrganizationAudit{}, &UserSubscription{}, &SubscriptionOrder{}, &TopUp{}, &Task{}, &Midjourney{}, &QuotaData{}} {
+			for _, resource := range []interface{}{&Token{}, &OrganizationMember{}, &OrganizationInvite{}, &OrganizationTransfer{}, &OrganizationCharge{}, &OrganizationAudit{}, &UserSubscription{}, &SubscriptionOrder{}, &TopUp{}, &Task{}, &Midjourney{}, &QuotaData{}} {
 				if err := tx.Unscoped().Scopes(OrgScope(org.Id)).Delete(resource).Error; err != nil {
 					return err
 				}

@@ -525,22 +525,6 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 			return err
 		}
 		common.SetContextKey(c, constant.ContextKeyUserGroup, org.Group)
-		settings, err := org.EffectiveSettings()
-		if err != nil {
-			abortWithOpenAiMessage(c, http.StatusForbidden, "Organization unavailable.")
-			return err
-		}
-		if len(settings.AllowedModels) > 0 {
-			limits := map[string]bool{}
-			tokenLimits := token.GetModelLimitsMap()
-			for _, name := range settings.AllowedModels {
-				if !token.ModelLimitsEnabled || tokenLimits[name] {
-					limits[name] = true
-				}
-			}
-			c.Set("token_model_limit_enabled", true)
-			c.Set("token_model_limit", limits)
-		}
 	}
 	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
 	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)

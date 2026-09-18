@@ -53,11 +53,6 @@ func GetOrganizationSummary(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	settings, err := org.EffectiveSettings()
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
 	available := max(int64(0), org.Quota)
 	for _, sub := range subscriptions {
 		if sub.Status == "active" && sub.EndTime > common.GetTimestamp() && !sub.AllowWalletOverflow {
@@ -94,11 +89,11 @@ func GetOrganizationSummary(c *gin.Context) {
 		available = min(available, max(int64(0), member.MonthlySpendLimit-used))
 	}
 	if !authz.CanOrg(member.UserId, org.Id, member.Role, authz.Permission{Resource: "org.billing", Action: "read"}) {
-		org.Quota, settings.BudgetLimit = available, 0
+		org.Quota = available
 		subscriptions = nil
 		memberCount = 1
 	}
-	common.ApiSuccess(c, gin.H{"available_quota": available, "request_count": requestCount, "quota": org.Quota, "used_quota": org.UsedQuota, "group": org.Group, "period_start": org.BudgetPeriodStart, "period_end": org.BudgetPeriodEnd, "usage": usage, "subscriptions": subscriptions, "member_count": memberCount, "key_count": keyCount, "spend_limit": member.SpendLimit, "budget_limit": settings.BudgetLimit, "alert_percent": settings.AlertPercent})
+	common.ApiSuccess(c, gin.H{"available_quota": available, "request_count": requestCount, "quota": org.Quota, "used_quota": org.UsedQuota, "group": org.Group, "usage": usage, "subscriptions": subscriptions, "member_count": memberCount, "key_count": keyCount, "spend_limit": member.SpendLimit})
 }
 
 func GetOrganizationSettings(c *gin.Context) {
@@ -117,7 +112,7 @@ func GetOrganizationSettings(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, gin.H{"name": org.Name, "settings": settings, "available_models": model.GetGroupEnabledModels(org.Group), "transfers": transfers})
+	common.ApiSuccess(c, gin.H{"name": org.Name, "settings": settings, "transfers": transfers})
 }
 
 func UpdateOrganizationSettings(c *gin.Context) {

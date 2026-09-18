@@ -42,7 +42,7 @@ func TestOrganizationPostConsumeUsesBillingSession(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, sqlDB.Close())
 			})
-			resources := []any{&model.Organization{}, &model.OrganizationMember{}, &model.OrganizationCharge{}, &model.OrganizationAudit{}, &model.OrganizationNotification{}, &model.UserSubscription{}, &model.Token{}}
+			resources := []any{&model.Organization{}, &model.OrganizationMember{}, &model.OrganizationCharge{}, &model.OrganizationAudit{}, &model.UserSubscription{}, &model.Token{}}
 			for _, resource := range resources {
 				require.NoError(t, db.Migrator().DropTable(resource))
 			}

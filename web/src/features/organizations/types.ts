@@ -72,11 +72,7 @@ export type OrganizationSummary = {
   quota: number
   used_quota: number
   group: string
-  period_start: number
-  period_end: number
   spend_limit: number
-  budget_limit: number
-  alert_percent: number
   member_count: number
   key_count: number
   usage: Array<{ user_id: number; used: number; reserved: number }>
@@ -94,17 +90,11 @@ export type OrganizationSummary = {
 }
 export type OrganizationSettings = {
   logo: string
-  webhook: string
-  alert_email: string
   default_spend_limit: number
-  allowed_models: string[]
-  alert_percent: number
-  budget_limit: number
 }
 export type OrganizationSettingsResponse = {
   name: string
   settings: OrganizationSettings
-  available_models: string[]
   transfers: Array<{ target_id: number; owner_id: number; expires_at: number }>
 }
 export type OrganizationOrder = {

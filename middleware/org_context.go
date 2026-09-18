@@ -40,19 +40,6 @@ func OrganizationContext() gin.HandlerFunc {
 		common.SetContextKey(c, constant.ContextKeyOrganization, org)
 		common.SetContextKey(c, constant.ContextKeyUserGroup, org.Group)
 		c.Set("group", org.Group)
-		settings, err := org.EffectiveSettings()
-		if err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		if len(settings.AllowedModels) > 0 {
-			limits := make(map[string]bool, len(settings.AllowedModels))
-			for _, name := range settings.AllowedModels {
-				limits[name] = true
-			}
-			c.Set("token_model_limit_enabled", true)
-			c.Set("token_model_limit", limits)
-		}
 		c.Next()
 		if c.Writer.Status() >= http.StatusBadRequest && c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
 			model.RecordOrganizationRequestFailure(org.Id, c.GetInt("id"), c.Writer.Status(), c.Request.Method+" "+c.FullPath())

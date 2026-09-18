@@ -47,16 +47,16 @@ func TestSetupContextForTokenMalformedAutoGroupsFailsClosed(t *testing.T) {
 	assert.Equal(t, []string{}, value)
 }
 
-func TestSetupContextForTokenIntersectsOrganizationModelLimits(t *testing.T) {
+func TestSetupContextForTokenPreservesTokenModelLimitsForOrganization(t *testing.T) {
 	ctx := newTokenAutoGroupsContext()
 	setupDashboardAuthMiddlewareTest(t)
 	require.NoError(t, model.DB.AutoMigrate(&model.Organization{}, &model.OrganizationMember{}))
-	org := model.Organization{Id: 42, Name: "Team", Status: model.OrganizationActive, Settings: `{"allowed_models":["allowed","outside-key"]}`}
+	org := model.Organization{Id: 42, Name: "Team", Status: model.OrganizationActive}
 	require.NoError(t, model.DB.Create(&org).Error)
 	require.NoError(t, model.DB.Create(&model.OrganizationMember{OrgId: 42, UserId: 3, Status: model.OrganizationActive}).Error)
 	token := &model.Token{Id: 9, UserId: 3, OrgId: 42, ModelLimitsEnabled: true, ModelLimits: "allowed,other"}
 	require.NoError(t, SetupContextForToken(ctx, token))
 	assert.Equal(t, 42, common.GetContextKeyInt(ctx, constant.ContextKeyOrgId))
 	assert.True(t, ctx.GetBool("token_model_limit_enabled"))
-	assert.Equal(t, map[string]bool{"allowed": true}, ctx.MustGet("token_model_limit"))
+	assert.Equal(t, map[string]bool{"allowed": true, "other": true}, ctx.MustGet("token_model_limit"))
 }

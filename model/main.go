@@ -340,7 +340,7 @@ func migrateDB() error {
 		&OrganizationInvite{},
 		&OrganizationTransfer{},
 		&OrganizationAudit{},
-		&OrganizationCharge{}, &OrganizationNotification{},
+		&OrganizationCharge{},
 		&Channel{},
 		&Token{},
 		&User{},

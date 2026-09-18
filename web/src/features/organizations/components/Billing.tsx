@@ -29,7 +29,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { formatQuotaWithCurrency } from '@/lib/currency'
 
 import { getOrganizationSummary } from '../api'
@@ -94,9 +93,6 @@ export function Billing() {
   )
   const used = data.usage.reduce((sum, row) => sum + row.used, 0)
   const reserved = data.usage.reduce((sum, row) => sum + row.reserved, 0)
-  const percent = data.budget_limit
-    ? Math.min(100, ((used + reserved) / data.budget_limit) * 100)
-    : 0
   return (
     <div className='flex flex-col gap-5'>
       <Alert>
@@ -149,27 +145,6 @@ export function Billing() {
           </CardContent>
         </Card>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Budget period')}</CardTitle>
-          <CardDescription>
-            {data.period_start
-              ? `${new Date(data.period_start * 1000).toLocaleDateString()} — ${new Date(data.period_end * 1000).toLocaleDateString()}`
-              : t('The period starts with your first request.')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='flex flex-col gap-3'>
-          {data.budget_limit > 0 && (
-            <>
-              <Progress value={percent} aria-label={t('Budget usage')} />
-              <p>
-                {formatQuotaWithCurrency(used)} /{' '}
-                {formatQuotaWithCurrency(data.budget_limit)}
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
       {membersLink}
     </div>
   )

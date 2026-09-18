@@ -15,7 +15,7 @@ func TestOrganizationScopeRejectsMissingOrganizationAcrossResourceTypes(t *testi
 		&Token{}, &Log{}, &TopUp{}, &UserSubscription{}, &SubscriptionOrder{},
 		&Task{}, &Midjourney{}, &QuotaData{}, &OrganizationMember{},
 		&OrganizationInvite{}, &OrganizationTransfer{}, &OrganizationAudit{},
-		&OrganizationCharge{}, &OrganizationNotification{},
+		&OrganizationCharge{},
 	}
 	for _, resource := range resources {
 		t.Run(reflect.TypeOf(resource).Elem().Name(), func(t *testing.T) {

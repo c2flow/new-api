@@ -294,11 +294,6 @@ func finalizeOrganizationChargeTx(tx *gorm.DB, orgID int, requestID string, actu
 	if err := tx.Model(&receipt).Updates(map[string]interface{}{"quota": actual, "status": status}).Error; err != nil {
 		return err
 	}
-	if !refund && usageDelta > 0 {
-		if err := queueOrganizationBudgetNotificationsTx(tx, &org); err != nil {
-			return err
-		}
-	}
 
 	return nil
 }

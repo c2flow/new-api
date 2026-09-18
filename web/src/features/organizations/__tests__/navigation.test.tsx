@@ -90,16 +90,10 @@ const teamContext = {
 }
 const teamSettings = {
   name: team.name,
-  available_models: [],
   transfers: [],
   settings: {
     logo: '',
-    webhook: '',
-    alert_email: '',
     default_spend_limit: 0,
-    budget_limit: 0,
-    alert_percent: 80,
-    allowed_models: [],
   },
 }
 const originalAdapter = api.defaults.adapter
@@ -515,7 +509,7 @@ test('organization creation sends only its name, including non-Latin names', asy
   )
 })
 
-test('organization settings do not offer creating another organization', async () => {
+test('organization settings only offer logo and the default member limit', async () => {
   useOrganizationStore.setState({ activeOrgID: team.id, context: teamContext })
   client.setQueryData(['organization-settings', team.id], teamSettings)
 
@@ -527,6 +521,22 @@ test('organization settings do not offer creating another organization', async (
   expect(
     screen.queryByRole('button', { name: 'Create organization' })
   ).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Logo URL' })).toBeVisible()
+  expect(
+    screen.getByRole('spinbutton', {
+      name: 'Default member total limit (USD)',
+    })
+  ).toBeVisible()
+  for (const name of [
+    'Alert email',
+    'Notification webhook',
+    'Organization budget (USD)',
+    'Alert threshold (%)',
+    'Allowed models',
+  ]) {
+    expect(screen.queryByRole('textbox', { name })).not.toBeInTheDocument()
+    expect(screen.queryByRole('spinbutton', { name })).not.toBeInTheDocument()
+  }
 })
 
 test('organization deletion requires its name and sends confirm_name', async () => {
@@ -719,7 +729,6 @@ test.each([false, true])(
       available_quota: 0,
       quota: 0,
       used_quota: 0,
-      budget_limit: 0,
       usage: [],
       subscriptions: [],
     })

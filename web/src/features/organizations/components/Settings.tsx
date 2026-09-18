@@ -46,7 +46,6 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
-import { Textarea } from '@/components/ui/textarea'
 import { getCurrencyDisplay } from '@/lib/currency'
 
 import {
@@ -113,24 +112,14 @@ function SettingsForm(props: {
   const [target, setTarget] = useState('')
   const schema = z.object({
     logo: z.string(),
-    webhook: z.string(),
-    alert_email: z.string().email().or(z.literal('')),
     default_limit: z.number().nonnegative(),
-    budget: z.number().nonnegative(),
-    percent: z.number().int().min(1).max(100),
-    models: z.string(),
   })
   const unit = getCurrencyDisplay().config.quotaPerUnit
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       logo: props.initial.settings.logo,
-      webhook: props.initial.settings.webhook,
-      alert_email: props.initial.settings.alert_email,
       default_limit: props.initial.settings.default_spend_limit / unit,
-      budget: props.initial.settings.budget_limit / unit,
-      percent: props.initial.settings.alert_percent,
-      models: props.initial.settings.allowed_models.join('\n'),
     },
   })
   const update = useMutation({
@@ -139,15 +128,7 @@ function SettingsForm(props: {
         name: props.initial.name,
         settings: {
           logo: values.logo,
-          webhook: values.webhook,
-          alert_email: values.alert_email,
           default_spend_limit: Math.round(values.default_limit * unit),
-          budget_limit: Math.round(values.budget * unit),
-          alert_percent: values.percent,
-          allowed_models: values.models
-            .split('\n')
-            .map((model) => model.trim())
-            .filter(Boolean),
         },
       })
       await client.invalidateQueries({ queryKey: ['organization-context'] })
@@ -206,86 +187,17 @@ function SettingsForm(props: {
                 <FieldLabel htmlFor='org-logo'>{t('Logo URL')}</FieldLabel>
                 <Input id='org-logo' type='url' {...form.register('logo')} />
               </Field>
-              <div className='grid gap-4 md:grid-cols-2'>
-                <Field>
-                  <FieldLabel htmlFor='org-email'>
-                    {t('Alert email')}
-                  </FieldLabel>
-                  <Input
-                    id='org-email'
-                    type='email'
-                    {...form.register('alert_email')}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor='org-webhook'>
-                    {t('Notification webhook')}
-                  </FieldLabel>
-                  <Input
-                    id='org-webhook'
-                    type='url'
-                    {...form.register('webhook')}
-                  />
-                </Field>
-              </div>
-              <div className='grid gap-4 md:grid-cols-3'>
-                <Field>
-                  <FieldLabel htmlFor='org-default-limit'>
-                    {t('Default member total limit (USD)')}
-                  </FieldLabel>
-                  <Input
-                    id='org-default-limit'
-                    type='number'
-                    min='0'
-                    step='0.01'
-                    {...form.register('default_limit', { valueAsNumber: true })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor='org-budget'>
-                    {t('Organization budget (USD)')}
-                  </FieldLabel>
-                  <Input
-                    id='org-budget'
-                    type='number'
-                    min='0'
-                    step='0.01'
-                    {...form.register('budget', { valueAsNumber: true })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor='org-alert'>
-                    {t('Alert threshold (%)')}
-                  </FieldLabel>
-                  <Input
-                    id='org-alert'
-                    type='number'
-                    min='1'
-                    max='100'
-                    {...form.register('percent', { valueAsNumber: true })}
-                  />
-                </Field>
-              </div>
               <Field>
-                <FieldLabel htmlFor='org-models'>
-                  {t('Allowed models')}
+                <FieldLabel htmlFor='org-default-limit'>
+                  {t('Default member total limit (USD)')}
                 </FieldLabel>
-                <Textarea
-                  id='org-models'
-                  rows={5}
-                  {...form.register('models')}
+                <Input
+                  id='org-default-limit'
+                  type='number'
+                  min='0'
+                  step='0.01'
+                  {...form.register('default_limit', { valueAsNumber: true })}
                 />
-                <FieldDescription>
-                  {t(
-                    'One model per line. Leave empty to use all models included in your plan. This cannot grant access to additional models.'
-                  )}
-                </FieldDescription>
-                <details>
-                  <summary>{t('Models included in your plan')}</summary>
-                  <p className='mt-2 text-sm break-words'>
-                    {props.initial.available_models.join(', ')}
-                  </p>
-                </details>
               </Field>
               {Object.keys(form.formState.errors).length > 0 && (
                 <p role='alert' className='text-destructive'>

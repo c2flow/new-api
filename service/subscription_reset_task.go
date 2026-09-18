@@ -21,10 +21,9 @@ const (
 )
 
 var (
-	subscriptionResetOnce            sync.Once
-	subscriptionResetRunning         atomic.Bool
-	organizationNotificationsRunning atomic.Bool
-	subscriptionCleanupLast          atomic.Int64
+	subscriptionResetOnce    sync.Once
+	subscriptionResetRunning atomic.Bool
+	subscriptionCleanupLast  atomic.Int64
 )
 
 func StartSubscriptionQuotaResetTask() {
@@ -52,14 +51,6 @@ func runSubscriptionQuotaResetOnce() {
 	defer subscriptionResetRunning.Store(false)
 
 	ctx := context.Background()
-	if organizationNotificationsRunning.CompareAndSwap(false, true) {
-		gopool.Go(func() {
-			defer organizationNotificationsRunning.Store(false)
-			if err := DeliverOrganizationNotifications(); err != nil {
-				logger.LogWarn(context.Background(), "organization notifications: "+err.Error())
-			}
-		})
-	}
 	if err := model.CleanupDeletedOrganizations(); err != nil {
 		logger.LogWarn(ctx, "organization cleanup: "+err.Error())
 	}

@@ -46,7 +46,7 @@ func organizationTestDatabase(t *testing.T) *gorm.DB {
 		require.NoError(t, err)
 		require.NoError(t, sqlDB.Close())
 	})
-	resources := []interface{}{&Organization{}, &OrganizationMember{}, &OrganizationInvite{}, &OrganizationTransfer{}, &OrganizationAudit{}, &OrganizationCharge{}, &OrganizationNotification{}, &User{}, &Token{}, &Log{}, &TopUp{}, &SubscriptionPlan{}, &UserSubscription{}, &SubscriptionOrder{}, &Task{}, &Midjourney{}, &QuotaData{}}
+	resources := []interface{}{&Organization{}, &OrganizationMember{}, &OrganizationInvite{}, &OrganizationTransfer{}, &OrganizationAudit{}, &OrganizationCharge{}, &User{}, &Token{}, &Log{}, &TopUp{}, &SubscriptionPlan{}, &UserSubscription{}, &SubscriptionOrder{}, &Task{}, &Midjourney{}, &QuotaData{}}
 	// External DSNs must point to disposable, isolated test databases.
 	for _, resource := range resources {
 		require.NoError(t, db.Migrator().DropTable(resource))

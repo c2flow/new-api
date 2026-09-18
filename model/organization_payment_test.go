@@ -87,31 +87,6 @@ func TestOrganizationExpiryCannotChangeAnotherOrganizationsTier(t *testing.T) {
 	assert.Equal(t, "default", users[0].Group)
 }
 
-func TestOrganizationBudgetAlertsDeduplicateSettlements(t *testing.T) {
-	db, org, users := organizationBillingFixture(t)
-	require.NoError(t, db.Model(&User{}).Where("id IN ?", []int{users[0].Id, users[1].Id}).Update("status", common.UserStatusEnabled).Error)
-	settings := OrganizationSettings{BudgetLimit: 100, AlertPercent: 80, AlertEmail: "finance@example.test", Webhook: "https://alerts.example.test/budget"}
-	payload, err := common.Marshal(settings)
-	require.NoError(t, err)
-	require.NoError(t, db.Model(org).Update("settings", string(payload)).Error)
-	_, err = ReserveOrganizationCharge(org.Id, users[1].Id, 0, "alert-first", 80)
-	require.NoError(t, err)
-	require.NoError(t, FinalizeOrganizationCharge(org.Id, "alert-first", 80, false))
-	require.NoError(t, FinalizeOrganizationCharge(org.Id, "alert-first", 80, false))
-	_, err = ReserveOrganizationCharge(org.Id, users[1].Id, 0, "alert-next", 10)
-	require.NoError(t, err)
-	require.NoError(t, FinalizeOrganizationCharge(org.Id, "alert-next", 10, false))
-	var notifications []OrganizationNotification
-	require.NoError(t, db.Scopes(OrgScope(org.Id)).Find(&notifications).Error)
-	require.Len(t, notifications, 3)
-	destinations := make([]string, 0, len(notifications))
-	for _, n := range notifications {
-		destinations = append(destinations, n.Destination)
-		assert.Equal(t, "pending", n.Status)
-	}
-	assert.ElementsMatch(t, []string{users[0].Email, "finance@example.test", "https://alerts.example.test/budget"}, destinations)
-}
-
 func TestSubscriptionOrderCompletionEnforcesPurchaseLimit(t *testing.T) {
 	for _, team := range []bool{false, true} {
 		t.Run(fmt.Sprint("team=", team), func(t *testing.T) {

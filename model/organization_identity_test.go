@@ -34,7 +34,7 @@ func TestOrganizationDeletionRequiresCurrentName(t *testing.T) {
 
 func TestOrganizationNameIsImmutableWhenUpdatingSettings(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
-	settings := OrganizationSettings{AlertPercent: 80, Logo: "https://example.test/logo.png"}
+	settings := OrganizationSettings{Logo: "https://example.test/logo.png", DefaultSpendLimit: 100}
 	assert.ErrorIs(t, UpdateOrganizationSettings(org.Id, users[0].Id, "New name", settings), ErrOrganizationInput)
 	var unchanged Organization
 	require.NoError(t, db.First(&unchanged, org.Id).Error)
@@ -46,6 +46,18 @@ func TestOrganizationNameIsImmutableWhenUpdatingSettings(t *testing.T) {
 	got, err := unchanged.EffectiveSettings()
 	require.NoError(t, err)
 	assert.Equal(t, settings.Logo, got.Logo)
+	assert.Equal(t, settings.DefaultSpendLimit, got.DefaultSpendLimit)
+	assert.JSONEq(t, `{"logo":"https://example.test/logo.png","default_spend_limit":100}`, unchanged.Settings)
+}
+
+func TestOrganizationSettingsIgnoreRemovedFeatures(t *testing.T) {
+	legacy := Organization{Settings: `{"logo":"https://example.test/logo.png","default_spend_limit":100,"alert_email":"finance@example.test","webhook":"https://example.test/hook","budget_limit":500,"alert_percent":80,"allowed_models":["gpt-4o"]}`}
+
+	settings, err := legacy.EffectiveSettings()
+	require.NoError(t, err)
+	data, err := common.Marshal(settings)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"logo":"https://example.test/logo.png","default_spend_limit":100}`, string(data))
 }
 
 func TestOrganizationRemarkUpgradePreservesExistingTeams(t *testing.T) {
