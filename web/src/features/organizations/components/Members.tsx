@@ -63,6 +63,7 @@ export function Members() {
   const context = useOrganization()
   const client = useQueryClient()
   const manage = context?.capabilities.org['org.member']?.write === true
+  const owner = context?.membership.role === 'owner'
   const resend = useMutation({
     mutationFn: (id: number) =>
       organizationMutation('post', `invites/${id}/resend`),
@@ -322,15 +323,16 @@ export function Members() {
                           >
                             {t('Set spending limits')}
                           </Button>
-                          {member.role !== 'owner' && (
-                            <Button
-                              size='sm'
-                              variant='ghost'
-                              onClick={() => setDialog(member)}
-                            >
-                              {t('Member settings')}
-                            </Button>
-                          )}
+                          {member.role !== 'owner' &&
+                            (owner || member.role === 'member') && (
+                              <Button
+                                size='sm'
+                                variant='ghost'
+                                onClick={() => setDialog(member)}
+                              >
+                                {t('Member settings')}
+                              </Button>
+                            )}
                         </>
                       )}
                     </TableCell>

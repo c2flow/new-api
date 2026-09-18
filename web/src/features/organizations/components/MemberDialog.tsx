@@ -51,6 +51,7 @@ export function MemberDialog(props: {
 }) {
   const { t } = useTranslation()
   const context = useOrganization()
+  const owner = context?.membership.role === 'owner'
   const client = useQueryClient()
   const schema = z.object({
     username: z.string().trim(),
@@ -127,17 +128,19 @@ export function MemberDialog(props: {
                 {form.formState.errors.username?.message}
               </FieldDescription>
             </Field>
-            <Field>
-              <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
-              <NativeSelect id='member-role' {...form.register('role')}>
-                <NativeSelectOption value='member'>
-                  {t('Member')}
-                </NativeSelectOption>
-                <NativeSelectOption value='admin'>
-                  {t('Admin')}
-                </NativeSelectOption>
-              </NativeSelect>
-            </Field>
+            {owner && (
+              <Field>
+                <FieldLabel htmlFor='member-role'>{t('Role')}</FieldLabel>
+                <NativeSelect id='member-role' {...form.register('role')}>
+                  <NativeSelectOption value='member'>
+                    {t('Member')}
+                  </NativeSelectOption>
+                  <NativeSelectOption value='admin'>
+                    {t('Admin')}
+                  </NativeSelectOption>
+                </NativeSelect>
+              </Field>
+            )}
             {props.member && (
               <Field>
                 <FieldLabel htmlFor='member-status'>{t('Status')}</FieldLabel>

@@ -22,6 +22,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from '@testing-library/react'
 import type { InternalAxiosRequestConfig } from 'axios'
@@ -33,6 +34,7 @@ import { api } from '@/lib/http-client'
 import { useOrganizationStore } from '@/stores/organization-store'
 
 import { MemberDialog } from '../components/MemberDialog'
+import { Members } from '../components/Members'
 import type { OrganizationMember } from '../types'
 
 const i18n = createInstance()
@@ -60,7 +62,7 @@ const member: OrganizationMember = {
 }
 
 beforeEach(() => {
-  localStorage.clear()
+  window.localStorage.clear()
   useOrganizationStore.setState(useOrganizationStore.getInitialState(), true)
   useOrganizationStore.getState().bindUser(1)
   useOrganizationStore.getState().select(10)
@@ -99,14 +101,19 @@ beforeEach(() => {
       headers: {},
     }
   }
-  client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  client = new QueryClient({
+    defaultOptions: {
+      mutations: { retry: false },
+      queries: { retry: false, staleTime: Infinity },
+    },
+  })
 })
 afterEach(() => {
   cleanup()
   client.clear()
   api.defaults.adapter = originalAdapter
   useOrganizationStore.setState(useOrganizationStore.getInitialState(), true)
-  localStorage.clear()
+  window.localStorage.clear()
 })
 
 function renderDialog(props: Parameters<typeof MemberDialog>[0]) {
@@ -117,6 +124,26 @@ function renderDialog(props: Parameters<typeof MemberDialog>[0]) {
       </QueryClientProvider>
     </I18nextProvider>
   )
+}
+
+function setCurrentMembership(
+  role: 'owner' | 'admin',
+  userID = member.user_id,
+  orgCapabilities?: Record<string, Record<string, boolean>>
+) {
+  const context = useOrganizationStore.getState().context
+  if (!context) {
+    throw new Error('Organization context is required')
+  }
+  useOrganizationStore.setState({
+    context: {
+      ...context,
+      membership: { ...context.membership, user_id: userID, role },
+      capabilities: orgCapabilities
+        ? { ...context.capabilities, org: orgCapabilities }
+        : context.capabilities,
+    },
+  })
 }
 
 test('an empty invitation username shows a validation error without sending a request', async () => {
@@ -193,4 +220,104 @@ test('editing member identity does not submit spending limits', async () => {
   await waitFor(() => expect(close).toHaveBeenCalledOnce())
   expect(requests[0].url).toBe('/api/org/members/2')
   expect(JSON.parse(requests[0].data)).toEqual({ role: 'admin', status: 1 })
+})
+
+test('an admin can update a member status but cannot assign the admin role', async () => {
+  setCurrentMembership('admin')
+  const close = vi.fn()
+  renderDialog({
+    close,
+    member: {
+      ...member,
+      user_id: 2,
+      role: 'member',
+      email: 'member@example.test',
+    },
+  })
+
+  expect(
+    screen.queryByRole('combobox', { name: 'Role' })
+  ).not.toBeInTheDocument()
+  fireEvent.change(screen.getByRole('combobox', { name: 'Status' }), {
+    target: { value: '2' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+  await waitFor(() => expect(close).toHaveBeenCalledOnce())
+  expect(JSON.parse(requests[0].data)).toEqual({ role: 'member', status: 2 })
+})
+
+test('an admin can only invite a regular member', async () => {
+  setCurrentMembership('admin')
+  const close = vi.fn()
+  renderDialog({ close })
+
+  expect(
+    screen.queryByRole('combobox', { name: 'Role' })
+  ).not.toBeInTheDocument()
+  fireEvent.change(screen.getByRole('textbox', { name: 'Username' }), {
+    target: { value: 'new-member' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+  await waitFor(() => expect(close).toHaveBeenCalledOnce())
+  expect(JSON.parse(requests[0].data)).toEqual({
+    username: 'new-member',
+    role: 'member',
+  })
+})
+
+test('an admin cannot open member settings for another admin', () => {
+  setCurrentMembership('admin', 2, { 'org.member': { write: true } })
+  client.setQueryData(
+    ['organization-members', 10],
+    [
+      member,
+      {
+        ...member,
+        id: 2,
+        user_id: 2,
+        role: 'admin',
+        username: 'current-admin',
+        display_name: '',
+      },
+      {
+        ...member,
+        id: 3,
+        user_id: 3,
+        role: 'admin',
+        username: 'peer-admin',
+        display_name: '',
+      },
+      {
+        ...member,
+        id: 4,
+        user_id: 4,
+        role: 'member',
+        username: 'regular-member',
+        display_name: '',
+      },
+    ]
+  )
+  client.setQueryData(['organization-invites', 10], [])
+
+  render(
+    <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={client}>
+        <Members />
+      </QueryClientProvider>
+    </I18nextProvider>
+  )
+
+  const peerRow = screen.getByText('peer-admin').closest('tr')
+  const memberRow = screen.getByText('regular-member').closest('tr')
+  if (!peerRow || !memberRow) {
+    throw new Error('Expected member rows')
+  }
+  expect(
+    within(peerRow).queryByRole('button', { name: 'Member settings' })
+  ).not.toBeInTheDocument()
+  expect(
+    within(memberRow).getByRole('button', { name: 'Member settings' })
+  ).toBeVisible()
 })
