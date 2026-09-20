@@ -365,7 +365,7 @@ export function Members() {
                   <TableHead>{t('Username')}</TableHead>
                   <TableHead>{t('Role')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
-                  <TableHead>{t('Expires')}</TableHead>
+                  <TableHead>{t('Invitation validity')}</TableHead>
                   <TableHead className='text-end'>{t('Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -376,7 +376,12 @@ export function Members() {
                     <TableCell>{roleLabels[invite.role]}</TableCell>
                     <TableCell>{inviteLabels[invite.status]}</TableCell>
                     <TableCell>
-                      {new Date(invite.expires_at * 1000).toLocaleDateString()}
+                      {invite.status === 'pending' ||
+                      invite.status === 'expired'
+                        ? new Date(
+                            invite.expires_at * 1000
+                          ).toLocaleDateString()
+                        : '—'}
                     </TableCell>
                     <TableCell className='text-end'>
                       {(invite.status === 'pending' ||
