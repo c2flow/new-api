@@ -29,6 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatQuotaWithCurrency } from '@/lib/currency'
+import { cn } from '@/lib/utils'
 
 import {
   getOrganizationInvites,
@@ -110,11 +111,13 @@ export function Members() {
     revoked: t('Revoked'),
     declined: t('Declined'),
   }
-  const filtered = (members.data ?? []).filter((member) =>
-    `${member.email} ${member.username} ${member.display_name}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  )
+  const filtered = (members.data ?? [])
+    .filter((member) =>
+      `${member.email} ${member.username} ${member.display_name}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    )
+    .sort((a, b) => Number(a.status !== 1) - Number(b.status !== 1))
   const selectedMembers = (members.data ?? []).filter(
     (member) => member.status === 1 && selectedIDs.includes(member.user_id)
   )
@@ -240,7 +243,12 @@ export function Members() {
               </TableHeader>
               <TableBody>
                 {filtered.map((member) => (
-                  <TableRow key={member.id}>
+                  <TableRow
+                    key={member.id}
+                    className={cn(
+                      member.status !== 1 && 'text-muted-foreground'
+                    )}
+                  >
                     {manage && (
                       <TableCell>
                         <Checkbox
@@ -266,7 +274,12 @@ export function Members() {
                       </p>
                     </TableCell>
                     <TableCell>
-                      <Badge variant='secondary'>
+                      <Badge
+                        variant='secondary'
+                        className={cn(
+                          member.status !== 1 && 'text-muted-foreground'
+                        )}
+                      >
                         {roleLabels[member.role]}
                       </Badge>
                     </TableCell>
