@@ -16,35 +16,51 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import i18n from 'i18next'
+import i18n, { type BackendModule } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
-import { convertDetectedLanguage } from './languages'
-import en from './locales/en.json'
-import fr from './locales/fr.json'
-import ja from './locales/ja.json'
-import ru from './locales/ru.json'
-import vi from './locales/vi.json'
-import zhTW from './locales/zh-TW.json'
-import zhCN from './locales/zh.json'
+import {
+  convertDetectedLanguage,
+  type InterfaceLanguageCode,
+} from './languages'
 
-export const resources = {
-  en,
-  zhCN,
-  fr,
-  ru,
-  ja,
-  vi,
-  zhTW,
-} as const
+// Keep each locale in its own async chunk: startup loads only the detected
+// language and simplified Chinese fallback, and switching reuses loaded bundles.
+const localeLoaders = {
+  en: () => import('./locales/en.json'),
+  zhCN: () => import('./locales/zh.json'),
+  fr: () => import('./locales/fr.json'),
+  ru: () => import('./locales/ru.json'),
+  ja: () => import('./locales/ja.json'),
+  vi: () => import('./locales/vi.json'),
+  zhTW: () => import('./locales/zh-TW.json'),
+} satisfies Record<InterfaceLanguageCode, unknown>
 
-i18n
+const localeBackend: BackendModule = {
+  type: 'backend',
+  init() {},
+  async read(language, namespace) {
+    if (
+      namespace !== 'translation' ||
+      !Object.hasOwn(localeLoaders, language)
+    ) {
+      throw new Error(
+        `Unsupported translation bundle: ${language}/${namespace}`
+      )
+    }
+
+    const resource = await localeLoaders[language as InterfaceLanguageCode]()
+    return resource.default.translation
+  },
+}
+
+export const i18nReady = i18n
+  .use(localeBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources,
-    fallbackLng: 'en',
+    fallbackLng: 'zhCN',
     supportedLngs: ['en', 'zhCN', 'fr', 'ru', 'ja', 'vi', 'zhTW'],
     load: 'currentOnly',
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)
