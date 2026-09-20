@@ -87,6 +87,15 @@ func TestOrganizationAPIsEnforceScopeAndFreshMembership(t *testing.T) {
 			}
 		})
 	}
+	request := httptest.NewRequest(http.MethodGet, "/logs?user_ids=1,2,3&page_size=100", nil)
+	request.Header.Set("Test-User", "1")
+	request.Header.Set("X-Org-Id", "10")
+	response := httptest.NewRecorder()
+	r.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.Contains(t, response.Body.String(), "alpha-owner-log")
+	assert.Contains(t, response.Body.String(), "alpha-member-log")
+	assert.NotContains(t, response.Body.String(), "beta-private-log")
 	// A platform root identity still cannot manage another creator's keys,
 	// whether its organization role is owner or admin.
 	for _, role := range []string{model.OrgRoleOwner, model.OrgRoleAdmin} {
@@ -110,11 +119,11 @@ func TestOrganizationAPIsEnforceScopeAndFreshMembership(t *testing.T) {
 		assert.Equal(t, keys[1].Status, unchanged.Status)
 	}
 	batch, _ := common.Marshal(map[string]interface{}{"ids": []int{keys[0].Id, keys[2].Id}})
-	request := httptest.NewRequest(http.MethodPost, "/tokens/batch", bytes.NewReader(batch))
+	request = httptest.NewRequest(http.MethodPost, "/tokens/batch", bytes.NewReader(batch))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Test-User", "1")
 	request.Header.Set("X-Org-Id", "10")
-	response := httptest.NewRecorder()
+	response = httptest.NewRecorder()
 	r.ServeHTTP(response, request)
 	assert.Contains(t, response.Body.String(), `"success":false`)
 	var count int64

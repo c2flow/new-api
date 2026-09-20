@@ -7,6 +7,7 @@ import "gorm.io/gorm"
 type ResourceScope struct {
 	OrgID      int
 	UserID     int
+	UserIDs    []int
 	AllMembers bool
 }
 
@@ -20,6 +21,8 @@ func (scope ResourceScope) Apply(db *gorm.DB) *gorm.DB {
 	db = db.Scopes(OrgScope(scope.OrgID))
 	if !scope.AllMembers {
 		db = db.Where("user_id = ?", scope.UserID)
+	} else if len(scope.UserIDs) > 0 {
+		db = db.Where("user_id IN ?", scope.UserIDs)
 	}
 	return db
 }

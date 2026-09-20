@@ -43,7 +43,11 @@ import type { LogCategory } from '../types'
 import { CommonLogsFilterBar } from './common-logs-filter-bar'
 import { TaskLogsFilterBar } from './task-logs-filter-bar'
 import { UsageLogsMobileList } from './usage-logs-mobile-card'
-import { useLogsViewScope, type LogsViewAccess } from './usage-logs-provider'
+import {
+  useLogsViewScope,
+  useUsageLogsContext,
+  type LogsViewAccess,
+} from './usage-logs-provider'
 
 const logTypeRowTint: Record<number, string> = {
   [LOG_TYPE_ENUM.ERROR]: 'bg-rose-50/40 dark:bg-rose-950/20',
@@ -86,6 +90,14 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   } = useLogsViewScope()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
+  const { commonLogScope } = useUsageLogsContext()
+  const userIDs =
+    logCategory === 'common' &&
+    !platform &&
+    isAdmin &&
+    commonLogScope.type === 'members'
+      ? commonLogScope.userIDs
+      : undefined
 
   const {
     columnFilters,
@@ -135,6 +147,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       pagination.pageSize,
       columnFilters,
       searchParams,
+      userIDs,
       t,
     ],
     queryFn: async () => {
@@ -146,6 +159,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
         pageSize: pagination.pageSize,
         searchParams,
         columnFilters,
+        userIDs,
       })
 
       if (!result?.success) {

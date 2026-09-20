@@ -382,6 +382,7 @@ export interface TaskArtifactsResponse {
 export interface GetLogsParams {
   p?: number
   page_size?: number
+  user_ids?: number[]
   type?: number
   username?: string
   token_name?: string
@@ -406,6 +407,7 @@ export interface GetLogsResponse {
 }
 
 export interface GetLogStatsParams {
+  user_ids?: number[]
   type?: number
   username?: string
   token_name?: string
@@ -465,6 +467,7 @@ export interface FetchLogsConfig {
   pageSize: number
   searchParams: Record<string, unknown>
   columnFilters: Array<{ id: string; value: unknown }>
+  userIDs?: number[]
 }
 
 // ============================================================================

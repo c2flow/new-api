@@ -119,7 +119,12 @@ export function CommonLogsFilterBar<TData>(
   const queryClient = useQueryClient()
   const searchParams = route.useSearch()
   const { isAdminView: isAdmin } = useLogsViewScope()
-  const { sensitiveVisible, setSensitiveVisible } = useUsageLogsContext()
+  const {
+    sensitiveVisible,
+    setSensitiveVisible,
+    commonLogScope,
+    setCommonLogScope,
+  } = useUsageLogsContext()
   const fetchingLogs = useIsFetching({ queryKey: ['logs'] })
 
   const searchState = useMemo<CommonLogDraft>(() => {
@@ -226,7 +231,8 @@ export function CommonLogsFilterBar<TData>(
     })
     queryClient.invalidateQueries({ queryKey: ['logs'] })
     queryClient.invalidateQueries({ queryKey: ['usage-logs-stats'] })
-  }, [navigate, platform, queryClient])
+    setCommonLogScope({ type: 'organization' })
+  }, [navigate, platform, queryClient, setCommonLogScope])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -243,12 +249,17 @@ export function CommonLogsFilterBar<TData>(
     !!filters.upstreamRequestId
 
   const hasTypeFilter = logType !== LOG_TYPE_ALL_VALUE
+  const hasMemberFilter = commonLogScope.type === 'members'
   const hasAdditionalFilters =
-    !!filters.model || !!filters.group || hasTypeFilter || hasExpandedFilters
+    !!filters.model ||
+    !!filters.group ||
+    hasTypeFilter ||
+    hasExpandedFilters ||
+    hasMemberFilter
 
   const expandedFilterCount = [
     filters.token,
-    isAdmin ? filters.username : undefined,
+    isAdmin && platform ? filters.username : undefined,
     isAdmin ? filters.channel : undefined,
     filters.requestId,
     filters.upstreamRequestId,
@@ -373,7 +384,7 @@ export function CommonLogsFilterBar<TData>(
           onKeyDown={handleKeyDown}
         />
       </LogsFilterField>
-      {isAdmin && (
+      {isAdmin && platform && (
         <LogsFilterField>
           <LogsFilterInput
             placeholder={t('Username')}

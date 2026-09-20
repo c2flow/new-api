@@ -2,6 +2,7 @@ package controller
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -16,6 +17,24 @@ func usageScope(c *gin.Context) model.ResourceScope {
 	}
 	scope.AllMembers = authz.CanOrg(scope.UserID, scope.OrgID, c.GetString("org_role"), authz.Permission{Resource: "org.usage", Action: "read_all"})
 	if scope.AllMembers {
+		seen := make(map[int]struct{})
+		for _, rawID := range strings.Split(c.Query("user_ids"), ",") {
+			userID, err := strconv.Atoi(strings.TrimSpace(rawID))
+			if err != nil || userID <= 0 {
+				continue
+			}
+			if _, exists := seen[userID]; exists {
+				continue
+			}
+			seen[userID] = struct{}{}
+			scope.UserIDs = append(scope.UserIDs, userID)
+			if len(scope.UserIDs) == 500 {
+				break
+			}
+		}
+		if len(scope.UserIDs) > 0 {
+			return scope
+		}
 		if userID, err := strconv.Atoi(c.Query("user_id")); err == nil && userID > 0 {
 			scope.UserID, scope.AllMembers = userID, false
 		}

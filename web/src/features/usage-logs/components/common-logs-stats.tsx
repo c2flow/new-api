@@ -50,10 +50,14 @@ export function CommonLogsStats() {
   const { t } = useTranslation()
   const { isAdminView: isAdmin, platform } = useLogsViewScope()
   const searchParams = route.useSearch()
-  const { sensitiveVisible } = useUsageLogsContext()
+  const { sensitiveVisible, commonLogScope } = useUsageLogsContext()
+  const userIDs =
+    !platform && isAdmin && commonLogScope.type === 'members'
+      ? commonLogScope.userIDs
+      : undefined
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['usage-logs-stats', platform, isAdmin, searchParams],
+    queryKey: ['usage-logs-stats', platform, isAdmin, userIDs, searchParams],
     queryFn: async () => {
       const params = buildApiParams({
         page: 1,
@@ -61,6 +65,7 @@ export function CommonLogsStats() {
         searchParams,
         columnFilters: [],
         isAdmin,
+        userIDs,
       })
 
       const result = isAdmin
@@ -73,7 +78,8 @@ export function CommonLogsStats() {
     },
     placeholderData: (previousData, previousQuery) =>
       previousQuery?.queryKey[1] === platform &&
-      previousQuery.queryKey[2] === isAdmin
+      previousQuery.queryKey[2] === isAdmin &&
+      previousQuery.queryKey[3] === userIDs
         ? previousData
         : undefined,
   })

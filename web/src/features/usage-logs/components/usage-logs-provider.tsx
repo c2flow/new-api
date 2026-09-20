@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, type ReactNode } from 'react'
 
+import type { UsageScope } from '@/features/dashboard/lib/usage-scope'
 import { usePlatformView } from '@/features/organizations/platform-view'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
@@ -50,6 +51,8 @@ interface UsageLogsContextValue {
   setSensitiveVisible: (visible: boolean) => void
   viewScope: LogsViewScope
   setViewScope: (scope: LogsViewScope) => void
+  commonLogScope: UsageScope
+  setCommonLogScope: (scope: UsageScope) => void
 }
 
 const UsageLogsContext = createContext<UsageLogsContextValue | undefined>(
@@ -64,6 +67,9 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
   const [affinityDialogOpen, setAffinityDialogOpen] = useState(false)
   const [sensitiveVisible, setSensitiveVisible] = useState(true)
   const [viewScope, setViewScope] = useState<LogsViewScope>('all')
+  const [commonLogScope, setCommonLogScope] = useState<UsageScope>({
+    type: 'organization',
+  })
 
   return (
     <UsageLogsContext.Provider
@@ -80,6 +86,8 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         setSensitiveVisible,
         viewScope,
         setViewScope,
+        commonLogScope,
+        setCommonLogScope,
       }}
     >
       {children}

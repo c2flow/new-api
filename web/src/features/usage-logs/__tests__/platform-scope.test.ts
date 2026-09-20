@@ -92,10 +92,11 @@ afterEach(() => {
 })
 
 test('organization-wide logs stay scoped even when the logged-in account is a super administrator', async () => {
-  await getAllLogs({})
+  await getAllLogs({ user_ids: [1, 2] })
   const url = new URL(requests[0].url ?? '', 'https://example.test')
   expect(url.pathname).toBe('/api/org/logs')
   expect(url.searchParams.has('user_id')).toBe(false)
+  expect(url.searchParams.get('user_ids')).toBe('1,2')
   expect(requests[0].headers['X-Org-Id']).toBe('10')
 })
 

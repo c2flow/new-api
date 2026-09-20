@@ -75,6 +75,7 @@ func TestAccountAndTeamResourceIsolation(t *testing.T) {
 		{"account", ResourceScope{UserID: users[0].Id}, []string{"alice"}},
 		{"account cannot widen", ResourceScope{UserID: users[0].Id, AllMembers: true}, []string{"alice"}},
 		{"team", ResourceScope{OrgID: org.Id, UserID: users[0].Id}, []string{"team"}},
+		{"selected team members", ResourceScope{OrgID: org.Id, UserID: users[0].Id, UserIDs: []int{users[0].Id}, AllMembers: true}, []string{"team"}},
 		{"missing user", ResourceScope{AllMembers: true}, []string{}},
 		{"negative organization", ResourceScope{OrgID: -1, UserID: users[0].Id}, []string{}},
 	} {

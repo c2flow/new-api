@@ -160,8 +160,16 @@ export function buildApiParams(config: {
   searchParams: Record<string, unknown>
   columnFilters?: Array<{ id: string; value: unknown }>
   isAdmin: boolean
+  userIDs?: number[]
 }): GetLogsParams {
-  const { page, pageSize, searchParams, columnFilters = [], isAdmin } = config
+  const {
+    page,
+    pageSize,
+    searchParams,
+    columnFilters = [],
+    isAdmin,
+    userIDs,
+  } = config
 
   // Helper to process type parameter (single value from array)
   const processType = (value: unknown): number | undefined => {
@@ -183,6 +191,7 @@ export function buildApiParams(config: {
   const params: GetLogsParams = {
     p: page,
     page_size: pageSize,
+    ...(isAdmin && userIDs?.length ? { user_ids: userIDs } : {}),
     ...(searchParams.type ? { type: processType(searchParams.type) } : {}),
     ...(searchParams.model ? { model_name: String(searchParams.model) } : {}),
     ...(searchParams.token ? { token_name: String(searchParams.token) } : {}),
@@ -251,6 +260,7 @@ export async function fetchLogsByCategory(
     pageSize,
     searchParams,
     columnFilters,
+    userIDs,
   } = config
 
   if (logCategory === 'common') {
@@ -260,6 +270,7 @@ export async function fetchLogsByCategory(
       searchParams,
       columnFilters,
       isAdmin,
+      userIDs,
     })
     return isAdmin
       ? await getAllLogs(params, platform)

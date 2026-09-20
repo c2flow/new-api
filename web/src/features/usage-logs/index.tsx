@@ -17,12 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 import type { NavGroup } from '@/components/layout/types'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { OrganizationUsageSelector } from '@/features/dashboard/components/models/usage-scope-selector'
 import { usePlatformView } from '@/features/organizations/platform-view'
 import { CacheStatsDialog } from '@/features/system-settings/general/channel-affinity/cache-stats-dialog'
 import { useUsageLogsRoute } from '@/features/usage-logs/route'
@@ -73,6 +74,8 @@ function UsageLogsContent() {
     affinityTarget,
     affinityDialogOpen,
     setAffinityDialogOpen,
+    commonLogScope,
+    setCommonLogScope,
   } = useUsageLogsContext()
   const { canManageScope, viewScope, setViewScope } = useLogsViewScope()
   const tabNavGroups = useMemo<NavGroup[]>(
@@ -125,6 +128,17 @@ function UsageLogsContent() {
   const showTaskSwitcher =
     activeCategory !== 'common' && visibleSections.length > 1
 
+  useEffect(() => {
+    if (
+      activeCategory === 'common' &&
+      canManageScope &&
+      !platform &&
+      viewScope !== 'all'
+    ) {
+      setViewScope('all')
+    }
+  }, [activeCategory, canManageScope, platform, setViewScope, viewScope])
+
   return (
     <>
       <SectionPageLayout fixedContent>
@@ -133,12 +147,19 @@ function UsageLogsContent() {
         </SectionPageLayout.Title>
         {canManageScope && (
           <SectionPageLayout.Actions>
-            <Tabs value={viewScope} onValueChange={handleViewScopeChange}>
-              <TabsList>
-                <TabsTrigger value='all'>{t('All')}</TabsTrigger>
-                <TabsTrigger value='self'>{t('Only Mine')}</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {activeCategory === 'common' && !platform ? (
+              <OrganizationUsageSelector
+                value={commonLogScope}
+                onChange={setCommonLogScope}
+              />
+            ) : (
+              <Tabs value={viewScope} onValueChange={handleViewScopeChange}>
+                <TabsList>
+                  <TabsTrigger value='all'>{t('All')}</TabsTrigger>
+                  <TabsTrigger value='self'>{t('Only Mine')}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
           </SectionPageLayout.Actions>
         )}
         <SectionPageLayout.Content>
