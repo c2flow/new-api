@@ -319,7 +319,7 @@ export function Dashboard() {
       <SectionPageLayout.Title>{t(meta.titleKey)}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         {(platform || isTeam) && (
-          <div className='px-4 pb-4'>
+          <div className='pb-4'>
             <OrganizationSummary />
           </div>
         )}
