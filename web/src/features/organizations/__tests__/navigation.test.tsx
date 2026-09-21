@@ -72,6 +72,8 @@ const team: OrganizationMembership = {
   budget_period_end: 0,
   role: 'owner',
   spend_limit: 0,
+  membership_id: 1,
+  joined_at: 1,
 }
 const teamContext = {
   organization: team,

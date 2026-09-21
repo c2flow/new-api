@@ -193,6 +193,8 @@ export function clearAuthentication(
   useOrganizationStore.setState((state) => ({
     userID: null,
     activeOrgID: null,
+    latestMembershipID: null,
+    membershipSelectionReady: false,
     context: null,
     epoch: state.epoch + 1,
   }))

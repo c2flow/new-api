@@ -18,17 +18,19 @@ var ErrOrganizationInvitePending = errors.New("an active invitation already exis
 
 type OrganizationMembership struct {
 	Organization
-	Logo       string `json:"logo,omitempty" gorm:"-"`
-	Role       string `json:"role"`
-	SpendLimit int64  `json:"spend_limit"`
+	Logo         string `json:"logo,omitempty" gorm:"-"`
+	Role         string `json:"role"`
+	SpendLimit   int64  `json:"spend_limit"`
+	MembershipId int    `json:"membership_id"`
+	JoinedAt     int64  `json:"joined_at"`
 }
 
 func ListUserOrganizations(userID int) ([]OrganizationMembership, error) {
 	orgs := make([]OrganizationMembership, 0)
-	err := DB.Model(&Organization{}).Select("organizations.*, organization_members.role, organization_members.spend_limit").
+	err := DB.Model(&Organization{}).Select("organizations.*, organization_members.role, organization_members.spend_limit, organization_members.id AS membership_id, organization_members.created_at AS joined_at").
 		Joins("JOIN organization_members ON organization_members.org_id = organizations.id").
 		Where("organization_members.user_id = ? AND organization_members.status = ? AND (organizations.status = ? OR (organizations.status = ? AND organizations.owner_id = ?))", userID, OrganizationActive, OrganizationActive, OrganizationDisabled, userID).
-		Order("organizations.id").Scan(&orgs).Error
+		Order("organization_members.created_at DESC, organization_members.id DESC").Scan(&orgs).Error
 	if err != nil {
 		return nil, err
 	}

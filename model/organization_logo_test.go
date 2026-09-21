@@ -25,3 +25,25 @@ func TestOrganizationListIncludesLogoWithoutPrivateSettings(t *testing.T) {
 	require.Len(t, rows, 1)
 	assert.Empty(t, rows[0].Logo)
 }
+
+func TestOrganizationListReturnsNewestMembershipFirst(t *testing.T) {
+	db := organizationTestDatabase(t)
+	user := User{Username: "member-order", AffCode: "member-order"}
+	require.NoError(t, db.Create(&user).Error)
+	older, err := CreateTeamOrganization(user.Id, "Older team")
+	require.NoError(t, err)
+	newer, err := CreateTeamOrganization(user.Id, "Newer team")
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&OrganizationMember{}).Where("org_id = ? AND user_id = ?", older.Id, user.Id).Update("created_at", 100).Error)
+	require.NoError(t, db.Model(&OrganizationMember{}).Where("org_id = ? AND user_id = ?", newer.Id, user.Id).Update("created_at", 200).Error)
+
+	rows, err := ListUserOrganizations(user.Id)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	assert.Equal(t, newer.Id, rows[0].Id)
+	assert.Equal(t, int64(200), rows[0].JoinedAt)
+	assert.Positive(t, rows[0].MembershipId)
+	assert.Equal(t, older.Id, rows[1].Id)
+	assert.Equal(t, int64(100), rows[1].JoinedAt)
+	assert.Positive(t, rows[1].MembershipId)
+}

@@ -32,6 +32,8 @@ export type OrganizationMembership = Organization & {
   logo?: string
   role: OrganizationRole
   spend_limit: number
+  membership_id: number
+  joined_at: number
 }
 export type OrganizationMember = {
   total_usage?: { used: number; reserved: number }

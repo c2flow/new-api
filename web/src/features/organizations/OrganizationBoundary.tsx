@@ -42,6 +42,9 @@ export function OrganizationBoundary(props: { children: ReactNode }) {
   const userID = useAuthStore((state) => state.auth.user?.id)
   const boundUserID = useOrganizationStore((state) => state.userID)
   const activeOrgID = useOrganizationStore((state) => state.activeOrgID)
+  const membershipSelectionReady = useOrganizationStore(
+    (state) => state.membershipSelectionReady
+  )
   const epoch = useOrganizationStore((state) => state.epoch)
   const context = useOrganizationStore((state) => state.context)
   useEffect(() => {
@@ -55,13 +58,15 @@ export function OrganizationBoundary(props: { children: ReactNode }) {
   })
   useEffect(() => {
     if (!organizations.data) return
+    useOrganizationStore.getState().syncMemberships(organizations.data)
+    const selectedOrganizationID = useOrganizationStore.getState().activeOrgID
     const selected = organizations.data.find(
-      (org) => org.id === activeOrgID && org.status === 1
+      (org) => org.id === selectedOrganizationID && org.status === 1
     )
-    if (activeOrgID !== null && !selected) {
+    if (selectedOrganizationID !== null && !selected) {
       useOrganizationStore.getState().select(null)
     }
-  }, [organizations.data, activeOrgID])
+  }, [organizations.data])
   const selection = useQuery({
     queryKey: ['organization-context', userID, activeOrgID, epoch],
     queryFn: getOrganizationContext,
@@ -84,6 +89,7 @@ export function OrganizationBoundary(props: { children: ReactNode }) {
   if (
     userID !== boundUserID ||
     !organizations.isSuccess ||
+    !membershipSelectionReady ||
     (activeOrgID !== null && context?.organization.id !== activeOrgID)
   ) {
     const failed = organizations.isError || selection.isError
