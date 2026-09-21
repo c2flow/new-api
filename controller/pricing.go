@@ -42,23 +42,23 @@ func GetPricing(c *gin.Context) {
 		groupRatio[s] = f
 	}
 	var group string
-	if exists {
+	if service.IsOrganizationRequest(c) {
+		group = c.GetString("group")
+	} else if exists {
 		user, err := model.GetUserCache(userId.(int))
 		if err == nil {
 			group = user.Group
-			if c.GetInt("org_id") > 0 {
-				group = c.GetString("group")
-			}
-			for g := range groupRatio {
-				ratio, ok := ratio_setting.GetGroupGroupRatio(group, g)
-				if ok {
-					groupRatio[g] = ratio
-				}
+		}
+	}
+	if group != "" {
+		for g := range groupRatio {
+			if ratio, ok := ratio_setting.GetGroupGroupRatio(group, g); ok {
+				groupRatio[g] = ratio
 			}
 		}
 	}
 
-	usableGroup = service.GetUserUsableGroups(group)
+	usableGroup = service.GetRequestUsableGroups(c, group)
 	pricing = filterPricingByUsableGroups(pricing, usableGroup)
 	// check groupRatio contains usableGroup
 	for group := range ratio_setting.GetGroupRatioCopy() {
@@ -67,6 +67,10 @@ func GetPricing(c *gin.Context) {
 		}
 	}
 
+	autoGroups := service.GetUserAutoGroup(group)
+	if service.IsOrganizationRequest(c) {
+		autoGroups = []string{}
+	}
 	c.JSON(200, gin.H{
 		"success":            true,
 		"data":               pricing,
@@ -74,7 +78,7 @@ func GetPricing(c *gin.Context) {
 		"group_ratio":        groupRatio,
 		"usable_group":       usableGroup,
 		"supported_endpoint": model.GetSupportedEndpointMap(),
-		"auto_groups":        service.GetUserAutoGroup(group),
+		"auto_groups":        autoGroups,
 		"pricing_version":    "a42d372ccf0b5dd13ecf71203521f9d2",
 	})
 }

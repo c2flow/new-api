@@ -45,6 +45,7 @@ import { api } from '@/lib/api'
 import { formatQuotaWithCurrency } from '@/lib/currency'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { OrganizationGroupDialog } from './components/OrganizationGroupDialog'
 import { OrganizationQuotaDialog } from './components/OrganizationQuotaDialog'
 import { OrganizationRemarkDialog } from './components/OrganizationRemarkDialog'
 import type { PlatformOrganization, Page } from './types'
@@ -64,6 +65,8 @@ export function PlatformOrganizations() {
     hasPermission(state.auth.user, 'organization', 'write')
   )
   const [quotaOrganization, setQuotaOrganization] =
+    useState<PlatformOrganization | null>(null)
+  const [groupOrganization, setGroupOrganization] =
     useState<PlatformOrganization | null>(null)
   const [remarkOrganization, setRemarkOrganization] =
     useState<PlatformOrganization | null>(null)
@@ -180,6 +183,7 @@ export function PlatformOrganizations() {
                   <TableHead>{t('Organization')}</TableHead>
                   <TableHead>{t('Owner')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Group')}</TableHead>
                   <TableHead>{t('Organization wallet')}</TableHead>
                   <TableHead>{t('Actions')}</TableHead>
                 </TableRow>
@@ -225,6 +229,7 @@ export function PlatformOrganizations() {
                     <TableCell>
                       {org.status === 1 ? t('Active') : t('Inactive')}
                     </TableCell>
+                    <TableCell>{org.group}</TableCell>
                     <TableCell>{formatQuotaWithCurrency(org.quota)}</TableCell>
                     <TableCell>
                       {canManage && (
@@ -234,6 +239,15 @@ export function PlatformOrganizations() {
                           onClick={() => setRemarkOrganization(org)}
                         >
                           {t('Edit remark')}
+                        </Button>
+                      )}
+                      {canManage && org.status !== 3 && (
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setGroupOrganization(org)}
+                        >
+                          {t('Edit group')}
                         </Button>
                       )}
                       {canManage && org.status !== 3 && (
@@ -367,6 +381,12 @@ export function PlatformOrganizations() {
             <OrganizationQuotaDialog
               organization={quotaOrganization}
               close={() => setQuotaOrganization(null)}
+            />
+          )}
+          {groupOrganization && (
+            <OrganizationGroupDialog
+              organization={groupOrganization}
+              close={() => setGroupOrganization(null)}
             />
           )}
           <ConfirmDialog

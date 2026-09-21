@@ -65,11 +65,18 @@ func TestPlatformOrganizationWriteAuthorization(t *testing.T) {
 			response = httptest.NewRecorder()
 			engine.ServeHTTP(response, req)
 			assert.Equal(t, test.want, response.Code, response.Body.String())
+			req = httptest.NewRequest(http.MethodPut, "/api/platform/organizations/931/group", strings.NewReader(`{"group":"vip"}`))
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("Content-Type", "application/json")
+			response = httptest.NewRecorder()
+			engine.ServeHTTP(response, req)
+			assert.Equal(t, test.want, response.Code, response.Body.String())
 		})
 	}
 	require.NoError(t, db.First(&org, org.Id).Error)
 	assert.Equal(t, int64(1200), org.Quota)
 	assert.Equal(t, "admin customer", org.Remark)
+	assert.Equal(t, "vip", org.Group)
 	for _, body := range []string{`{"mode":"override","reason":"missing value"}`, `{"mode":"add","value":1.2,"reason":"fractional"}`, `{"mode":"add","value":9223372036854775808,"reason":"overflow"}`} {
 		req := httptest.NewRequest(http.MethodPut, "/api/platform/organizations/931/quota", strings.NewReader(body))
 		req.Header.Set("Authorization", "Bearer quota-root")
@@ -90,5 +97,18 @@ func TestPlatformOrganizationRemarkRejectsMissingInput(t *testing.T) {
 		result := httptest.NewRecorder()
 		engine.ServeHTTP(result, req)
 		assert.Equal(t, 400, result.Code)
+	}
+}
+
+func TestPlatformOrganizationGroupRejectsInvalidInput(t *testing.T) {
+	engine := gin.New()
+	engine.Use(func(c *gin.Context) { c.Set("id", 1); c.Next() })
+	engine.PUT("/:org_id/group", controller.PlatformSetOrganizationGroup)
+	for _, body := range []string{`{}`, `{"group":null}`, `{"group":"auto"}`, `{"group":"missing"}`} {
+		req := httptest.NewRequest(http.MethodPut, "/931/group", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		result := httptest.NewRecorder()
+		engine.ServeHTTP(result, req)
+		assert.Equal(t, http.StatusBadRequest, result.Code)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,6 +34,10 @@ func OrganizationContext() gin.HandlerFunc {
 				status = http.StatusForbidden
 			}
 			c.AbortWithStatusJSON(status, gin.H{"success": false, "code": "ORG_UNAVAILABLE", "message": "Organization unavailable."})
+			return
+		}
+		if org.Group == "" || org.Group == "auto" || !ratio_setting.ContainsGroupRatio(org.Group) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"success": false, "code": "ORG_GROUP_UNAVAILABLE", "message": "Organization group unavailable."})
 			return
 		}
 		common.SetContextKey(c, constant.ContextKeyOrgId, org.Id)

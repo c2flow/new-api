@@ -16,7 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, test } from 'vitest'
 
 import { useOrganizationStore } from '@/stores/organization-store'
@@ -86,11 +92,38 @@ function installApiFixtures(createdPayloads: Array<Record<string, unknown>>) {
   }
 }
 
-async function renderCreateDrawer(): Promise<void> {
+async function renderCreateDrawer(organizationGroup?: string): Promise<void> {
   useOrganizationStore.setState({
     userID: 1,
-    activeOrgID: null,
-    context: null,
+    activeOrgID: organizationGroup ? 7 : null,
+    context: organizationGroup
+      ? {
+          pending_transfer: false,
+          organization: {
+            id: 7,
+            name: 'Team Seven',
+            status: 1,
+            owner_id: 1,
+            group: organizationGroup,
+            quota: 100,
+            used_quota: 0,
+            budget_period_start: 0,
+            budget_period_end: 0,
+          },
+          membership: {
+            id: 1,
+            org_id: 7,
+            user_id: 1,
+            role: 'owner',
+            spend_limit: 0,
+            status: 1,
+            username: 'owner',
+            display_name: 'Owner',
+            email: 'owner@example.test',
+          },
+          capabilities: { platform: {}, org: {} },
+        }
+      : null,
   })
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -203,7 +236,8 @@ function selectComboboxOption(
 afterEach(() => {
   apiClient.get = originalGet
   apiClient.post = originalPost
-  localStorage.clear()
+  if (typeof localStorage.clear === 'function') localStorage.clear()
+  cleanup()
   if (renderedDrawer) {
     renderedDrawer.queryClient.clear()
     renderedDrawer = null
@@ -211,6 +245,28 @@ afterEach(() => {
 })
 
 describe('API keys mutate drawer Auto group integration', () => {
+  test('organization keys inherit the organization group and cannot configure Auto routing', async () => {
+    const createdPayloads: Array<Record<string, unknown>> = []
+    installApiFixtures(createdPayloads)
+    await renderCreateDrawer('vip')
+
+    const groupInput = screen.getByDisplayValue<HTMLInputElement>('vip')
+    expect(groupInput).toBeDisabled()
+    expect(groupInput).toHaveValue('vip')
+    expect(document.body.textContent?.includes('Auto group order')).toBe(false)
+
+    changeInput(getControlByLabel('Name'), 'team-key')
+    fireEvent.click(findButton('Save changes', true))
+    await waitFor(() =>
+      expect(findButton('Create API Key', false)).toBeEnabled()
+    )
+    fireEvent.click(findButton('Create API Key', true))
+    await waitFor(() => expect(createdPayloads).toHaveLength(1))
+    expect(createdPayloads[0]?.group).toBe('vip')
+    expect(createdPayloads[0]?.auto_groups).toEqual([])
+    expect(createdPayloads[0]?.cross_group_retry).toBe(false)
+  })
+
   test('inherits the root Auto order and sends an empty override for every batch-created key', async () => {
     const createdPayloads: Array<Record<string, unknown>> = []
     installApiFixtures(createdPayloads)

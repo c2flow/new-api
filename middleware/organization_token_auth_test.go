@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -39,11 +41,19 @@ func TestOrganizationTokenAuthReadsCurrentGroupAndTokenPolicy(t *testing.T) {
 	require.NoError(t, db.Create(&org).Error)
 	member := model.OrganizationMember{OrgId: org.Id, UserId: user.Id, Status: model.OrganizationActive}
 	require.NoError(t, db.Create(&member).Error)
-	token := model.Token{OrgId: org.Id, UserId: user.Id, Key: "organizationauth", Status: common.TokenStatusEnabled, ExpiredTime: -1, UnlimitedQuota: true, ModelLimitsEnabled: true, ModelLimits: "allowed,new"}
+	token := model.Token{OrgId: org.Id, UserId: user.Id, Key: "organizationauth", Status: common.TokenStatusEnabled, ExpiredTime: -1, UnlimitedQuota: true, ModelLimitsEnabled: true, ModelLimits: "allowed,new", Group: "auto", CrossGroupRetry: true, AutoGroups: `["vip"]`}
 	require.NoError(t, db.Create(&token).Error)
 	router := gin.New()
 	router.GET("/relay", TokenAuth(), func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"group": c.GetString("user_group"), "models": c.MustGet("token_model_limit")})
+		_, hasAutoGroups := common.GetContextKey(c, constant.ContextKeyTokenAutoGroups)
+		c.JSON(http.StatusOK, gin.H{
+			"group":       c.GetString("user_group"),
+			"using_group": c.GetString("group"),
+			"token_group": c.GetString("token_group"),
+			"cross_retry": c.GetBool("token_cross_group_retry"),
+			"has_auto":    hasAutoGroups,
+			"models":      c.MustGet("token_model_limit"),
+		})
 	})
 	router.GET("/readonly", TokenAuthReadOnly(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	request := func(path string) *httptest.ResponseRecorder {
@@ -55,11 +65,17 @@ func TestOrganizationTokenAuthReadsCurrentGroupAndTokenPolicy(t *testing.T) {
 	}
 	response := request("/relay")
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
-	assert.JSONEq(t, `{"group":"default","models":{"allowed":true,"new":true}}`, response.Body.String())
+	assert.JSONEq(t, `{"group":"default","using_group":"default","token_group":"","cross_retry":false,"has_auto":false,"models":{"allowed":true,"new":true}}`, response.Body.String())
 	require.NoError(t, db.Model(&org).Update("group", "premium").Error)
+	previousRatios := ratio_setting.GroupRatio2JSONString()
+	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"default":1,"premium":1}`))
+	t.Cleanup(func() { require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(previousRatios)) })
 	response = request("/relay")
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
-	assert.JSONEq(t, `{"group":"premium","models":{"allowed":true,"new":true}}`, response.Body.String())
+	assert.JSONEq(t, `{"group":"premium","using_group":"premium","token_group":"","cross_retry":false,"has_auto":false,"models":{"allowed":true,"new":true}}`, response.Body.String())
+	require.NoError(t, db.Model(&org).Update("group", "removed").Error)
+	assert.Equal(t, http.StatusForbidden, request("/relay").Code)
+	require.NoError(t, db.Model(&org).Update("group", "premium").Error)
 	for _, status := range []int{model.OrganizationDisabled, model.OrganizationSuspended} {
 		require.NoError(t, db.Model(&org).Update("status", status).Error)
 		assert.Equal(t, http.StatusForbidden, request("/relay").Code)

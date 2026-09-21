@@ -6,6 +6,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -164,4 +165,25 @@ func PlatformSetOrganizationRemark(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, nil)
+}
+
+func PlatformSetOrganizationGroup(c *gin.Context) {
+	orgID, err := strconv.Atoi(c.Param("org_id"))
+	var input struct {
+		Group *string `json:"group"`
+	}
+	if err != nil || orgID <= 0 || c.ShouldBindJSON(&input) != nil || input.Group == nil {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	group := strings.TrimSpace(*input.Group)
+	if group == "auto" || !ratio_setting.ContainsGroupRatio(group) {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	if err := model.PlatformSetOrganizationGroup(orgID, c.GetInt("id"), group); err != nil {
+		organizationError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"group": group})
 }

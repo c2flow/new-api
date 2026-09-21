@@ -70,11 +70,29 @@ func buildMaskedTokenResponse(token *model.Token) *tokenResponse {
 	return &tokenResponse{Token: &maskedToken, AutoGroups: autoGroups}
 }
 
-func buildMaskedTokenResponses(tokens []*model.Token) []*tokenResponse {
+func normalizeOrganizationToken(c *gin.Context, token *model.Token) {
+	if !service.IsOrganizationRequest(c) {
+		return
+	}
+	token.Group = ""
+	token.CrossGroupRetry = false
+	_ = token.SetAutoGroups(nil)
+}
+
+func buildScopedMaskedTokenResponse(c *gin.Context, token *model.Token) *tokenResponse {
+	response := buildMaskedTokenResponse(token)
+	if response != nil && service.IsOrganizationRequest(c) {
+		response.Group = c.GetString("group")
+		response.CrossGroupRetry = false
+		response.AutoGroups = nil
+	}
+	return response
+}
+
+func buildScopedMaskedTokenResponses(c *gin.Context, tokens []*model.Token) []*tokenResponse {
 	maskedTokens := make([]*tokenResponse, 0, len(tokens))
 	for _, token := range tokens {
-		response := buildMaskedTokenResponse(token)
-		maskedTokens = append(maskedTokens, response)
+		maskedTokens = append(maskedTokens, buildScopedMaskedTokenResponse(c, token))
 	}
 	return maskedTokens
 }
@@ -141,7 +159,7 @@ func GetAllTokens(c *gin.Context) {
 		return
 	}
 	page.SetTotal(int(total))
-	page.SetItems(buildMaskedTokenResponses(tokens))
+	page.SetItems(buildScopedMaskedTokenResponses(c, tokens))
 	common.ApiSuccess(c, page)
 }
 
@@ -158,10 +176,14 @@ func GetToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, buildMaskedTokenResponse(token))
+	common.ApiSuccess(c, buildScopedMaskedTokenResponse(c, token))
 }
 
 func GetTokenAutoGroups(c *gin.Context) {
+	if service.IsOrganizationRequest(c) {
+		common.ApiSuccess(c, gin.H{"groups": []string{}, "max_count": setting.GetMaxTokenAutoGroups()})
+		return
+	}
 	userGroup, err := getTokenRequestUserGroup(c)
 	if err != nil {
 		common.ApiError(c, err)
@@ -266,6 +288,7 @@ func AddToken(c *gin.Context) {
 		return
 	}
 	token := request.Token
+	normalizeOrganizationToken(c, &token)
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
@@ -333,11 +356,16 @@ func AddToken(c *gin.Context) {
 		return
 	}
 	autoGroups, _ := cleanToken.GetAutoGroups() // Already validated before insertion.
+	response := &tokenResponse{Token: &cleanToken, AutoGroups: autoGroups}
+	if service.IsOrganizationRequest(c) {
+		response.Group = c.GetString("group")
+		response.AutoGroups = nil
+	}
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    &tokenResponse{Token: &cleanToken, AutoGroups: autoGroups},
+		"data":    response,
 	})
 }
 
@@ -404,6 +432,7 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.ModelLimitsEnabled = token.ModelLimitsEnabled
 		cleanToken.ModelLimits = token.ModelLimits
 		cleanToken.AllowIps = token.AllowIps
+		normalizeOrganizationToken(c, &token)
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
 		if token.Group != "auto" {
@@ -423,7 +452,7 @@ func UpdateToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    buildMaskedTokenResponse(cleanToken),
+		"data":    buildScopedMaskedTokenResponse(c, cleanToken),
 	})
 }
 

@@ -474,6 +474,13 @@ func TokenAuth() func(c *gin.Context) {
 		}
 		userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 		tokenGroup := token.Group
+		if token.OrgId > 0 {
+			if userGroup == "" || userGroup == "auto" || !ratio_setting.ContainsGroupRatio(userGroup) {
+				abortWithOpenAiMessage(c, http.StatusForbidden, "Organization group unavailable.")
+				return
+			}
+			tokenGroup = ""
+		}
 		if tokenGroup != "" {
 			// check common.UserUsableGroups[userGroup]
 			if _, ok := service.GetUserUsableGroups(userGroup)[tokenGroup]; !ok {
@@ -525,10 +532,16 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 			return err
 		}
 		common.SetContextKey(c, constant.ContextKeyUserGroup, org.Group)
+		common.SetContextKey(c, constant.ContextKeyOrganization, org)
 	}
-	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
-	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
-	if token.AutoGroups != "" {
+	if token.OrgId > 0 {
+		common.SetContextKey(c, constant.ContextKeyTokenGroup, "")
+		common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, false)
+	} else {
+		common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
+		common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
+	}
+	if token.OrgId == 0 && token.AutoGroups != "" {
 		autoGroups, err := token.GetAutoGroups()
 		if err != nil {
 			common.SysError(fmt.Sprintf("failed to parse auto groups for token %d: %v", token.Id, err))

@@ -287,7 +287,14 @@ export function ApiKeysMutateDrawer({
     setIsSubmitting(true)
     const secrets: Array<{ name: string; key: string }> = []
     try {
-      const basePayload = transformFormDataToPayload(data)
+      const basePayload = transformFormDataToPayload({
+        ...data,
+        group: organization?.organization.group ?? data.group,
+        auto_groups: organization?.organization ? [] : data.auto_groups,
+        cross_group_retry: organization?.organization
+          ? false
+          : data.cross_group_retry,
+      })
 
       if (isUpdate && currentRow) {
         const result = await updateApiKey({
@@ -447,30 +454,38 @@ export function ApiKeysMutateDrawer({
                   <FormItem>
                     <FormLabel>{t('Group')}</FormLabel>
                     <FormControl>
-                      <ApiKeyGroupCombobox
-                        options={groups}
-                        value={field.value}
-                        onValueChange={(group) => {
-                          field.onChange(group)
-                          if (group === 'auto') {
-                            form.setValue('cross_group_retry', true, {
+                      {organization?.organization ? (
+                        <Input
+                          {...field}
+                          value={organization.organization.group}
+                          disabled
+                        />
+                      ) : (
+                        <ApiKeyGroupCombobox
+                          options={groups}
+                          value={field.value}
+                          onValueChange={(group) => {
+                            field.onChange(group)
+                            if (group === 'auto') {
+                              form.setValue('cross_group_retry', true, {
+                                shouldDirty: true,
+                              })
+                              return
+                            }
+                            form.setValue('cross_group_retry', false, {
                               shouldDirty: true,
                             })
-                            return
-                          }
-                          form.setValue('cross_group_retry', false, {
-                            shouldDirty: true,
-                          })
-                        }}
-                        placeholder={t('Select a group')}
-                      />
+                          }}
+                          placeholder={t('Select a group')}
+                        />
+                      )}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {selectedGroup === 'auto' && (
+              {!organization?.organization && selectedGroup === 'auto' && (
                 <FormField
                   control={form.control}
                   name='auto_groups'
@@ -511,7 +526,7 @@ export function ApiKeysMutateDrawer({
                 />
               )}
 
-              {selectedGroup === 'auto' && (
+              {!organization?.organization && selectedGroup === 'auto' && (
                 <FormField
                   control={form.control}
                   name='cross_group_retry'

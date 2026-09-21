@@ -43,3 +43,26 @@ func PlatformSetOrganizationRemark(orgID, actorID int, remark string) error {
 		return tx.Create(&OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "platform.remark", ObjectId: fmt.Sprint(orgID), Result: "success"}).Error
 	})
 }
+
+// PlatformSetOrganizationGroup changes the routing and pricing group inherited
+// by every API key owned by the organization. The caller validates that the
+// group is currently configured by the platform.
+func PlatformSetOrganizationGroup(orgID, actorID int, group string) error {
+	group = strings.TrimSpace(group)
+	if orgID <= 0 || actorID <= 0 || group == "" || utf8.RuneCountInString(group) > 64 {
+		return ErrOrganizationInput
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var org Organization
+		if err := lockForUpdate(tx).Where("id = ?", orgID).First(&org).Error; err != nil {
+			return ErrOrganizationAccess
+		}
+		if org.Group == group {
+			return nil
+		}
+		if err := tx.Model(&org).Update("group", group).Error; err != nil {
+			return err
+		}
+		return tx.Create(&OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "platform.group", ObjectId: group, Result: "success"}).Error
+	})
+}

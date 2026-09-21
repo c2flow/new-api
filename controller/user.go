@@ -669,10 +669,10 @@ func GetUserModels(c *gin.Context) {
 		return
 	}
 	effectiveGroup := user.Group
-	if c.GetInt("org_id") > 0 {
+	if service.IsOrganizationRequest(c) {
 		effectiveGroup = c.GetString("group")
 	}
-	groups := service.GetUserUsableGroups(effectiveGroup)
+	groups := service.GetRequestUsableGroups(c, effectiveGroup)
 	group := c.Query("group")
 	var groupsToQuery []string
 	switch {

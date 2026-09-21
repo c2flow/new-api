@@ -90,3 +90,22 @@ func TestOrganizationRemarkUpgradePreservesExistingTeams(t *testing.T) {
 		assert.Empty(t, audit.Reason)
 	}
 }
+
+func TestPlatformSetOrganizationGroupUpdatesCurrentPolicyAndAuditsChange(t *testing.T) {
+	db, org, users := organizationBillingFixture(t)
+
+	require.NoError(t, PlatformSetOrganizationGroup(org.Id, users[0].Id, " vip "))
+	var updated Organization
+	require.NoError(t, db.First(&updated, org.Id).Error)
+	assert.Equal(t, "vip", updated.Group)
+
+	var audits []OrganizationAudit
+	require.NoError(t, db.Where("org_id = ? AND action = ?", org.Id, "platform.group").Find(&audits).Error)
+	require.Len(t, audits, 1)
+	assert.Equal(t, "vip", audits[0].ObjectId)
+
+	require.NoError(t, PlatformSetOrganizationGroup(org.Id, users[0].Id, "vip"))
+	require.NoError(t, db.Where("org_id = ? AND action = ?", org.Id, "platform.group").Find(&audits).Error)
+	assert.Len(t, audits, 1)
+	assert.ErrorIs(t, PlatformSetOrganizationGroup(org.Id, users[0].Id, ""), ErrOrganizationInput)
+}
