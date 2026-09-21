@@ -233,13 +233,14 @@ func TestGetTokenAutoGroupsReturnsFullFilteredGlobalOrderAndLimit(t *testing.T) 
 	assert.Equal(t, 1, data.MaxCount)
 }
 
-func TestOrganizationTokenIgnoresPersonalRoutingPolicy(t *testing.T) {
+func TestOrganizationTokenUsesOrganizationGroupRoutingPolicy(t *testing.T) {
 	configureTokenAutoGroupsTest(t, "5", `["default","vip"]`)
 	user := setupTokenAutoGroupsControllerTest(t)
 	request := baseAutoTokenRequest("organization-policy")
 	request["auto_groups"] = []string{"vip", "default"}
 	ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPost, "/api/token/", request, user.Id)
 	common.SetContextKey(ctx, constant.ContextKeyOrganization, &model.Organization{Id: user.Id, Group: "vip"})
+	common.SetContextKey(ctx, constant.ContextKeyUserGroup, "vip")
 	ctx.Set("group", "vip")
 
 	AddToken(ctx)
@@ -248,12 +249,14 @@ func TestOrganizationTokenIgnoresPersonalRoutingPolicy(t *testing.T) {
 	require.True(t, response.Success, response.Message)
 	var token model.Token
 	require.NoError(t, model.DB.Where("name = ?", "organization-policy").First(&token).Error)
-	assert.Empty(t, token.Group)
-	assert.Empty(t, token.AutoGroups)
-	assert.False(t, token.CrossGroupRetry)
+	assert.Equal(t, "auto", token.Group)
+	assert.JSONEq(t, `["vip","default"]`, token.AutoGroups)
+	assert.True(t, token.CrossGroupRetry)
 	var data struct {
-		Group string `json:"group"`
+		Group      string   `json:"group"`
+		AutoGroups []string `json:"auto_groups"`
 	}
 	require.NoError(t, common.Unmarshal(response.Data, &data))
-	assert.Equal(t, "vip", data.Group)
+	assert.Equal(t, "auto", data.Group)
+	assert.Equal(t, []string{"vip", "default"}, data.AutoGroups)
 }

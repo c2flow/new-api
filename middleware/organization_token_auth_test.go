@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,9 @@ import (
 
 func TestOrganizationTokenAuthReadsCurrentGroupAndTokenPolicy(t *testing.T) {
 	setupDashboardAuthMiddlewareTest(t)
+	previousUsableGroups := setting.UserUsableGroups2JSONString()
+	require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(`{"default":"Default","premium":"Premium","vip":"VIP","auto":"Auto"}`))
+	t.Cleanup(func() { require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(previousUsableGroups)) })
 	previousPath, previousMaster := common.SQLitePath, common.IsMasterNode
 	common.SQLitePath, common.IsMasterNode = t.TempDir()+"/auth.db", false
 	t.Setenv("SQL_DSN", "")
@@ -65,14 +69,14 @@ func TestOrganizationTokenAuthReadsCurrentGroupAndTokenPolicy(t *testing.T) {
 	}
 	response := request("/relay")
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
-	assert.JSONEq(t, `{"group":"default","using_group":"default","token_group":"","cross_retry":false,"has_auto":false,"models":{"allowed":true,"new":true}}`, response.Body.String())
+	assert.JSONEq(t, `{"group":"default","using_group":"auto","token_group":"auto","cross_retry":true,"has_auto":true,"models":{"allowed":true,"new":true}}`, response.Body.String())
 	require.NoError(t, db.Model(&org).Update("group", "premium").Error)
 	previousRatios := ratio_setting.GroupRatio2JSONString()
 	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"default":1,"premium":1}`))
 	t.Cleanup(func() { require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(previousRatios)) })
 	response = request("/relay")
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
-	assert.JSONEq(t, `{"group":"premium","using_group":"premium","token_group":"","cross_retry":false,"has_auto":false,"models":{"allowed":true,"new":true}}`, response.Body.String())
+	assert.JSONEq(t, `{"group":"premium","using_group":"auto","token_group":"auto","cross_retry":true,"has_auto":true,"models":{"allowed":true,"new":true}}`, response.Body.String())
 	require.NoError(t, db.Model(&org).Update("group", "removed").Error)
 	assert.Equal(t, http.StatusForbidden, request("/relay").Code)
 	require.NoError(t, db.Model(&org).Update("group", "premium").Error)

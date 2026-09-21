@@ -672,7 +672,7 @@ func GetUserModels(c *gin.Context) {
 	if service.IsOrganizationRequest(c) {
 		effectiveGroup = c.GetString("group")
 	}
-	groups := service.GetRequestUsableGroups(c, effectiveGroup)
+	groups := service.GetUserUsableGroups(effectiveGroup)
 	group := c.Query("group")
 	var groupsToQuery []string
 	switch {

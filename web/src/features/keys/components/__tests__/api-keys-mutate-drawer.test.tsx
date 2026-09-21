@@ -245,15 +245,15 @@ afterEach(() => {
 })
 
 describe('API keys mutate drawer Auto group integration', () => {
-  test('organization keys inherit the organization group and cannot configure Auto routing', async () => {
+  test('organization keys can select the same visible groups as personal keys', async () => {
     const createdPayloads: Array<Record<string, unknown>> = []
     installApiFixtures(createdPayloads)
     await renderCreateDrawer('vip')
 
-    const groupInput = screen.getByDisplayValue<HTMLInputElement>('vip')
-    expect(groupInput).toBeDisabled()
-    expect(groupInput).toHaveValue('vip')
-    expect(document.body.textContent?.includes('Auto group order')).toBe(false)
+    const groupTrigger = getControlByLabel('Group')
+    expect(groupTrigger.textContent?.includes('auto')).toBe(true)
+    expect(document.body.textContent?.includes('Auto group order')).toBe(true)
+    selectComboboxOption(groupTrigger, 'Priority access')
 
     changeInput(getControlByLabel('Name'), 'team-key')
     fireEvent.click(findButton('Save changes', true))

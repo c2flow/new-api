@@ -58,7 +58,7 @@ func GetPricing(c *gin.Context) {
 		}
 	}
 
-	usableGroup = service.GetRequestUsableGroups(c, group)
+	usableGroup = service.GetUserUsableGroups(group)
 	pricing = filterPricingByUsableGroups(pricing, usableGroup)
 	// check groupRatio contains usableGroup
 	for group := range ratio_setting.GetGroupRatioCopy() {
@@ -68,9 +68,6 @@ func GetPricing(c *gin.Context) {
 	}
 
 	autoGroups := service.GetUserAutoGroup(group)
-	if service.IsOrganizationRequest(c) {
-		autoGroups = []string{}
-	}
 	c.JSON(200, gin.H{
 		"success":            true,
 		"data":               pricing,

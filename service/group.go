@@ -50,23 +50,6 @@ func IsOrganizationRequest(c *gin.Context) bool {
 	return ok && organization != nil && common.GetContextKeyInt(c, constant.ContextKeyOrgId) > 0
 }
 
-// GetRequestUsableGroups returns the routing groups available to the current
-// billing subject. Organizations have one platform-assigned group and do not
-// inherit any routing entitlement from the member's personal account.
-func GetRequestUsableGroups(c *gin.Context, subjectGroup string) map[string]string {
-	if !IsOrganizationRequest(c) {
-		return GetUserUsableGroups(subjectGroup)
-	}
-	if subjectGroup == "" || subjectGroup == "auto" || !ratio_setting.ContainsGroupRatio(subjectGroup) {
-		return map[string]string{}
-	}
-	desc := setting.GetUsableGroupDescription(subjectGroup)
-	if desc == "" {
-		desc = subjectGroup
-	}
-	return map[string]string{subjectGroup: desc}
-}
-
 func IsUserSelectableGroup(userGroup, groupName string) bool {
 	if groupName == "" || groupName == "auto" {
 		return false

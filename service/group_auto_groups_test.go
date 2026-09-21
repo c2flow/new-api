@@ -70,14 +70,3 @@ func TestGetRequestAutoGroupsDoesNotFallBackAfterPermissionChange(t *testing.T) 
 
 	assert.Empty(t, groups)
 }
-
-func TestOrganizationRequestCanOnlyUseItsAssignedGroup(t *testing.T) {
-	configureRequestAutoGroupsTest(t)
-	ctx := newRequestAutoGroupsContext()
-	common.SetContextKey(ctx, constant.ContextKeyOrgId, 42)
-	common.SetContextKey(ctx, constant.ContextKeyOrganization, struct{}{})
-
-	groups := GetRequestUsableGroups(ctx, "vip")
-
-	assert.Equal(t, map[string]string{"vip": "VIP"}, groups)
-}

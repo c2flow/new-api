@@ -70,21 +70,10 @@ func buildMaskedTokenResponse(token *model.Token) *tokenResponse {
 	return &tokenResponse{Token: &maskedToken, AutoGroups: autoGroups}
 }
 
-func normalizeOrganizationToken(c *gin.Context, token *model.Token) {
-	if !service.IsOrganizationRequest(c) {
-		return
-	}
-	token.Group = ""
-	token.CrossGroupRetry = false
-	_ = token.SetAutoGroups(nil)
-}
-
 func buildScopedMaskedTokenResponse(c *gin.Context, token *model.Token) *tokenResponse {
 	response := buildMaskedTokenResponse(token)
-	if response != nil && service.IsOrganizationRequest(c) {
+	if response != nil && response.Group == "" && service.IsOrganizationRequest(c) {
 		response.Group = c.GetString("group")
-		response.CrossGroupRetry = false
-		response.AutoGroups = nil
 	}
 	return response
 }
@@ -180,10 +169,6 @@ func GetToken(c *gin.Context) {
 }
 
 func GetTokenAutoGroups(c *gin.Context) {
-	if service.IsOrganizationRequest(c) {
-		common.ApiSuccess(c, gin.H{"groups": []string{}, "max_count": setting.GetMaxTokenAutoGroups()})
-		return
-	}
 	userGroup, err := getTokenRequestUserGroup(c)
 	if err != nil {
 		common.ApiError(c, err)
@@ -288,7 +273,6 @@ func AddToken(c *gin.Context) {
 		return
 	}
 	token := request.Token
-	normalizeOrganizationToken(c, &token)
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
@@ -357,9 +341,8 @@ func AddToken(c *gin.Context) {
 	}
 	autoGroups, _ := cleanToken.GetAutoGroups() // Already validated before insertion.
 	response := &tokenResponse{Token: &cleanToken, AutoGroups: autoGroups}
-	if service.IsOrganizationRequest(c) {
+	if response.Group == "" && service.IsOrganizationRequest(c) {
 		response.Group = c.GetString("group")
-		response.AutoGroups = nil
 	}
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{
@@ -432,7 +415,6 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.ModelLimitsEnabled = token.ModelLimitsEnabled
 		cleanToken.ModelLimits = token.ModelLimits
 		cleanToken.AllowIps = token.AllowIps
-		normalizeOrganizationToken(c, &token)
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
 		if token.Group != "auto" {

@@ -69,11 +69,6 @@ func Distribute() func(c *gin.Context) {
 				}
 				return
 			}
-			if pin.Source == taskdto.PinSourceToken && service.IsOrganizationRequest(c) && modelRequest.Model != "" &&
-				!model.IsChannelEnabledForGroupModel(common.GetContextKeyString(c, constant.ContextKeyUserGroup), modelRequest.Model, channel.Id) {
-				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
-				return
-			}
 			if ok, kind := model.ChannelSatisfiesFilters(channel, modelRequest.Model, constraints.Filters); !ok {
 				if kind == taskdto.FilterTaskPluginIdentity {
 					logTaskPluginChannelDecision(c, channel, modelRequest.Model, "channel_rejected", "identity_mismatch")
@@ -119,7 +114,7 @@ func Distribute() func(c *gin.Context) {
 						abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidPlayground, map[string]any{"Error": err.Error()}))
 						return
 					}
-					if playgroundRequest.Group != "" && !service.IsOrganizationRequest(c) {
+					if playgroundRequest.Group != "" {
 						if !service.GroupInUserUsableGroups(usingGroup, playgroundRequest.Group) && playgroundRequest.Group != usingGroup {
 							abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
 							return
@@ -554,9 +549,6 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		}
 		modelRequest.Model = req.Model
 		modelRequest.Group = req.Group
-		if service.IsOrganizationRequest(c) {
-			modelRequest.Group = common.GetContextKeyString(c, constant.ContextKeyUserGroup)
-		}
 		common.SetContextKey(c, constant.ContextKeyTokenGroup, modelRequest.Group)
 	}
 

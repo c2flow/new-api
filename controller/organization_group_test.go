@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOrganizationGroupListExcludesPersonalAndAutoGroups(t *testing.T) {
+func TestOrganizationGroupListMatchesVisibleUserGroups(t *testing.T) {
 	previousRatios := ratio_setting.GroupRatio2JSONString()
 	previousUsable := setting.UserUsableGroups2JSONString()
 	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"default":1,"vip":2}`))
@@ -35,6 +35,6 @@ func TestOrganizationGroupListExcludesPersonalAndAutoGroups(t *testing.T) {
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 	assert.Contains(t, response.Data, "default")
-	assert.NotContains(t, response.Data, "vip")
-	assert.NotContains(t, response.Data, "auto")
+	assert.Contains(t, response.Data, "vip")
+	assert.Contains(t, response.Data, "auto")
 }

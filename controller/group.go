@@ -29,7 +29,7 @@ func GetUserGroups(c *gin.Context) {
 	if userGroup == "" {
 		userGroup, _ = model.GetUserGroup(c.GetInt("id"), false)
 	}
-	userUsableGroups := service.GetRequestUsableGroups(c, userGroup)
+	userUsableGroups := service.GetUserUsableGroups(userGroup)
 	for groupName, _ := range ratio_setting.GetGroupRatioCopy() {
 		// UserUsableGroups contains the groups that the user can use
 		if desc, ok := userUsableGroups[groupName]; ok {
@@ -39,7 +39,7 @@ func GetUserGroups(c *gin.Context) {
 			}
 		}
 	}
-	if _, ok := userUsableGroups["auto"]; !service.IsOrganizationRequest(c) && ok {
+	if _, ok := userUsableGroups["auto"]; ok {
 		usableGroups["auto"] = map[string]interface{}{
 			"ratio": "自动",
 			"desc":  setting.GetUsableGroupDescription("auto"),

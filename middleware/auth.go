@@ -479,7 +479,6 @@ func TokenAuth() func(c *gin.Context) {
 				abortWithOpenAiMessage(c, http.StatusForbidden, "Organization group unavailable.")
 				return
 			}
-			tokenGroup = ""
 		}
 		if tokenGroup != "" {
 			// check common.UserUsableGroups[userGroup]
@@ -534,14 +533,9 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 		common.SetContextKey(c, constant.ContextKeyUserGroup, org.Group)
 		common.SetContextKey(c, constant.ContextKeyOrganization, org)
 	}
-	if token.OrgId > 0 {
-		common.SetContextKey(c, constant.ContextKeyTokenGroup, "")
-		common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, false)
-	} else {
-		common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
-		common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
-	}
-	if token.OrgId == 0 && token.AutoGroups != "" {
+	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
+	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
+	if token.AutoGroups != "" {
 		autoGroups, err := token.GetAutoGroups()
 		if err != nil {
 			common.SysError(fmt.Sprintf("failed to parse auto groups for token %d: %v", token.Id, err))
