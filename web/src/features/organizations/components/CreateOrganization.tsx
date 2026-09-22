@@ -64,6 +64,7 @@ export function CreateOrganization() {
   return (
     <>
       <Button
+        data-tutorial='create-organization'
         onClick={() => {
           reset({ name: '' })
           setCreating(true)

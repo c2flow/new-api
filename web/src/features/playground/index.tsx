@@ -94,7 +94,10 @@ export function Playground() {
       </div>
 
       {/* Input area: center content and constrain to the same container width */}
-      <div className='mx-auto w-full max-w-4xl'>
+      <div
+        className='mx-auto w-full max-w-4xl'
+        data-tutorial='playground-input'
+      >
         <PlaygroundInput
           config={config}
           disabled={isGenerating}

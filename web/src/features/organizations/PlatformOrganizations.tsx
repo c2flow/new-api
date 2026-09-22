@@ -153,7 +153,10 @@ export function PlatformOrganizations() {
     <SectionPageLayout>
       <SectionPageLayout.Title>{t('Organizations')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
-        <div className='space-y-5 px-4 pb-6'>
+        <div
+          className='space-y-5 px-4 pb-6'
+          data-tutorial='organization-management'
+        >
           <p className='text-muted-foreground'>
             {t('Platform administration')} ·{' '}
             {t('Global resources across organizations')}

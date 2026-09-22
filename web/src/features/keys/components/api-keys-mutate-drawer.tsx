@@ -433,7 +433,11 @@ export function ApiKeysMutateDrawer({
                   <FormItem>
                     <FormLabel>{t('Name')}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder={t('Enter a name')} />
+                      <Input
+                        {...field}
+                        data-tutorial='api-key-name'
+                        placeholder={t('Enter a name')}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -785,6 +789,7 @@ export function ApiKeysMutateDrawer({
             {t('Close')}
           </SheetClose>
           <Button
+            data-tutorial='api-key-save'
             type='button'
             onClick={form.handleSubmit(
               (data) => (isUpdate ? onSubmit(data) : setPendingCreate(data)),
@@ -797,6 +802,7 @@ export function ApiKeysMutateDrawer({
           </Button>
         </SheetFooter>
         <ConfirmDialog
+          tutorialTarget='api-key-confirm'
           open={pendingCreate !== null}
           onOpenChange={(value) => {
             if (!value) setPendingCreate(null)

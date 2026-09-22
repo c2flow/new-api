@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { BookOpen01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import DeepSeekColor from '@lobehub/icons/es/DeepSeek/components/Color'
 import HermesAgent from '@lobehub/icons/es/HermesAgent/components/Mono'
 import { Link } from '@tanstack/react-router'
@@ -75,6 +77,18 @@ export function Hero(props: HeroProps) {
             {t('Browse Models')}
             <ArrowRight aria-hidden='true' className='size-4' />
           </Link>
+          {props.isAuthenticated && (
+            <Link
+              to='/tutorial'
+              className={cn(
+                buttonVariants({ variant: 'ghost' }),
+                'h-12 gap-3 rounded-full px-5 text-base'
+              )}
+            >
+              <HugeiconsIcon icon={BookOpen01Icon} className='size-4' />
+              {t('Usage tutorial')}
+            </Link>
+          )}
         </div>
       </section>
       <section

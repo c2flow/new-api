@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  TUTORIAL_API_KEY_COPIED_EVENT,
+  TUTORIAL_API_KEY_CREATED_EVENT,
+} from '@/features/tutorial/session'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 
 import { useApiKeys } from './api-keys-context'
@@ -37,6 +42,11 @@ export function CreatedKeysDialog() {
   const value = createdSecrets
     .map((secret) => `${secret.name}\t${secret.key}`)
     .join('\n')
+  useEffect(() => {
+    if (createdSecrets.length > 0) {
+      window.dispatchEvent(new Event(TUTORIAL_API_KEY_CREATED_EVENT))
+    }
+  }, [createdSecrets.length])
   return (
     <Dialog
       open={createdSecrets.length > 0}
@@ -60,8 +70,13 @@ export function CreatedKeysDialog() {
           rows={Math.min(10, createdSecrets.length + 1)}
         />
         <Button
-          onClick={() => {
-            void copyToClipboard(value)
+          data-tutorial='copy-created-api-key'
+          onClick={async () => {
+            const clipboardValue =
+              createdSecrets.length === 1 ? createdSecrets[0].key : value
+            if (await copyToClipboard(clipboardValue)) {
+              window.dispatchEvent(new Event(TUTORIAL_API_KEY_COPIED_EVENT))
+            }
           }}
         >
           {t('Copy keys')}
