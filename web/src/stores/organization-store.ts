@@ -35,7 +35,7 @@ type OrganizationState = {
   syncMemberships: (
     organizations: Pick<
       OrganizationMembership,
-      'id' | 'status' | 'membership_id'
+      'id' | 'status' | 'membership_id' | 'join_source'
     >[]
   ) => void
   setContext: (context: OrganizationContext, epoch: number) => void
@@ -115,8 +115,9 @@ export const useOrganizationStore = create<OrganizationState>((set, get) => ({
     const joinedNewOrganization =
       state.latestMembershipID === null ||
       latestMembershipID > state.latestMembershipID
+    const autoSelectLatest = latestOrganization?.join_source !== 'platform'
     const activeOrgID =
-      joinedNewOrganization && latestOrganizationID !== null
+      joinedNewOrganization && autoSelectLatest && latestOrganizationID !== null
         ? latestOrganizationID
         : state.activeOrgID
     const storedMembershipID = Math.max(

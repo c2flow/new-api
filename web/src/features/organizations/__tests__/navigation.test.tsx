@@ -657,6 +657,81 @@ test('platform organization search sends remarks to server and resets pagination
   )
 })
 
+test('only the super administrator can directly add an organization member', async () => {
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [{ ...team, owner_username: 'owner', owner_display_name: 'Owner' }],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+  const bodies: unknown[] = []
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'post') {
+      bodies.push(JSON.parse(config.data))
+    }
+    return {
+      config,
+      data: { success: true, data: {} },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+    }
+  }
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Add member without consent' })
+  )
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Add member without consent',
+  })
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Username' }), {
+    target: { value: 'managed-user' },
+  })
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Reason' }), {
+    target: { value: 'authorized onboarding' },
+  })
+  fireEvent.click(
+    within(dialog).getByText(
+      'I confirm this consent bypass is authorized for account administration.'
+    )
+  )
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+  await waitFor(() => expect(bodies).toHaveLength(1))
+  expect(bodies[0]).toMatchObject({
+    username: 'managed-user',
+    role: 'member',
+    reason: 'authorized onboarding',
+  })
+
+  cleanup()
+  client.clear()
+  useAuthStore.getState().auth.setUser({
+    id: 2,
+    username: 'admin',
+    role: 10,
+    permissions: { admin_permissions: { organization: { read: true } } },
+  })
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [{ ...team, owner_username: 'owner', owner_display_name: 'Owner' }],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+  expect(
+    screen.queryByRole('button', { name: 'Add member without consent' })
+  ).not.toBeInTheDocument()
+})
+
 test.each([false, true])(
   'profile menu retains profile while wallet follows personal space (team=%s)',
   async (isTeam) => {

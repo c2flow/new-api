@@ -21,6 +21,7 @@ type OrganizationMembership struct {
 	Logo         string `json:"logo,omitempty" gorm:"-"`
 	Role         string `json:"role"`
 	SpendLimit   int64  `json:"spend_limit"`
+	JoinSource   string `json:"join_source,omitempty" gorm:"-"`
 	MembershipId int    `json:"membership_id"`
 	JoinedAt     int64  `json:"joined_at"`
 }
@@ -34,7 +35,32 @@ func ListUserOrganizations(userID int) ([]OrganizationMembership, error) {
 	if err != nil {
 		return nil, err
 	}
+	var sourceAudits []OrganizationAudit
+	if len(orgs) > 0 {
+		orgIDs := make([]int, 0, len(orgs))
+		membershipIDs := make([]string, 0, len(orgs))
+		for _, org := range orgs {
+			orgIDs = append(orgIDs, org.Id)
+			membershipIDs = append(membershipIDs, fmt.Sprint(org.MembershipId))
+		}
+		if err := DB.Select("org_id", "action").Where("org_id IN ? AND ((action = ? AND object_id = ?) OR (action = ? AND object_id IN ?))", orgIDs, "platform.member_add", fmt.Sprint(userID), "member.accept", membershipIDs).
+			Order("created_at DESC, id DESC").Find(&sourceAudits).Error; err != nil {
+			return nil, err
+		}
+	}
+	sourceByOrgID := make(map[int]string, len(sourceAudits))
+	for _, audit := range sourceAudits {
+		if _, exists := sourceByOrgID[audit.OrgId]; exists {
+			continue
+		}
+		if audit.Action == "platform.member_add" {
+			sourceByOrgID[audit.OrgId] = "platform"
+		} else {
+			sourceByOrgID[audit.OrgId] = "invite"
+		}
+	}
 	for i := range orgs {
+		orgs[i].JoinSource = sourceByOrgID[orgs[i].Id]
 		settings, err := orgs[i].EffectiveSettings()
 		if err != nil {
 			return nil, err

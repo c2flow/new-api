@@ -80,7 +80,13 @@ func PlatformOrganizationResources(c *gin.Context) {
 	database := model.DB
 	switch c.Param("resource") {
 	case "members":
-		resource = &[]model.OrganizationMember{}
+		members := &[]struct {
+			model.OrganizationMember
+			Username    string `json:"username"`
+			DisplayName string `json:"display_name"`
+			Email       string `json:"email"`
+		}{}
+		resource = members
 	case "audit":
 		resource = &[]model.OrganizationAudit{}
 	case "logs":
@@ -91,12 +97,21 @@ func PlatformOrganizationResources(c *gin.Context) {
 		return
 	}
 	query := database.Model(resource).Scopes(model.OrgScope(orgID))
+	if c.Param("resource") == "members" {
+		query = model.DB.Model(&model.OrganizationMember{}).
+			Select("organization_members.*, users.username, users.display_name, users.email").
+			Joins("JOIN users ON users.id = organization_members.user_id").Scopes(model.OrgScope(orgID))
+	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	if err := query.Order("id desc").Offset(page.GetStartIdx()).Limit(page.GetPageSize()).Find(resource).Error; err != nil {
+	order := "id desc"
+	if c.Param("resource") == "members" {
+		order = "organization_members.id desc"
+	}
+	if err := query.Order(order).Offset(page.GetStartIdx()).Limit(page.GetPageSize()).Find(resource).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -110,6 +125,55 @@ func PlatformOrganizationResources(c *gin.Context) {
 	page.SetTotal(int(total))
 	page.SetItems(resource)
 	common.ApiSuccess(c, page)
+}
+
+func PlatformAddOrganizationMember(c *gin.Context) {
+	orgID, err := strconv.Atoi(c.Param("org_id"))
+	var input struct {
+		Username          string `json:"username"`
+		Role              string `json:"role"`
+		SpendLimit        *int64 `json:"spend_limit"`
+		MonthlySpendLimit *int64 `json:"monthly_spend_limit"`
+		Reason            string `json:"reason"`
+	}
+	if err != nil || orgID <= 0 || c.ShouldBindJSON(&input) != nil {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	memberInput := model.PlatformOrganizationMemberInput{Username: input.Username, Role: input.Role, Reason: input.Reason}
+	if input.SpendLimit != nil {
+		memberInput.SpendLimit = *input.SpendLimit
+	}
+	if input.MonthlySpendLimit != nil {
+		memberInput.MonthlySpendLimit = *input.MonthlySpendLimit
+	}
+	member, err := model.PlatformAddOrganizationMember(orgID, c.GetInt("id"), memberInput)
+	if err != nil {
+		organizationError(c, err)
+		return
+	}
+	common.ApiSuccess(c, member)
+}
+
+func PlatformUpdateOrganizationMember(c *gin.Context) {
+	orgID, orgErr := strconv.Atoi(c.Param("org_id"))
+	userID, userErr := strconv.Atoi(c.Param("user_id"))
+	var input struct {
+		Role              string `json:"role"`
+		Status            int    `json:"status"`
+		SpendLimit        *int64 `json:"spend_limit"`
+		MonthlySpendLimit *int64 `json:"monthly_spend_limit"`
+		Reason            string `json:"reason"`
+	}
+	if orgErr != nil || userErr != nil || orgID <= 0 || userID <= 0 || c.ShouldBindJSON(&input) != nil || input.SpendLimit == nil || input.MonthlySpendLimit == nil {
+		organizationError(c, model.ErrOrganizationInput)
+		return
+	}
+	if err := model.PlatformUpdateOrganizationMember(orgID, c.GetInt("id"), userID, input.Role, input.Status, *input.SpendLimit, *input.MonthlySpendLimit, input.Reason); err != nil {
+		organizationError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
 }
 
 func PlatformChangeOrganizationStatus(c *gin.Context) {

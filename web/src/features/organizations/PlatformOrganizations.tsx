@@ -48,10 +48,22 @@ import { useAuthStore } from '@/stores/auth-store'
 import { OrganizationGroupDialog } from './components/OrganizationGroupDialog'
 import { OrganizationQuotaDialog } from './components/OrganizationQuotaDialog'
 import { OrganizationRemarkDialog } from './components/OrganizationRemarkDialog'
-import type { PlatformOrganization, Page } from './types'
+import { PlatformMemberDialog } from './components/PlatformMemberDialog'
+import type {
+  PlatformOrganization,
+  PlatformOrganizationMember,
+  Page,
+} from './types'
 
 const resourceColumns = {
-  members: ['user_id', 'role', 'status', 'spend_limit'],
+  members: [
+    'username',
+    'user_id',
+    'role',
+    'status',
+    'spend_limit',
+    'monthly_spend_limit',
+  ],
   logs: ['created_at', 'user_id', 'model_name', 'quota', 'request_id'],
   audit: ['created_at', 'actor_id', 'action', 'object_id', 'result', 'reason'],
 } as const
@@ -64,12 +76,17 @@ export function PlatformOrganizations() {
   const canManage = useAuthStore((state) =>
     hasPermission(state.auth.user, 'organization', 'write')
   )
+  const isRoot = useAuthStore((state) => state.auth.user?.role === 100)
   const [quotaOrganization, setQuotaOrganization] =
     useState<PlatformOrganization | null>(null)
   const [groupOrganization, setGroupOrganization] =
     useState<PlatformOrganization | null>(null)
   const [remarkOrganization, setRemarkOrganization] =
     useState<PlatformOrganization | null>(null)
+  const [memberDialog, setMemberDialog] = useState<{
+    organization: PlatformOrganization
+    member?: PlatformOrganizationMember
+  } | null>(null)
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<PlatformOrganization | null>(null)
@@ -136,6 +153,8 @@ export function PlatformOrganizations() {
     role: t('Role'),
     status: t('Status'),
     spend_limit: t('Spending limit'),
+    monthly_spend_limit: t('Monthly spending limit'),
+    username: t('Username'),
     name: t('Name'),
     key: t('API Key'),
     used_quota: t('Used Quota'),
@@ -295,11 +314,24 @@ export function PlatformOrganizations() {
             <section className='space-y-4 rounded-xl border p-4'>
               <div className='flex flex-wrap items-center justify-between gap-3'>
                 <h2 className='font-semibold'>{selected.name}</h2>
-                <Button variant='outline' onClick={() => setConfirm(true)}>
-                  {selected.status === 1
-                    ? t('Disable organization')
-                    : t('Restore organization')}
-                </Button>
+                <div className='flex flex-wrap gap-2'>
+                  {isRoot && selected.status === 1 && (
+                    <Button
+                      onClick={() =>
+                        setMemberDialog({ organization: selected })
+                      }
+                    >
+                      {t('Add member without consent')}
+                    </Button>
+                  )}
+                  {canManage && (
+                    <Button variant='outline' onClick={() => setConfirm(true)}>
+                      {selected.status === 1
+                        ? t('Disable organization')
+                        : t('Restore organization')}
+                    </Button>
+                  )}
+                </div>
               </div>
               <Tabs
                 value={resource}
@@ -331,6 +363,9 @@ export function PlatformOrganizations() {
                       {resourceColumns[resource].map((column) => (
                         <TableHead key={column}>{labels[column]}</TableHead>
                       ))}
+                      {resource === 'members' && isRoot && (
+                        <TableHead>{t('Actions')}</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -348,6 +383,29 @@ export function PlatformOrganizations() {
                               : String(row[column] ?? '—')}
                           </TableCell>
                         ))}
+                        {resource === 'members' && isRoot && (
+                          <TableCell>
+                            {row.role === 'owner' ? (
+                              <span className='text-muted-foreground'>
+                                {t('Owner')}
+                              </span>
+                            ) : (
+                              <Button
+                                variant='outline'
+                                size='sm'
+                                onClick={() =>
+                                  setMemberDialog({
+                                    organization: selected,
+                                    member:
+                                      row as unknown as PlatformOrganizationMember,
+                                  })
+                                }
+                              >
+                                {t('Edit member')}
+                              </Button>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -387,6 +445,13 @@ export function PlatformOrganizations() {
             <OrganizationGroupDialog
               organization={groupOrganization}
               close={() => setGroupOrganization(null)}
+            />
+          )}
+          {memberDialog && (
+            <PlatformMemberDialog
+              organization={memberDialog.organization}
+              member={memberDialog.member}
+              close={() => setMemberDialog(null)}
             />
           )}
           <ConfirmDialog

@@ -31,6 +31,7 @@ export type Organization = {
 export type OrganizationMembership = Organization & {
   logo?: string
   role: OrganizationRole
+  join_source?: 'owner' | 'invite' | 'platform' | ''
   spend_limit: number
   membership_id: number
   joined_at: number
@@ -44,6 +45,7 @@ export type OrganizationMember = {
   org_id: number
   user_id: number
   role: OrganizationRole
+  join_source?: 'owner' | 'invite' | 'platform' | ''
   spend_limit: number
   status: number
   username: string
@@ -124,3 +126,5 @@ export type PlatformOrganization = Organization & {
   owner_username: string
   owner_display_name: string
 }
+
+export type PlatformOrganizationMember = OrganizationMember
