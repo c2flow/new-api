@@ -690,6 +690,15 @@ func GetUserModels(c *gin.Context) {
 		}
 	}
 	models := service.GetGroupsEnabledModels(groupsToQuery)
+	if setting.OverseasModelRestrictionEnabled && service.IsChinaRequest(c) {
+		filtered := make([]string, 0, len(models))
+		for _, modelName := range models {
+			if !service.IsOverseasModel(modelName, groupsToQuery) {
+				filtered = append(filtered, modelName)
+			}
+		}
+		models = filtered
+	}
 	if c.GetBool("token_model_limit_enabled") {
 		limits, _ := c.Get("token_model_limit")
 		allowed, _ := limits.(map[string]bool)

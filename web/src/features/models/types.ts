@@ -63,6 +63,7 @@ export interface Vendor {
   description?: string
   icon?: string
   status: number
+  overseas_only?: boolean | null
   created_time: number
   updated_time: number
 }
@@ -251,6 +252,7 @@ export const vendorFormSchema = z.object({
   description: z.string().default(''),
   icon: z.string().default(''),
   status: z.number().default(1),
+  overseas_only: z.boolean().nullable().default(null),
 })
 
 export type VendorFormValues = z.infer<typeof vendorFormSchema>

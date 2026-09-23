@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 
 import { createVendor, updateVendor } from '../../api'
 import { vendorsQueryKeys, modelsQueryKeys } from '../../lib'
@@ -67,6 +68,7 @@ export function VendorMutateDialog({
       description: '',
       icon: '',
       status: 1,
+      overseas_only: null,
     },
   })
 
@@ -79,6 +81,7 @@ export function VendorMutateDialog({
         description: currentVendor.description || '',
         icon: currentVendor.icon || '',
         status: currentVendor.status || 1,
+        overseas_only: currentVendor.overseas_only ?? null,
       })
     } else if (open && !isEdit) {
       form.reset({
@@ -86,16 +89,22 @@ export function VendorMutateDialog({
         description: '',
         icon: '',
         status: 1,
+        overseas_only: null,
       })
     }
   }, [open, isEdit, currentVendor, form])
 
   const onSubmit = async (values: Record<string, unknown>) => {
+    const vendorId = currentVendor?.id
     setIsSaving(true)
     try {
-      const response = isEdit
-        ? await updateVendor({ ...values, id: currentVendor!.id })
-        : await createVendor(values)
+      let response
+      if (isEdit) {
+        if (vendorId === undefined) return
+        response = await updateVendor({ ...values, id: vendorId })
+      } else {
+        response = await createVendor(values)
+      }
 
       if (response.success) {
         toast.success(
@@ -113,6 +122,10 @@ export function VendorMutateDialog({
       setIsSaving(false)
     }
   }
+
+  let submitLabel = t('Create')
+  if (isEdit) submitLabel = t('Update')
+  if (isSaving) submitLabel = t('Saving...')
 
   return (
     <Dialog
@@ -146,7 +159,7 @@ export function VendorMutateDialog({
             {isSaving ? (
               <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : null}
-            {isSaving ? t('Saving...') : isEdit ? t('Update') : t('Create')}
+            {submitLabel}
           </Button>
         </>
       }
@@ -211,6 +224,32 @@ export function VendorMutateDialog({
                   {t('@lobehub/icons key name')}
                 </FormDescription>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='overseas_only'
+            render={({ field }) => (
+              <FormItem className='flex items-center justify-between rounded-md border p-3'>
+                <div>
+                  <FormLabel>{t('Overseas vendor')}</FormLabel>
+                  <FormDescription>
+                    {t('Models from this vendor are restricted for China IP addresses when the global restriction is enabled.')}
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={
+                      field.value ??
+                      ['anthropic', 'openai', 'xai', 'gemini', 'google'].includes(
+                        form.watch('name').trim().toLowerCase()
+                      )
+                    }
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
               </FormItem>
             )}
           />

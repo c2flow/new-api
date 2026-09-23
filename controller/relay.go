@@ -127,6 +127,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return
 	}
+	if service.IsOverseasModelBlocked(c, relayInfo.OriginModelName, []string{common.GetContextKeyString(c, constant.ContextKeyUsingGroup)}) {
+		newAPIError = types.NewError(errors.New("该模型仅允许海外网络访问"), types.ErrorCodeAccessDenied, types.ErrOptionWithStatusCode(http.StatusForbidden), types.ErrOptionWithSkipRetry())
+		return
+	}
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
 	needCountToken := constant.CountToken

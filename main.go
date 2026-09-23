@@ -50,6 +50,11 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "plugin" {
 		os.Exit(jsplugin.RunCLI(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	defer func() {
+		if err := service.CloseGeoIPCountryDatabase(); err != nil {
+			common.SysError("failed to close GeoIP country database: " + err.Error())
+		}
+	}()
 	startTime := time.Now()
 	kitutil.SetLogging(common.SysLog, func(message string) {
 		logger.LogError(nil, message)
@@ -78,7 +83,6 @@ func main() {
 			common.FatalLog("failed to close database: " + err.Error())
 		}
 	}()
-
 	if common.RedisEnabled {
 		// for compatibility with old versions
 		common.MemoryCacheEnabled = true
@@ -300,6 +304,9 @@ func InitResources() error {
 	common.InitEnv()
 
 	logger.SetupLogger()
+	if err = service.InitGeoIPCountryDatabase(); err != nil {
+		return fmt.Errorf("initialize GeoIP country database: %w", err)
+	}
 
 	// Initialize model settings
 	ratio_setting.InitRatioSettings()

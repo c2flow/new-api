@@ -4,6 +4,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -60,6 +61,15 @@ func GetPricing(c *gin.Context) {
 
 	usableGroup = service.GetUserUsableGroups(group)
 	pricing = filterPricingByUsableGroups(pricing, usableGroup)
+	if setting.OverseasModelRestrictionEnabled && service.IsChinaRequest(c) {
+		filtered := make([]model.Pricing, 0, len(pricing))
+		for _, item := range pricing {
+			if !service.IsOverseasModel(item.ModelName, []string{group}) {
+				filtered = append(filtered, item)
+			}
+		}
+		pricing = filtered
+	}
 	// check groupRatio contains usableGroup
 	for group := range ratio_setting.GetGroupRatioCopy() {
 		if _, ok := usableGroup[group]; !ok {

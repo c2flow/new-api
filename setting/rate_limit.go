@@ -8,6 +8,9 @@ import (
 	"github.com/QuantumNous/new-api/common"
 )
 
+var DefaultOverseasProviders = []string{"anthropic", "openai", "xai", "gemini", "google"}
+var OverseasModelRestrictionEnabled bool
+
 // maxRateLimitDurationSeconds is the largest window the count cap is computed
 // against (24h). Token-bucket capacity is count*duration; this keeps that
 // product inside int64 when the window is at most a day.

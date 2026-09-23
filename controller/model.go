@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
@@ -249,6 +250,15 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 	}
 	models := service.GetGroupsEnabledModels(ownerGroups)
+	if setting.OverseasModelRestrictionEnabled && service.IsChinaRequest(c) {
+		filtered := make([]string, 0, len(models))
+		for _, modelName := range models {
+			if !service.IsOverseasModel(modelName, ownerGroups) {
+				filtered = append(filtered, modelName)
+			}
+		}
+		models = filtered
+	}
 	for _, modelName := range models {
 		if modelLimitEnable {
 			matchingName := ratio_setting.FormatMatchingModelName(modelName)
@@ -332,6 +342,17 @@ func DashboardListModels(c *gin.Context) {
 			modelsByChannel[channelType] = append([]string(nil), plugin.Meta.Models...)
 		}
 	}
+	if setting.OverseasModelRestrictionEnabled && c.GetInt("role") < common.RoleAdminUser && service.IsChinaRequest(c) {
+		for channelType, models := range modelsByChannel {
+			filtered := make([]string, 0, len(models))
+			for _, modelName := range models {
+				if !service.IsOverseasModel(modelName, nil) {
+					filtered = append(filtered, modelName)
+				}
+			}
+			modelsByChannel[channelType] = filtered
+		}
+	}
 	c.JSON(200, gin.H{
 		"success": true,
 		"data":    modelsByChannel,
@@ -347,6 +368,10 @@ func EnabledListModels(c *gin.Context) {
 
 func RetrieveModel(c *gin.Context, modelType int) {
 	modelId := c.Param("model")
+	if service.IsOverseasModelBlocked(c, modelId, []string{common.GetContextKeyString(c, constant.ContextKeyUsingGroup)}) {
+		c.JSON(http.StatusForbidden, gin.H{"error": gin.H{"message": "该模型仅允许海外网络访问", "type": "access_denied"}})
+		return
+	}
 	if aiModel, ok := openAIModelsMap[modelId]; ok {
 		switch modelType {
 		case constant.ChannelTypeAnthropic:

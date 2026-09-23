@@ -19,6 +19,8 @@ services:
     volumes:
       - ./data:/data
       - ./logs:/app/logs
+      # Download GeoLite2-Country.mmdb into ./geoip before enabling this mount.
+      # - ./geoip:/data/geoip:ro
     environment:
       SQL_DSN: "postgresql://newapi:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/new_api?sslmode=disable"
       REDIS_CONN_STRING: "redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0"
@@ -31,6 +33,7 @@ services:
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-false}"
       SESSION_COOKIE_TRUSTED_URL: "${SESSION_COOKIE_TRUSTED_URL:-}"
       TRUSTED_PROXIES: "${TRUSTED_PROXIES:-none}"
+      # GEOIP_COUNTRY_DATABASE_PATH: "/data/geoip/GeoLite2-Country.mmdb"
     depends_on:
       postgres:
         condition: service_healthy
