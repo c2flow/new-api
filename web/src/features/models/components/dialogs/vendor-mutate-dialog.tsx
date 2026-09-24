@@ -20,7 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -36,8 +36,8 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 
 import { createVendor, updateVendor } from '../../api'
 import { vendorsQueryKeys, modelsQueryKeys } from '../../lib'
@@ -47,18 +47,15 @@ type VendorMutateDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentVendor?: Vendor | null
+  onSaved?: () => void
 }
 
 const VENDOR_MUTATE_FORM_ID = 'vendor-mutate-form'
 
-export function VendorMutateDialog({
-  open,
-  onOpenChange,
-  currentVendor,
-}: VendorMutateDialogProps) {
+export function VendorMutateDialog(props: VendorMutateDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const isEdit = Boolean(currentVendor?.id)
+  const isEdit = Boolean(props.currentVendor?.id)
   const [isSaving, setIsSaving] = useState(false)
 
   const form = useForm({
@@ -71,19 +68,20 @@ export function VendorMutateDialog({
       overseas_only: null,
     },
   })
+  const vendorName = useWatch({ control: form.control, name: 'name' })
 
   // Load vendor data for editing
   useEffect(() => {
-    if (open && isEdit && currentVendor) {
+    if (props.open && isEdit && props.currentVendor) {
       form.reset({
-        id: currentVendor.id,
-        name: currentVendor.name,
-        description: currentVendor.description || '',
-        icon: currentVendor.icon || '',
-        status: currentVendor.status || 1,
-        overseas_only: currentVendor.overseas_only ?? null,
+        id: props.currentVendor.id,
+        name: props.currentVendor.name,
+        description: props.currentVendor.description || '',
+        icon: props.currentVendor.icon || '',
+        status: props.currentVendor.status || 1,
+        overseas_only: props.currentVendor.overseas_only ?? null,
       })
-    } else if (open && !isEdit) {
+    } else if (props.open && !isEdit) {
       form.reset({
         name: '',
         description: '',
@@ -92,10 +90,10 @@ export function VendorMutateDialog({
         overseas_only: null,
       })
     }
-  }, [open, isEdit, currentVendor, form])
+  }, [props.open, isEdit, props.currentVendor, form])
 
   const onSubmit = async (values: Record<string, unknown>) => {
-    const vendorId = currentVendor?.id
+    const vendorId = props.currentVendor?.id
     setIsSaving(true)
     try {
       let response
@@ -112,7 +110,8 @@ export function VendorMutateDialog({
         )
         queryClient.invalidateQueries({ queryKey: vendorsQueryKeys.lists() })
         queryClient.invalidateQueries({ queryKey: modelsQueryKeys.lists() })
-        onOpenChange(false)
+        props.onSaved?.()
+        props.onOpenChange(false)
       } else {
         toast.error(response.message || 'Operation failed')
       }
@@ -129,13 +128,13 @@ export function VendorMutateDialog({
 
   return (
     <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
+      open={props.open}
+      onOpenChange={props.onOpenChange}
       title={isEdit ? t('Edit Vendor') : t('Create Vendor')}
       description={
         isEdit
           ? t('Update vendor information for {{name}}', {
-              name: currentVendor?.name,
+              name: props.currentVendor?.name,
             })
           : t('Add a new vendor to the system')
       }
@@ -146,7 +145,7 @@ export function VendorMutateDialog({
           <Button
             type='button'
             variant='outline'
-            onClick={() => onOpenChange(false)}
+            onClick={() => props.onOpenChange(false)}
             disabled={isSaving}
           >
             {t('Cancel')}
@@ -236,16 +235,22 @@ export function VendorMutateDialog({
                 <div>
                   <FormLabel>{t('Overseas vendor')}</FormLabel>
                   <FormDescription>
-                    {t('Models from this vendor are restricted for China IP addresses when the global restriction is enabled.')}
+                    {t(
+                      'Models from this vendor are restricted for China IP addresses when the global restriction is enabled.'
+                    )}
                   </FormDescription>
                 </div>
                 <FormControl>
                   <Switch
                     checked={
                       field.value ??
-                      ['anthropic', 'openai', 'xai', 'gemini', 'google'].includes(
-                        form.watch('name').trim().toLowerCase()
-                      )
+                      [
+                        'anthropic',
+                        'openai',
+                        'xai',
+                        'gemini',
+                        'google',
+                      ].includes(vendorName.trim().toLowerCase())
                     }
                     onCheckedChange={field.onChange}
                   />
