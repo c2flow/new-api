@@ -10,6 +10,11 @@ import (
 func setOrganizationRoutes(api *gin.RouterGroup) {
 	platform := api.Group("/platform/organizations", middleware.AdminAuth())
 	platform.GET("", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "read"}), controller.PlatformListOrganizations)
+	platform.GET("/:org_id/summary", middleware.RootAuth(), controller.GetPlatformOrganizationSummary)
+	platform.GET("/:org_id/logs", middleware.RootAuth(), controller.GetPlatformOrganizationLogs)
+	platform.GET("/:org_id/logs/stat", middleware.RootAuth(), controller.GetPlatformOrganizationLogStats)
+	platform.GET("/:org_id/data", middleware.RootAuth(), controller.GetPlatformOrganizationQuotaDates)
+	platform.GET("/:org_id/data/flow", middleware.RootAuth(), controller.GetPlatformOrganizationFlowQuotaDates)
 	platform.GET("/:org_id/resources/:resource", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "read"}), controller.PlatformOrganizationResources)
 	platform.PUT("/:org_id/status", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "write"}), controller.PlatformChangeOrganizationStatus)
 	platform.PUT("/:org_id/quota", middleware.RequirePermission(authz.Permission{Resource: "organization", Action: "write"}), controller.PlatformAdjustOrganizationQuota)

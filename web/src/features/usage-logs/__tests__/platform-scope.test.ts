@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import type { InternalAxiosRequestConfig } from 'axios'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 
-import { getUserQuotaDates } from '@/features/dashboard/api'
+import { getFlowQuotaDates, getUserQuotaDates } from '@/features/dashboard/api'
 import { api } from '@/lib/http-client'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOrganizationStore } from '@/stores/organization-store'
@@ -143,6 +143,24 @@ test.each([
     expect(requests[1].headers['X-Org-Id']).toBeUndefined()
   }
 )
+
+test('platform organization usage requests use owner-equivalent scoped endpoints', async () => {
+  await getAllLogs({}, false, 23)
+  await getLogStats({}, false, 23)
+  const range = { start_timestamp: 1, end_timestamp: 2 }
+  await getUserQuotaDates(range, false, undefined, 23)
+  await getFlowQuotaDates(range, false, 23)
+
+  expect(requests.map((request) => request.url)).toEqual([
+    '/api/platform/organizations/23/logs?p=1&page_size=20',
+    '/api/platform/organizations/23/logs/stat?',
+    '/api/platform/organizations/23/data',
+    '/api/platform/organizations/23/data/flow',
+  ])
+  for (const request of requests) {
+    expect(request.headers['X-Org-Id']).toBeUndefined()
+  }
+})
 
 test('personal and platform dashboard requests use distinct endpoints and scopes', async () => {
   const range = { start_timestamp: 0, end_timestamp: 1 }

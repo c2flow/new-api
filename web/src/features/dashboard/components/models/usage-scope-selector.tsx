@@ -32,7 +32,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { UsageScope } from '@/features/dashboard/lib/usage-scope'
-import { getOrganizationMembers } from '@/features/organizations/api'
+import {
+  getOrganizationMembers,
+  getPlatformOrganizationMembers,
+} from '@/features/organizations/api'
 import type { OrganizationMember } from '@/features/organizations/types'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOrganizationStore } from '@/stores/organization-store'
@@ -40,6 +43,8 @@ import { useOrganizationStore } from '@/stores/organization-store'
 interface UsageScopeSelectionProps {
   value: UsageScope
   onChange: (value: UsageScope) => void
+  organizationID?: number
+  currentUserID?: number
 }
 
 interface UsageScopeSelectorProps extends UsageScopeSelectionProps {
@@ -52,18 +57,24 @@ interface UsageScopeSelectorProps extends UsageScopeSelectionProps {
 
 export function OrganizationUsageSelector(props: UsageScopeSelectionProps) {
   const userID = useAuthStore((state) => state.auth.user?.id)
-  const orgID = useOrganizationStore((state) => state.context?.organization?.id)
+  const activeOrgID = useOrganizationStore(
+    (state) => state.context?.organization?.id
+  )
+  const orgID = props.organizationID ?? activeOrgID
   const epoch = useOrganizationStore((state) => state.epoch)
   const members = useQuery({
     queryKey: ['organization-members', orgID, userID, epoch],
-    queryFn: getOrganizationMembers,
-    enabled: !!orgID && !!userID,
+    queryFn: () =>
+      props.organizationID != null
+        ? getPlatformOrganizationMembers(props.organizationID)
+        : getOrganizationMembers(),
+    enabled: !!orgID && !!(props.currentUserID ?? userID),
   })
   return (
     <UsageScopeSelector
       {...props}
       members={members.data ?? []}
-      currentUserID={userID ?? 0}
+      currentUserID={props.currentUserID ?? userID ?? 0}
       loading={members.isPending}
       error={members.isError}
       onRetry={() => void members.refetch()}

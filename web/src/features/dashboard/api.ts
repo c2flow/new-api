@@ -42,12 +42,20 @@ export async function getUserQuotaDates(
     username?: string
   },
   isAdmin = false,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  organizationID?: number
 ) {
-  const endpoint = isAdmin ? '/api/data' : '/api/data/self'
+  let endpoint = isAdmin ? '/api/data' : '/api/data/self'
+  if (organizationID != null) {
+    endpoint = `/api/platform/organizations/${organizationID}/data`
+  }
   const res = await api.get<{ success: boolean; data: QuotaDataItem[] }>(
     endpoint,
-    { params, signal, skipOrganizationContext: isAdmin }
+    {
+      params,
+      signal,
+      skipOrganizationContext: isAdmin || organizationID != null,
+    }
   )
   return res.data
 }
@@ -74,14 +82,21 @@ export async function getFlowQuotaDates(
     default_time?: string
     username?: string
   },
-  isAdmin = false
+  isAdmin = false,
+  organizationID?: number
 ) {
-  const endpoint = isAdmin ? '/api/data/flow' : '/api/data/flow/self'
+  let endpoint = isAdmin ? '/api/data/flow' : '/api/data/flow/self'
+  if (organizationID != null) {
+    endpoint = `/api/platform/organizations/${organizationID}/data/flow`
+  }
   const res = await api.get<{
     success: boolean
     data?: FlowQuotaDataItem[]
     message?: string
-  }>(endpoint, { params, skipOrganizationContext: isAdmin })
+  }>(endpoint, {
+    params,
+    skipOrganizationContext: isAdmin || organizationID != null,
+  })
   return res.data
 }
 

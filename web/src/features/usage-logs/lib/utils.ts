@@ -261,6 +261,7 @@ export async function fetchLogsByCategory(
     searchParams,
     columnFilters,
     userIDs,
+    organizationID,
   } = config
 
   if (logCategory === 'common') {
@@ -273,7 +274,7 @@ export async function fetchLogsByCategory(
       userIDs,
     })
     return isAdmin
-      ? await getAllLogs(params, platform)
+      ? await getAllLogs(params, platform, organizationID)
       : await getUserLogs(params, platform)
   }
 

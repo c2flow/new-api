@@ -15,6 +15,10 @@ func GetOrganizationSummary(c *gin.Context) {
 		organizationError(c, err)
 		return
 	}
+	getOrganizationSummary(c, org, member)
+}
+
+func getOrganizationSummary(c *gin.Context, org *model.Organization, member *model.OrganizationMember) {
 	usage, err := model.GetOrganizationMonthlyUsage(org.Id, common.GetTimestamp())
 	if err != nil {
 		common.ApiError(c, err)
@@ -36,7 +40,12 @@ func GetOrganizationSummary(c *gin.Context) {
 		usage = own
 	}
 	var memberCount, keyCount, requestCount int64
-	if err := usageScope(c).Apply(model.LOG_DB.Model(&model.Log{})).Where("type = ?", model.LogTypeConsume).Count(&requestCount).Error; err != nil {
+	usageScope := model.ResourceScope{
+		OrgID:      org.Id,
+		UserID:     member.UserId,
+		AllMembers: authz.CanOrg(member.UserId, org.Id, member.Role, authz.Permission{Resource: "org.usage", Action: "read_all"}),
+	}
+	if err := usageScope.Apply(model.LOG_DB.Model(&model.Log{})).Where("type = ?", model.LogTypeConsume).Count(&requestCount).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -44,7 +53,7 @@ func GetOrganizationSummary(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if err := tokenScope(c).Apply(model.DB.Model(&model.Token{})).Count(&keyCount).Error; err != nil {
+	if err := (model.TokenScope{OrgID: org.Id, UserID: member.UserId}).Apply(model.DB.Model(&model.Token{})).Count(&keyCount).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}

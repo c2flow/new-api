@@ -46,7 +46,10 @@ import type {
   DashboardChartPreferences,
   DashboardFilters,
 } from '@/features/dashboard/types'
-import { usePlatformView } from '@/features/organizations/platform-view'
+import {
+  usePlatformOrganizationScope,
+  usePlatformView,
+} from '@/features/organizations/platform-view'
 import { getRollingDateRange, type TimeGranularity } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
@@ -102,7 +105,9 @@ export function ModelsFilter(props: ModelsFilterProps) {
   // 使用已缓存的用户数据，避免重复调用 API
   const user = useAuthStore((state) => state.auth.user)
   const platform = usePlatformView()
-  const isAdmin = user?.role && user.role >= 10 && platform
+  const platformOrganizationID = usePlatformOrganizationScope()
+  const isAdmin =
+    platformOrganizationID == null && user?.role && user.role >= 10 && platform
 
   const [open, setOpen] = useState(false)
   const [filters, setFilters] = useState<DashboardFilters>(

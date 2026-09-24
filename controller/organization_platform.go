@@ -11,6 +11,63 @@ import (
 	"gorm.io/gorm"
 )
 
+func platformOrganizationOwnerContext(c *gin.Context) (*model.Organization, *model.OrganizationMember, bool) {
+	orgID, err := strconv.Atoi(c.Param("org_id"))
+	if err != nil || orgID <= 0 {
+		organizationError(c, model.ErrOrganizationInput)
+		return nil, nil, false
+	}
+	var org model.Organization
+	if err := model.DB.Where("id = ?", orgID).First(&org).Error; err != nil {
+		organizationError(c, model.ErrOrganizationAccess)
+		return nil, nil, false
+	}
+	var owner model.OrganizationMember
+	if err := model.DB.Scopes(model.OrgScope(orgID)).Where("user_id = ? AND role = ? AND status = ?", org.OwnerId, model.OrgRoleOwner, model.OrganizationActive).First(&owner).Error; err != nil {
+		organizationError(c, model.ErrOrganizationAccess)
+		return nil, nil, false
+	}
+	c.Set("org_id", orgID)
+	c.Set("org_role", model.OrgRoleOwner)
+	return &org, &owner, true
+}
+
+func GetPlatformOrganizationSummary(c *gin.Context) {
+	org, owner, ok := platformOrganizationOwnerContext(c)
+	if !ok {
+		return
+	}
+	getOrganizationSummary(c, org, owner)
+}
+
+func GetPlatformOrganizationLogs(c *gin.Context) {
+	if _, _, ok := platformOrganizationOwnerContext(c); !ok {
+		return
+	}
+	GetScopedLogs(c)
+}
+
+func GetPlatformOrganizationLogStats(c *gin.Context) {
+	if _, _, ok := platformOrganizationOwnerContext(c); !ok {
+		return
+	}
+	GetScopedLogStats(c)
+}
+
+func GetPlatformOrganizationQuotaDates(c *gin.Context) {
+	if _, _, ok := platformOrganizationOwnerContext(c); !ok {
+		return
+	}
+	GetUserQuotaDates(c)
+}
+
+func GetPlatformOrganizationFlowQuotaDates(c *gin.Context) {
+	if _, _, ok := platformOrganizationOwnerContext(c); !ok {
+		return
+	}
+	GetUserFlowQuotaDates(c)
+}
+
 // These endpoints are deliberately separate from ordinary organization context.
 // Platform authorization never turns org_id=0 into a wildcard in OrgScope.
 func PlatformListOrganizations(c *gin.Context) {

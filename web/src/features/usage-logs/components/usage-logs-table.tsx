@@ -90,7 +90,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   } = useLogsViewScope()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
-  const { commonLogScope } = useUsageLogsContext()
+  const { commonLogScope, organizationID } = useUsageLogsContext()
   const userIDs =
     logCategory === 'common' &&
     !platform &&
@@ -141,6 +141,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     queryKey: [
       'logs',
       platform,
+      organizationID,
       logCategory,
       viewAccess,
       pagination.pageIndex + 1,
@@ -154,6 +155,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       const result = await fetchLogsByCategory({
         logCategory,
         platform,
+        organizationID,
         isAdmin,
         page: pagination.pageIndex + 1,
         pageSize: pagination.pageSize,

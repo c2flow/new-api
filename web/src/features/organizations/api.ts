@@ -79,8 +79,26 @@ export const getOrganizationContext = () =>
   organizationQuery<OrganizationContext>('context')
 export const getOrganizationSummary = () =>
   organizationQuery<OrganizationSummary>('summary')
+export async function getPlatformOrganizationSummary(
+  organizationID: number
+): Promise<OrganizationSummary> {
+  const response = await api.get<Response<OrganizationSummary>>(
+    `/api/platform/organizations/${organizationID}/summary`,
+    { skipOrganizationContext: true }
+  )
+  if (!response.data.success) throw new Error(response.data.message)
+  return response.data.data
+}
 export const getOrganizationMembers = () =>
   organizationQuery<OrganizationMember[]>('members')
+export async function getPlatformOrganizationMembers(organizationID: number) {
+  const response = await api.get<Response<Page<OrganizationMember>>>(
+    `/api/platform/organizations/${organizationID}/resources/members`,
+    { params: { p: 1, size: 500 }, skipOrganizationContext: true }
+  )
+  if (!response.data.success) throw new Error(response.data.message)
+  return response.data.data.items
+}
 export const getOrganizationInvites = () =>
   organizationQuery<OrganizationInvite[]>('invites')
 export const getOrganizationSettings = () =>

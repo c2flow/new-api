@@ -40,8 +40,12 @@ import type {
 function buildApiPath(
   endpoint: string,
   isAdmin: boolean,
-  platform: boolean
+  platform: boolean,
+  organizationID?: number
 ): string {
+  if (organizationID != null && endpoint === '/api/log') {
+    return `/api/platform/organizations/${organizationID}/logs`
+  }
   const state = useOrganizationStore.getState()
   if (!platform) {
     if (endpoint === '/api/log') {
@@ -56,7 +60,8 @@ async function fetchLogs<T>(
   endpoint: string,
   params: T,
   isAdmin: boolean,
-  platform = false
+  platform = false,
+  organizationID?: number
 ): Promise<GetLogsResponse> {
   const state = useOrganizationStore.getState()
   const paramRecord = params as unknown as Record<string, unknown>
@@ -68,9 +73,9 @@ async function fetchLogs<T>(
     page_size: paramRecord.page_size || 20,
     ...params,
   })
-  const path = buildApiPath(endpoint, isAdmin, platform)
+  const path = buildApiPath(endpoint, isAdmin, platform, organizationID)
   const res = await api.get(`${path}?${queryParams}`, {
-    skipOrganizationContext: platform,
+    skipOrganizationContext: platform || organizationID != null,
   })
   return res.data
 }
@@ -79,7 +84,8 @@ async function fetchLogStats<T>(
   endpoint: string,
   params: T,
   isAdmin: boolean,
-  platform = false
+  platform = false,
+  organizationID?: number
 ): Promise<GetLogStatsResponse> {
   const paramRecord = params as unknown as Record<string, unknown>
   const state = useOrganizationStore.getState()
@@ -87,9 +93,9 @@ async function fetchLogStats<T>(
     paramRecord.user_id = useAuthStore.getState().auth.user?.id
   }
   const queryParams = buildQueryParams(paramRecord)
-  const path = buildApiPath(endpoint, isAdmin, platform)
+  const path = buildApiPath(endpoint, isAdmin, platform, organizationID)
   const res = await api.get(`${path}/stat?${queryParams}`, {
-    skipOrganizationContext: platform,
+    skipOrganizationContext: platform || organizationID != null,
   })
   return res.data
 }
@@ -98,16 +104,22 @@ async function fetchLogStats<T>(
 // Common Log APIs
 // ============================================================================
 
-export const getAllLogs = (params: GetLogsParams = {}, platform = false) =>
-  fetchLogs('/api/log', params, true, platform)
+export const getAllLogs = (
+  params: GetLogsParams = {},
+  platform = false,
+  organizationID?: number
+) => fetchLogs('/api/log', params, true, platform, organizationID)
 
 export const getUserLogs = (
   params: Omit<GetLogsParams, 'username' | 'channel'> = {},
   platform = false
 ) => fetchLogs('/api/log', params, false, platform)
 
-export const getLogStats = (params: GetLogStatsParams = {}, platform = false) =>
-  fetchLogStats('/api/log', params, true, platform)
+export const getLogStats = (
+  params: GetLogStatsParams = {},
+  platform = false,
+  organizationID?: number
+) => fetchLogStats('/api/log', params, true, platform, organizationID)
 
 export const getUserLogStats = (
   params: Omit<GetLogStatsParams, 'username' | 'channel'> = {},

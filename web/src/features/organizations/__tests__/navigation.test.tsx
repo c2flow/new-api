@@ -36,7 +36,7 @@ import {
 import { createInstance } from 'i18next'
 import type { ReactNode } from 'react'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { MobileDrawer } from '@/components/layout/components/mobile-drawer'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -55,6 +55,13 @@ import { OrganizationPage } from '../index'
 import { OrganizationBoundary } from '../OrganizationBoundary'
 import { PlatformOrganizations } from '../PlatformOrganizations'
 import type { OrganizationMembership } from '../types'
+
+vi.mock('../components/PlatformOrganizationDashboard', () => ({
+  PlatformOrganizationDashboard: () => <div>Organization dashboard</div>,
+}))
+vi.mock('../components/PlatformOrganizationUsageLogs', () => ({
+  PlatformOrganizationUsageLogs: () => <div>Organization usage logs</div>,
+}))
 
 const i18n = createInstance()
 await i18n
@@ -336,6 +343,50 @@ test('platform organization owners show a readable name and user ID', async () =
   expect(
     screen.queryByRole('columnheader', { name: 'Type' })
   ).not.toBeInTheDocument()
+})
+
+test('platform organization details expose owner-equivalent usage and dashboard tabs', async () => {
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [
+      { ...team, owner_username: 'root', owner_display_name: 'Root User' },
+    ],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+
+  expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
+  expect(screen.getByRole('tab', { name: 'Data Dashboard' })).toBeVisible()
+})
+
+test('regular platform administrators do not see owner-equivalent organization tabs', async () => {
+  useAuthStore.getState().auth.setUser({
+    id: 2,
+    username: 'admin',
+    role: 10,
+    permissions: { admin_permissions: { organization: { read: true } } },
+  })
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [
+      { ...team, owner_username: 'root', owner_display_name: 'Root User' },
+    ],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+
+  expect(screen.queryByRole('tab', { name: 'Usage Logs' })).toBeNull()
+  expect(screen.queryByRole('tab', { name: 'Data Dashboard' })).toBeNull()
 })
 
 test.each([null, 99])(

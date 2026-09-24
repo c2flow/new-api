@@ -39,6 +39,7 @@ export function resolveLogsViewAccess(
 }
 
 interface UsageLogsContextValue {
+  organizationID?: number
   selectedUserId: number | null
   setSelectedUserId: (userId: number | null) => void
   userInfoDialogOpen: boolean
@@ -59,7 +60,13 @@ const UsageLogsContext = createContext<UsageLogsContextValue | undefined>(
   undefined
 )
 
-export function UsageLogsProvider({ children }: { children: ReactNode }) {
+export function UsageLogsProvider({
+  children,
+  organizationID,
+}: {
+  children: ReactNode
+  organizationID?: number
+}) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false)
   const [affinityTarget, setAffinityTarget] =
@@ -74,6 +81,7 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
   return (
     <UsageLogsContext.Provider
       value={{
+        organizationID,
         selectedUserId,
         setSelectedUserId,
         userInfoDialogOpen,
@@ -114,21 +122,27 @@ export function useUsageLogsContext() {
 export function useLogsViewScope() {
   const role = useAuthStore((state) => state.auth.user?.role ?? ROLE.GUEST)
   const platform = usePlatformView()
-  const { viewScope, setViewScope } = useUsageLogsContext()
+  const { viewScope, setViewScope, organizationID } = useUsageLogsContext()
   const orgManage = useOrganizationStore(
     (state) =>
       state.context?.organization != null &&
       !!state.context.capabilities.org['org.usage']?.read_all
   )
-  const canManageScope = platform ? role >= ROLE.ADMIN : orgManage
+  const platformView = platform && organizationID == null
+  const canManageScope =
+    organizationID != null || (platformView ? role >= ROLE.ADMIN : orgManage)
   let scopeRole: number = orgManage ? ROLE.ADMIN : ROLE.USER
-  if (platform) scopeRole = role
+  if (organizationID != null) {
+    scopeRole = ROLE.ADMIN
+  } else if (platformView) {
+    scopeRole = role
+  }
   const viewAccess = resolveLogsViewAccess(scopeRole, viewScope)
   const isAdminView = viewAccess !== 'self'
   const isRootView = viewAccess === 'root'
 
   return {
-    platform,
+    platform: platformView,
     canManageScope,
     viewScope,
     setViewScope,

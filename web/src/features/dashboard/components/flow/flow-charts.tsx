@@ -84,7 +84,10 @@ import type {
   FlowOverflowMode,
   FlowRole,
 } from '@/features/dashboard/types'
-import { usePlatformView } from '@/features/organizations/platform-view'
+import {
+  usePlatformOrganizationScope,
+  usePlatformView,
+} from '@/features/organizations/platform-view'
 import { formatQuota } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
 import { computeTimeRange } from '@/lib/time'
@@ -260,9 +263,15 @@ export function FlowCharts(props: FlowChartsProps) {
   const user = useAuthStore((state) => state.auth.user)
   const isRoot = Boolean(user?.role && user.role >= ROLE.SUPER_ADMIN)
   const platform = usePlatformView()
-  const isAdmin = Boolean(user?.role && user.role >= ROLE.ADMIN) && platform
+  const platformOrganizationID = usePlatformOrganizationScope()
+  const isAdmin =
+    platformOrganizationID == null &&
+    Boolean(user?.role && user.role >= ROLE.ADMIN) &&
+    platform
   let flowRole: FlowRole = 'user'
-  if (isRoot) {
+  if (platformOrganizationID != null) {
+    flowRole = 'user'
+  } else if (isRoot) {
     flowRole = 'root'
   } else if (isAdmin) {
     flowRole = 'admin'
@@ -288,6 +297,8 @@ export function FlowCharts(props: FlowChartsProps) {
   )
   useEffect(() => {
     const visible = new Set(visibleStages)
+    // Keep selections valid when the role-specific stage list changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedNodes((prev) => {
       const next = prev.filter((filter) => visible.has(filter.kind))
       return next.length === prev.length ? prev : next
@@ -337,8 +348,19 @@ export function FlowCharts(props: FlowChartsProps) {
     isError,
     isLoading,
   } = useQuery({
-    queryKey: ['dashboard', 'flow', flowQueryParams, flowRole],
-    queryFn: () => getFlowQuotaDates(flowQueryParams, isAdmin),
+    queryKey: [
+      'dashboard',
+      'flow',
+      platformOrganizationID,
+      flowQueryParams,
+      flowRole,
+    ],
+    queryFn: () =>
+      getFlowQuotaDates(
+        flowQueryParams,
+        isAdmin,
+        platformOrganizationID ?? undefined
+      ),
     select: (res) =>
       requireSuccessfulFlowRows(res, t('Please try again later.')),
     staleTime: 60_000,
