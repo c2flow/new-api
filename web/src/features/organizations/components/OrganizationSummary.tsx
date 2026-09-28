@@ -38,6 +38,7 @@ import { usePlatformView } from '../platform-view'
 
 export function OrganizationSummary(props: {
   platformOrganization?: { id: number; name: string }
+  hideOwnerAndPersonalQuota?: boolean
 }) {
   const { t } = useTranslation()
   const context = useOrganization()
@@ -107,19 +108,23 @@ export function OrganizationSummary(props: {
             <strong className='truncate'>
               {platformOrganization?.name ?? context?.organization.name}
             </strong>
-            <Badge variant='secondary'>{roleLabel}</Badge>
+            {!props.hideOwnerAndPersonalQuota && (
+              <Badge variant='secondary'>{roleLabel}</Badge>
+            )}
           </div>
           <span className='text-muted-foreground text-xs'>
             {t('Organization usage')}
           </span>
         </div>
       </div>
-      <div className='text-muted-foreground text-xs'>
-        {t('My remaining limit')}
-        <strong className='text-foreground mt-1 block text-base'>
-          {data ? remainingLabel : <Skeleton className='h-5 w-20' />}
-        </strong>
-      </div>
+      {!props.hideOwnerAndPersonalQuota && (
+        <div className='text-muted-foreground text-xs'>
+          {t('My remaining limit')}
+          <strong className='text-foreground mt-1 block text-base'>
+            {data ? remainingLabel : <Skeleton className='h-5 w-20' />}
+          </strong>
+        </div>
+      )}
       {(platformOrganization != null ||
         context?.capabilities.org['org.billing']?.read === true) && (
         <div className='text-muted-foreground text-xs'>

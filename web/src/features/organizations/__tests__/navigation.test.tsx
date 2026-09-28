@@ -361,7 +361,7 @@ test('platform organization details expose owner-equivalent usage and dashboard 
   fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
 
   expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
-  expect(screen.getByRole('tab', { name: 'Overview' })).toBeVisible()
+  expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull()
   expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeVisible()
 })
 
@@ -387,7 +387,7 @@ test('regular platform administrators see owner-equivalent organization tabs', a
   fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
 
   expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
-  expect(screen.getByRole('tab', { name: 'Overview' })).toBeVisible()
+  expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull()
   expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeVisible()
 })
 
@@ -733,10 +733,10 @@ test('only the super administrator can directly add an organization member', asy
   renderPage(PlatformOrganizations)
   fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
   fireEvent.click(
-    screen.getByRole('button', { name: 'Add member without consent' })
+    screen.getByRole('button', { name: 'Add member' })
   )
   const dialog = await screen.findByRole('dialog', {
-    name: 'Add member without consent',
+    name: 'Add member',
   })
   fireEvent.change(within(dialog).getByRole('textbox', { name: 'Username' }), {
     target: { value: 'managed-user' },
@@ -779,7 +779,7 @@ test('only the super administrator can directly add an organization member', asy
   renderPage(PlatformOrganizations)
   fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
   expect(
-    screen.queryByRole('button', { name: 'Add member without consent' })
+    screen.queryByRole('button', { name: 'Add member' })
   ).not.toBeInTheDocument()
 })
 

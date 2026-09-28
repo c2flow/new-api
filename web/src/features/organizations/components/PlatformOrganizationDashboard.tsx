@@ -71,7 +71,10 @@ export function PlatformOrganizationDashboard(props: {
   return (
     <PlatformOrganizationScopeContext.Provider value={props.organization.id}>
       <div className='space-y-4'>
-        <OrganizationSummary platformOrganization={props.organization} />
+        <OrganizationSummary
+          platformOrganization={props.organization}
+          hideOwnerAndPersonalQuota
+        />
         <div className='flex flex-wrap items-center justify-between gap-2'>
           <Tabs
             value={section}

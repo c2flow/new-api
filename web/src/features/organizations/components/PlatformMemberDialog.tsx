@@ -126,7 +126,7 @@ export function PlatformMemberDialog(props: {
       onOpenChange={(open) => {
         if (!open && !mutation.isPending) props.close()
       }}
-      title={props.member ? t('Edit member') : t('Add member without consent')}
+      title={props.member ? t('Edit member') : t('Add member')}
       description={`${props.organization.name} (#${props.organization.id})`}
       contentHeight='auto'
       footer={
