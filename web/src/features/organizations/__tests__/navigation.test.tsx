@@ -362,9 +362,10 @@ test('platform organization details expose owner-equivalent usage and dashboard 
 
   expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
   expect(screen.getByRole('tab', { name: 'Overview' })).toBeVisible()
+  expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeVisible()
 })
 
-test('regular platform administrators do not see owner-equivalent organization tabs', async () => {
+test('regular platform administrators see owner-equivalent organization tabs', async () => {
   useAuthStore.getState().auth.setUser({
     id: 2,
     username: 'admin',
@@ -385,8 +386,9 @@ test('regular platform administrators do not see owner-equivalent organization t
   renderPage(PlatformOrganizations)
   fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
 
-  expect(screen.queryByRole('tab', { name: 'Usage Logs' })).toBeNull()
-  expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull()
+  expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
+  expect(screen.getByRole('tab', { name: 'Overview' })).toBeVisible()
+  expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeVisible()
 })
 
 test.each([null, 99])(

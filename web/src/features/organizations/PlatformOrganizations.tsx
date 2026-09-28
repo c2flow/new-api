@@ -43,11 +43,13 @@ import {
 import { hasPermission } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
 import { formatQuotaWithCurrency } from '@/lib/currency'
+import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { OrganizationGroupDialog } from './components/OrganizationGroupDialog'
 import { OrganizationQuotaDialog } from './components/OrganizationQuotaDialog'
 import { OrganizationRemarkDialog } from './components/OrganizationRemarkDialog'
+import { OrganizationSummary } from './components/OrganizationSummary'
 import { PlatformMemberDialog } from './components/PlatformMemberDialog'
 import { PlatformOrganizationDashboard } from './components/PlatformOrganizationDashboard'
 import { PlatformOrganizationUsageLogs } from './components/PlatformOrganizationUsageLogs'
@@ -69,7 +71,7 @@ const resourceColumns = {
   audit: ['created_at', 'actor_id', 'action', 'object_id', 'result', 'reason'],
 } as const
 
-type Resource = keyof typeof resourceColumns | 'logs' | 'dashboard'
+type Resource = keyof typeof resourceColumns | 'logs' | 'overview' | 'dashboard'
 
 export function PlatformOrganizations() {
   const { t } = useTranslation()
@@ -77,7 +79,9 @@ export function PlatformOrganizations() {
   const canManage = useAuthStore((state) =>
     hasPermission(state.auth.user, 'organization', 'write')
   )
-  const isRoot = useAuthStore((state) => state.auth.user?.role === 100)
+  const isPlatformAdmin = useAuthStore(
+    (state) => (state.auth.user?.role ?? 0) >= ROLE.ADMIN
+  )
   const [quotaOrganization, setQuotaOrganization] =
     useState<PlatformOrganization | null>(null)
   const [groupOrganization, setGroupOrganization] =
@@ -150,7 +154,8 @@ export function PlatformOrganizations() {
   const labels: Record<string, string> = {
     members: t('Members'),
     logs: t('Usage Logs'),
-    dashboard: t('Overview'),
+    dashboard: t('Dashboard'),
+    overview: t('Overview'),
     audit: t('Organization audit'),
     user_id: t('User ID'),
     role: t('Role'),
@@ -318,7 +323,7 @@ export function PlatformOrganizations() {
               <div className='flex flex-wrap items-center justify-between gap-3'>
                 <h2 className='font-semibold'>{selected.name}</h2>
                 <div className='flex flex-wrap gap-2'>
-                  {isRoot && selected.status === 1 && (
+                  {isPlatformAdmin && selected.status === 1 && (
                     <Button
                       onClick={() =>
                         setMemberDialog({ organization: selected })
@@ -344,8 +349,8 @@ export function PlatformOrganizations() {
                 }}
               >
                 <TabsList className='h-auto flex-wrap'>
-                  {(isRoot
-                    ? ['members', 'logs', 'dashboard', 'audit']
+                  {(isPlatformAdmin
+                    ? ['members', 'logs', 'overview', 'dashboard', 'audit']
                     : ['members', 'audit']
                   ).map((key) => (
                     <TabsTrigger key={key} value={key}>
@@ -367,6 +372,12 @@ export function PlatformOrganizations() {
                   organization={selected}
                 />
               )}
+              {resource === 'overview' && (
+                <OrganizationSummary
+                  key={selected.id}
+                  platformOrganization={selected}
+                />
+              )}
               {(resource === 'members' || resource === 'audit') &&
                 (resources.isError ? (
                   <Button
@@ -383,7 +394,7 @@ export function PlatformOrganizations() {
                         {resourceColumns[resource].map((column) => (
                           <TableHead key={column}>{labels[column]}</TableHead>
                         ))}
-                        {resource === 'members' && isRoot && (
+                        {resource === 'members' && isPlatformAdmin && (
                           <TableHead>{t('Actions')}</TableHead>
                         )}
                       </TableRow>
@@ -403,7 +414,7 @@ export function PlatformOrganizations() {
                                 : String(row[column] ?? '—')}
                             </TableCell>
                           ))}
-                          {resource === 'members' && isRoot && (
+                          {resource === 'members' && isPlatformAdmin && (
                             <TableCell>
                               {row.role === 'owner' ? (
                                 <span className='text-muted-foreground'>
