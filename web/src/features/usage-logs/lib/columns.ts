@@ -20,7 +20,6 @@ For commercial licensing, please contact support@quantumnous.com
  * Column definitions factory
  */
 import type { ColumnDef } from '@tanstack/react-table'
-import type { ReactNode } from 'react'
 
 import { useCommonLogsColumns } from '../components/columns/common-logs-columns'
 import { useDrawingLogsColumns } from '../components/columns/drawing-logs-columns'
@@ -34,11 +33,10 @@ import type { LogCategory } from '../types'
 export function useColumnsByCategory(
   logCategory: LogCategory,
   isAdmin: boolean,
-  isRoot: boolean,
-  commonUserHeader?: ReactNode
+  isRoot: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): ColumnDef<any>[] {
-  const commonColumns = useCommonLogsColumns(isAdmin, isRoot, commonUserHeader)
+  const commonColumns = useCommonLogsColumns(isAdmin, isRoot)
   const drawingColumns = useDrawingLogsColumns(isAdmin)
   const taskColumns = useTaskLogsColumns(isAdmin, isRoot)
 

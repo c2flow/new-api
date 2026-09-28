@@ -36,6 +36,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { OrganizationUsageSelector } from '@/features/dashboard/components/models/usage-scope-selector'
 import { useUsageLogsRoute } from '@/features/usage-logs/route'
 
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
@@ -105,6 +106,7 @@ function buildSearchSourceKey(values: {
 
 interface CommonLogsFilterBarProps<TData> {
   table: Table<TData>
+  scopeCurrentUserID?: number
 }
 
 export function CommonLogsFilterBar<TData>(
@@ -115,12 +117,13 @@ export function CommonLogsFilterBar<TData>(
   const navigate = route.useNavigate()
   const queryClient = useQueryClient()
   const searchParams = route.useSearch()
-  const { isAdminView: isAdmin, platform } = useLogsViewScope()
+  const { canManageScope, isAdminView: isAdmin, platform } = useLogsViewScope()
   const {
     sensitiveVisible,
     setSensitiveVisible,
     commonLogScope,
     setCommonLogScope,
+    organizationID,
   } = useUsageLogsContext()
   const fetchingLogs = useIsFetching({ queryKey: ['logs'] })
 
@@ -366,6 +369,18 @@ export function CommonLogsFilterBar<TData>(
       </Select>
     </LogsFilterField>
   )
+  const userScopeFilter =
+    canManageScope && !platform ? (
+      <LogsFilterField>
+        <OrganizationUsageSelector
+          value={commonLogScope}
+          onChange={setCommonLogScope}
+          organizationID={organizationID}
+          currentUserID={props.scopeCurrentUserID}
+          triggerClassName='w-full justify-between'
+        />
+      </LogsFilterField>
+    ) : undefined
   const advancedFilters = (
     <>
       <LogsFilterField>
@@ -425,6 +440,7 @@ export function CommonLogsFilterBar<TData>(
       primaryFilters={
         <>
           {dateRangeFilter}
+          {userScopeFilter}
           {modelFilter}
           {groupFilter}
           {typeFilter}
@@ -434,6 +450,7 @@ export function CommonLogsFilterBar<TData>(
       mobilePinnedFilters={dateRangeFilter}
       mobileFilters={
         <>
+          {userScopeFilter}
           {modelFilter}
           {groupFilter}
           {typeFilter}

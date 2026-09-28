@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { ColumnDef } from '@tanstack/react-table'
 import { GitBranch, Sparkles, KeyRound } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { GroupBadge } from '@/components/group-badge'
@@ -294,8 +294,7 @@ function buildTypeDetailSegments(
 
 export function useCommonLogsColumns(
   isAdmin: boolean,
-  isRoot: boolean,
-  userHeader?: ReactNode
+  isRoot: boolean
 ): ColumnDef<UsageLog>[] {
   const { t } = useTranslation()
   const platform = usePlatformView()
@@ -494,7 +493,7 @@ export function useCommonLogsColumns(
       },
       {
         id: 'user',
-        header: userHeader ? () => userHeader : t('User'),
+        header: t('User'),
         accessorFn: (row) => row.username,
         cell: function UserCell({ row }) {
           const platform = usePlatformView()

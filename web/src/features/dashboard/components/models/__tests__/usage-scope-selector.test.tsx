@@ -40,22 +40,6 @@ function SelectionFixture() {
   )
 }
 
-function TableHeaderSelectionFixture() {
-  const [value, setValue] = useState<UsageScope>({ type: 'organization' })
-  return (
-    <UsageScopeSelector
-      variant='table-header'
-      value={value}
-      onChange={setValue}
-      currentUserID={1}
-      members={[
-        { user_id: 1, username: 'viewer', display_name: 'Viewer' },
-        { user_id: 2, username: 'alice', display_name: 'Alice' },
-      ]}
-    />
-  )
-}
-
 test('Me is the first member and multiple members replace organization totals', async () => {
   render(<SelectionFixture />)
   const trigger = screen.getByRole('button', { name: 'Usage scope' })
@@ -96,23 +80,4 @@ test('keyboard users can open the selector and Escape restores trigger focus', a
   fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
   await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'))
   await waitFor(() => expect(trigger).toHaveFocus())
-})
-
-test('table header trigger keeps the User label while filtering members', async () => {
-  render(<TableHeaderSelectionFixture />)
-  const trigger = screen.getByRole('button', { name: 'Usage scope' })
-
-  expect(trigger).toHaveTextContent('User')
-  expect(trigger).not.toHaveTextContent('Organization total')
-
-  fireEvent.click(trigger)
-  expect(
-    await screen.findByRole('menuitemcheckbox', {
-      name: 'Organization total',
-    })
-  ).toHaveAttribute('aria-checked', 'true')
-
-  fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Me' }))
-  expect(trigger).toHaveTextContent('User')
-  expect(trigger).toHaveAttribute('title', 'Me')
 })
