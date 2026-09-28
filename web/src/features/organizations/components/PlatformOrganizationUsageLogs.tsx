@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { OrganizationUsageSelector } from '@/features/dashboard/components/models/usage-scope-selector'
 import { UserInfoDialog } from '@/features/usage-logs/components/dialogs/user-info-dialog'
 import {
   UsageLogsProvider,
@@ -29,26 +28,16 @@ function PlatformOrganizationUsageLogsContent(props: {
   organizationID: number
   ownerID: number
 }) {
-  const {
-    selectedUserId,
-    userInfoDialogOpen,
-    setUserInfoDialogOpen,
-    commonLogScope,
-    setCommonLogScope,
-  } = useUsageLogsContext()
+  const { selectedUserId, userInfoDialogOpen, setUserInfoDialogOpen } =
+    useUsageLogsContext()
 
   return (
     <>
-      <div className='flex justify-end'>
-        <OrganizationUsageSelector
-          value={commonLogScope}
-          onChange={setCommonLogScope}
-          organizationID={props.organizationID}
-          currentUserID={props.ownerID}
-        />
-      </div>
       <div className='min-h-[36rem]'>
-        <UsageLogsTable logCategory='common' />
+        <UsageLogsTable
+          logCategory='common'
+          scopeCurrentUserID={props.ownerID}
+        />
       </div>
       <UserInfoDialog
         userId={selectedUserId}

@@ -45,6 +45,7 @@ interface UsageScopeSelectionProps {
   onChange: (value: UsageScope) => void
   organizationID?: number
   currentUserID?: number
+  variant?: 'button' | 'table-header'
 }
 
 interface UsageScopeSelectorProps extends UsageScopeSelectionProps {
@@ -104,20 +105,34 @@ export function UsageScopeSelector(props: UsageScopeSelectorProps) {
         .filter((option) => selected.includes(option.id))
         .map((option) => option.label)
         .join(' / ')
+  const tableHeader = props.variant === 'table-header'
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant='outline' size='sm' aria-label={t('Usage scope')} />
+          tableHeader ? (
+            <button
+              type='button'
+              className='hover:bg-muted focus-visible:ring-ring -ml-2 inline-flex h-8 items-center gap-1 rounded-md px-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none'
+              aria-label={t('Usage scope')}
+              title={label}
+            />
+          ) : (
+            <Button variant='outline' size='sm' aria-label={t('Usage scope')} />
+          )
         }
       >
-        <span className='max-w-52 truncate' title={label}>
-          {label || t('Organization members')}
-        </span>
+        {tableHeader ? (
+          <span>{t('User')}</span>
+        ) : (
+          <span className='max-w-52 truncate' title={label}>
+            {label || t('Organization members')}
+          </span>
+        )}
         <ChevronDown aria-hidden='true' />
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        align='end'
+        align={tableHeader ? 'start' : 'end'}
         className='w-72 max-w-[calc(100vw-2rem)]'
       >
         <DropdownMenuGroup>

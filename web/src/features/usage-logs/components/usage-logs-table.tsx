@@ -26,6 +26,7 @@ import {
   DataTableRow,
   useDataTable,
 } from '@/components/data-table'
+import { OrganizationUsageSelector } from '@/features/dashboard/components/models/usage-scope-selector'
 import { useUsageLogsRoute } from '@/features/usage-logs/route'
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
@@ -77,25 +78,27 @@ function deserializeLogTypeFilter(value: unknown): unknown[] {
 
 interface UsageLogsTableProps {
   logCategory: LogCategory
+  scopeCurrentUserID?: number
 }
 
-export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
+export function UsageLogsTable(props: UsageLogsTableProps) {
   const route = useUsageLogsRoute()
   const { t } = useTranslation()
+  const logCategory = props.logCategory
   const {
     platform,
+    canManageScope,
     isAdminView: isAdmin,
     isRootView: isRoot,
     viewAccess,
   } = useLogsViewScope()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
-  const { commonLogScope, organizationID } = useUsageLogsContext()
+  const { commonLogScope, setCommonLogScope, organizationID } =
+    useUsageLogsContext()
+  const isCommon = logCategory === 'common'
   const userIDs =
-    logCategory === 'common' &&
-    !platform &&
-    isAdmin &&
-    commonLogScope.type === 'members'
+    isCommon && !platform && isAdmin && commonLogScope.type === 'members'
       ? commonLogScope.userIDs
       : undefined
 
@@ -184,7 +187,22 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   })
 
   const logs = data?.items || []
-  const columns = useColumnsByCategory(logCategory, isAdmin, isRoot)
+  const commonUserSelector =
+    isCommon && canManageScope && !platform ? (
+      <OrganizationUsageSelector
+        variant='table-header'
+        value={commonLogScope}
+        onChange={setCommonLogScope}
+        organizationID={organizationID}
+        currentUserID={props.scopeCurrentUserID}
+      />
+    ) : undefined
+  const columns = useColumnsByCategory(
+    logCategory,
+    isAdmin,
+    isRoot,
+    commonUserSelector
+  )
   const isLoadingData = isLoading || (isFetching && !data)
 
   const { table } = useDataTable({
@@ -205,8 +223,6 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     ensurePageInRange,
   })
 
-  const isCommon = logCategory === 'common'
-
   return (
     <DataTablePage
       table={table}
@@ -223,11 +239,16 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
         '[&_[data-slot=table]]:text-[13px] [&_[data-slot=table]_td]:text-[13px] [&_[data-slot=table]_td_*]:text-[13px] [&_[data-slot=table]_th]:text-[13px] [&_[data-slot=table]_th_*]:text-[13px]'
       )}
       mobile={
-        <UsageLogsMobileList
-          table={table}
-          isLoading={isLoadingData}
-          logCategory={logCategory}
-        />
+        <div className='space-y-2.5'>
+          {commonUserSelector && (
+            <div className='flex justify-end'>{commonUserSelector}</div>
+          )}
+          <UsageLogsMobileList
+            table={table}
+            isLoading={isLoadingData}
+            logCategory={logCategory}
+          />
+        </div>
       }
       toolbar={
         isCommon ? (
