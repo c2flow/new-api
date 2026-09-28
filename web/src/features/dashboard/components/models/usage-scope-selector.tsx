@@ -16,8 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { UnfoldMoreIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -112,8 +113,8 @@ export function UsageScopeSelector(props: UsageScopeSelectorProps) {
         render={
           <Button
             variant='outline'
-            size='sm'
-            className={cn(props.triggerClassName)}
+            size='default'
+            className={cn('font-normal', props.triggerClassName)}
             aria-label={t('Usage scope')}
           />
         }
@@ -121,7 +122,12 @@ export function UsageScopeSelector(props: UsageScopeSelectorProps) {
         <span className='max-w-52 truncate' title={label}>
           {label || t('Organization members')}
         </span>
-        <ChevronDown aria-hidden='true' />
+        <HugeiconsIcon
+          icon={UnfoldMoreIcon}
+          strokeWidth={2}
+          className='text-muted-foreground pointer-events-none size-4'
+          aria-hidden='true'
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align='end'
