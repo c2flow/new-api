@@ -150,7 +150,7 @@ export function PlatformOrganizations() {
   const labels: Record<string, string> = {
     members: t('Members'),
     logs: t('Usage Logs'),
-    dashboard: t('Data Dashboard'),
+    dashboard: t('Overview'),
     audit: t('Organization audit'),
     user_id: t('User ID'),
     role: t('Role'),
@@ -260,7 +260,7 @@ export function PlatformOrganizations() {
                           size='sm'
                           onClick={() => setRemarkOrganization(org)}
                         >
-                          {t('Edit remark')}
+                          {t('Remark')}
                         </Button>
                       )}
                       {canManage && org.status !== 3 && (
@@ -269,7 +269,7 @@ export function PlatformOrganizations() {
                           size='sm'
                           onClick={() => setGroupOrganization(org)}
                         >
-                          {t('Edit group')}
+                          {t('Group')}
                         </Button>
                       )}
                       {canManage && org.status !== 3 && (
@@ -278,7 +278,7 @@ export function PlatformOrganizations() {
                           size='sm'
                           onClick={() => setQuotaOrganization(org)}
                         >
-                          {t('Adjust Quota')}
+                          {t('Quota')}
                         </Button>
                       )}
                       <Button
@@ -289,7 +289,7 @@ export function PlatformOrganizations() {
                           setResourcePage(1)
                         }}
                       >
-                        {t('View details')}
+                        {t('Details')}
                       </Button>
                     </TableCell>
                   </TableRow>

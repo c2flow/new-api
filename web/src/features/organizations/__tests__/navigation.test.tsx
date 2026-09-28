@@ -358,10 +358,10 @@ test('platform organization details expose owner-equivalent usage and dashboard 
   )
 
   renderPage(PlatformOrganizations)
-  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
 
   expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
-  expect(screen.getByRole('tab', { name: 'Data Dashboard' })).toBeVisible()
+  expect(screen.getByRole('tab', { name: 'Overview' })).toBeVisible()
 })
 
 test('regular platform administrators do not see owner-equivalent organization tabs', async () => {
@@ -383,10 +383,10 @@ test('regular platform administrators do not see owner-equivalent organization t
   )
 
   renderPage(PlatformOrganizations)
-  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
 
   expect(screen.queryByRole('tab', { name: 'Usage Logs' })).toBeNull()
-  expect(screen.queryByRole('tab', { name: 'Data Dashboard' })).toBeNull()
+  expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull()
 })
 
 test.each([null, 99])(
@@ -479,10 +479,10 @@ test.each([
     renderPage(PlatformOrganizations)
     expect(await screen.findByText('Design team')).toBeVisible()
     if (visible) {
-      expect(screen.getByRole('button', { name: 'Adjust Quota' })).toBeVisible()
+      expect(screen.getByRole('button', { name: 'Quota' })).toBeVisible()
     } else {
       expect(
-        screen.queryByRole('button', { name: 'Adjust Quota' })
+        screen.queryByRole('button', { name: 'Quota' })
       ).not.toBeInTheDocument()
     }
   }
@@ -694,9 +694,7 @@ test('platform organization search sends remarks to server and resets pagination
   }
   renderPage(() => <PlatformOrganizations />)
   expect(await screen.findByText('Internal customer')).toBeInTheDocument()
-  expect(
-    screen.getByRole('button', { name: 'Edit remark' })
-  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remark' })).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Next' }))
   await waitFor(() => expect(queries.at(-1)?.p).toBe(2))
   fireEvent.change(
@@ -731,7 +729,7 @@ test('only the super administrator can directly add an organization member', asy
     }
   }
   renderPage(PlatformOrganizations)
-  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
   fireEvent.click(
     screen.getByRole('button', { name: 'Add member without consent' })
   )
@@ -777,7 +775,7 @@ test('only the super administrator can directly add an organization member', asy
     { items: [], total: 0 }
   )
   renderPage(PlatformOrganizations)
-  fireEvent.click(await screen.findByRole('button', { name: 'View details' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
   expect(
     screen.queryByRole('button', { name: 'Add member without consent' })
   ).not.toBeInTheDocument()
