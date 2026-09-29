@@ -726,6 +726,11 @@ func AddChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	// BatchInsertChannels updates the database and abilities in a transaction,
+	// but the distributor uses the process-local channel cache when enabled.
+	// Rebuild it only after the transaction has committed so newly added
+	// channels are immediately selectable on this node.
+	model.InitChannelCache()
 	recordManageAudit(c, "channel.create", map[string]interface{}{
 		"name":  addChannelRequest.Channel.Name,
 		"type":  addChannelRequest.Channel.Type,
