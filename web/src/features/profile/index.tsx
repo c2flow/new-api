@@ -50,30 +50,25 @@ export function Profile() {
           </CardStaggerItem>
 
           <CardStaggerItem>
-            <div className='grid gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.46fr)] xl:items-start'>
-              <div className='space-y-4 sm:space-y-6'>
-                <ProfileSettingsCard
-                  profile={profile}
-                  loading={loading}
-                  onProfileUpdate={refreshProfile}
+            <div className='space-y-4 sm:space-y-6'>
+              <ProfileSettingsCard
+                profile={profile}
+                loading={loading}
+                onProfileUpdate={refreshProfile}
+              />
+              <LanguagePreferencesCard
+                profile={profile}
+                onProfileUpdate={refreshProfile}
+              />
+              <ProfileSecurityCard profile={profile} loading={loading} />
+              <LoginSessionsCard />
+              {checkinEnabled && (
+                <CheckinCalendarCard
+                  checkinEnabled={checkinEnabled}
+                  turnstileEnabled={turnstileEnabled}
+                  turnstileSiteKey={turnstileSiteKey}
                 />
-                <LanguagePreferencesCard
-                  profile={profile}
-                  onProfileUpdate={refreshProfile}
-                />
-                <ProfileSecurityCard profile={profile} loading={loading} />
-                <LoginSessionsCard />
-              </div>
-
-              <div className='space-y-4 sm:space-y-6 xl:sticky xl:top-6'>
-                {checkinEnabled && (
-                  <CheckinCalendarCard
-                    checkinEnabled={checkinEnabled}
-                    turnstileEnabled={turnstileEnabled}
-                    turnstileSiteKey={turnstileSiteKey}
-                  />
-                )}
-              </div>
+              )}
             </div>
           </CardStaggerItem>
         </CardStaggerContainer>
