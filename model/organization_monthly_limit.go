@@ -16,12 +16,12 @@ func OrganizationMonthlyWindow(timestamp int64) (int64, int64) {
 	return start.Unix(), start.AddDate(0, 1, 0).Unix()
 }
 
-// SetOrganizationMemberLimits patches only supplied limits. Zero removes a limit.
+// SetOrganizationMemberLimits patches only supplied limits. An explicit zero blocks spending.
 func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, total, monthly *int64) error {
 	if len(userIDs) == 0 || len(userIDs) > 500 || (total == nil && monthly == nil) {
 		return ErrOrganizationInput
 	}
-	updates := make(map[string]interface{}, 2)
+	updates := make(map[string]interface{}, 4)
 	for field, value := range map[string]*int64{"spend_limit": total, "monthly_spend_limit": monthly} {
 		if value == nil {
 			continue
@@ -30,6 +30,7 @@ func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, total, month
 			return ErrOrganizationInput
 		}
 		updates[field] = *value
+		updates[field+"_enabled"] = true
 	}
 	seen := make(map[int]bool, len(userIDs))
 	for _, id := range userIDs {

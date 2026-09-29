@@ -86,9 +86,16 @@ export function OrganizationSummary(props: {
   } else if (context?.membership) {
     roleLabel = roleLabels[context.membership.role]
   }
-  const remainingLabel = data
-    ? formatQuotaWithCurrency(data.available_quota)
-    : ''
+  let totalRemainingLabel = ''
+  let monthlyRemainingLabel = ''
+  if (data) {
+    totalRemainingLabel = data.total_limit_enabled
+      ? formatQuotaWithCurrency(data.total_remaining_quota)
+      : t('Unlimited')
+    monthlyRemainingLabel = data.monthly_limit_enabled
+      ? formatQuotaWithCurrency(data.monthly_remaining_quota)
+      : t('Unlimited')
+  }
   return (
     <div className='bg-card flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border px-5 py-4 shadow-xs'>
       <div className='flex min-w-0 items-center gap-3'>
@@ -119,9 +126,17 @@ export function OrganizationSummary(props: {
       </div>
       {!props.hideOwnerAndPersonalQuota && (
         <div className='text-muted-foreground text-xs'>
-          {t('My remaining limit')}
+          {t('Total remaining limit')}
           <strong className='text-foreground mt-1 block text-base'>
-            {data ? remainingLabel : <Skeleton className='h-5 w-20' />}
+            {data ? totalRemainingLabel : <Skeleton className='h-5 w-20' />}
+          </strong>
+        </div>
+      )}
+      {!props.hideOwnerAndPersonalQuota && (
+        <div className='text-muted-foreground text-xs'>
+          {t('Monthly remaining limit')}
+          <strong className='text-foreground mt-1 block text-base'>
+            {data ? monthlyRemainingLabel : <Skeleton className='h-5 w-20' />}
           </strong>
         </div>
       )}

@@ -57,7 +57,8 @@ func TestPlatformMemberGovernanceProtectsOwnerAndDisablesTokens(t *testing.T) {
 
 	var member OrganizationMember
 	require.NoError(t, db.Where("org_id = ? AND user_id = ?", org.Id, memberID).First(&member).Error)
-	require.NoError(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, memberID, OrgRoleAdmin, OrganizationDisabled, 80, 20, "access review"))
+	total, monthly := int64(80), int64(20)
+	require.NoError(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, memberID, OrgRoleAdmin, OrganizationDisabled, &total, &monthly, "access review"))
 	require.NoError(t, db.First(&token, token.Id).Error)
 	assert.Equal(t, common.TokenStatusDisabled, token.Status)
 	require.NoError(t, db.First(&member, member.Id).Error)
@@ -65,7 +66,11 @@ func TestPlatformMemberGovernanceProtectsOwnerAndDisablesTokens(t *testing.T) {
 	assert.Equal(t, OrganizationDisabled, member.Status)
 	assert.Equal(t, int64(80), member.SpendLimit)
 	assert.Equal(t, int64(20), member.MonthlySpendLimit)
+	assert.True(t, member.SpendLimitEnabled)
+	assert.True(t, member.MonthlySpendLimitEnabled)
 
-	assert.ErrorIs(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, users[0].Id, OrgRoleMember, OrganizationActive, 0, 0, "invalid owner edit"), ErrOrganizationOwner)
-	assert.ErrorIs(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, memberID, OrgRoleMember, OrganizationActive, -1, 0, "invalid"), ErrOrganizationInput)
+	zero := int64(0)
+	assert.ErrorIs(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, users[0].Id, OrgRoleMember, OrganizationActive, &zero, &zero, "invalid owner edit"), ErrOrganizationOwner)
+	invalid := int64(-1)
+	assert.ErrorIs(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, memberID, OrgRoleMember, OrganizationActive, &invalid, &zero, "invalid"), ErrOrganizationInput)
 }

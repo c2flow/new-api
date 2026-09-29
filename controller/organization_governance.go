@@ -58,29 +58,40 @@ func getOrganizationSummary(c *gin.Context, org *model.Organization, member *mod
 		return
 	}
 	available := max(int64(0), org.Quota)
-	if member.SpendLimit > 0 {
+	totalRemaining, monthlyRemaining := int64(0), int64(0)
+	totalLimitEnabled := member.SpendLimitEnabled || member.SpendLimit > 0
+	monthlyLimitEnabled := member.MonthlySpendLimitEnabled || member.MonthlySpendLimit > 0
+	if totalLimitEnabled {
 		var used int64
 		if err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(org.Id)).Where("user_id = ? AND status IN ?", member.UserId, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 			common.ApiError(c, err)
 			return
 		}
-		available = min(available, max(int64(0), member.SpendLimit-used))
+		totalRemaining = max(int64(0), member.SpendLimit-used)
+		available = min(available, totalRemaining)
 	}
 
-	if member.MonthlySpendLimit > 0 {
+	if monthlyLimitEnabled {
 		start, end := model.OrganizationMonthlyWindow(common.GetTimestamp())
 		var used int64
 		if err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(org.Id)).Where("user_id = ? AND created_at >= ? AND created_at < ? AND status IN ?", member.UserId, start, end, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 			common.ApiError(c, err)
 			return
 		}
-		available = min(available, max(int64(0), member.MonthlySpendLimit-used))
+		monthlyRemaining = max(int64(0), member.MonthlySpendLimit-used)
+		available = min(available, monthlyRemaining)
 	}
 	if !authz.CanOrg(member.UserId, org.Id, member.Role, authz.Permission{Resource: "org.billing", Action: "read"}) {
 		org.Quota = available
 		memberCount = 1
 	}
-	common.ApiSuccess(c, gin.H{"available_quota": available, "request_count": requestCount, "quota": org.Quota, "used_quota": org.UsedQuota, "group": org.Group, "usage": usage, "member_count": memberCount, "key_count": keyCount, "spend_limit": member.SpendLimit})
+	common.ApiSuccess(c, gin.H{
+		"available_quota": available, "request_count": requestCount, "quota": org.Quota,
+		"used_quota": org.UsedQuota, "group": org.Group, "usage": usage,
+		"member_count": memberCount, "key_count": keyCount, "spend_limit": member.SpendLimit,
+		"total_limit_enabled": totalLimitEnabled, "total_remaining_quota": totalRemaining,
+		"monthly_limit_enabled": monthlyLimitEnabled, "monthly_remaining_quota": monthlyRemaining,
+	})
 }
 
 func GetOrganizationSettings(c *gin.Context) {

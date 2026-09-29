@@ -44,15 +44,24 @@ export function MemberLimitsDialog(props: {
           (Number(value) === 0 || Math.round(Number(value) * unit) > 0))
     )
   const schema = z.object({ spend_limit: amount, monthly_spend_limit: amount })
+  const initialTotal =
+    props.members[0].spend_limit_enabled || props.members[0].spend_limit > 0
+      ? String((props.members[0].spend_limit ?? 0) / unit)
+      : ''
+  const initialMonthly =
+    props.members[0].monthly_spend_limit_enabled ||
+    (props.members[0].monthly_spend_limit ?? 0) > 0
+      ? String((props.members[0].monthly_spend_limit ?? 0) / unit)
+      : ''
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       spend_limit: batch
         ? ''
-        : String((props.members[0].spend_limit ?? 0) / unit),
+        : initialTotal,
       monthly_spend_limit: batch
         ? ''
-        : String((props.members[0].monthly_spend_limit ?? 0) / unit),
+        : initialMonthly,
     },
     mode: 'onChange',
   })
@@ -130,7 +139,7 @@ export function MemberLimitsDialog(props: {
       >
         <FieldGroup>
           <p className='text-muted-foreground text-sm'>
-            {t('Leave blank to keep unchanged. Enter 0 for unlimited.')}
+            {t('Leave blank to keep unchanged. Enter 0 to block spending.')}
           </p>
           {fields.map((field) => (
             <Field key={field} data-invalid={!!form.formState.errors[field]}>

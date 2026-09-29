@@ -51,12 +51,13 @@ export function PlatformMemberDialog(props: {
   )
   const [status, setStatus] = useState(props.member?.status ?? 1)
   const [spendLimit, setSpendLimit] = useState(
-    props.member
+    props.member?.spend_limit_enabled || props.member?.spend_limit > 0
       ? String(quotaUnitsToEditableAmount(props.member.spend_limit))
       : ''
   )
   const [monthlySpendLimit, setMonthlySpendLimit] = useState(
-    props.member
+    props.member?.monthly_spend_limit_enabled ||
+      (props.member?.monthly_spend_limit ?? 0) > 0
       ? String(
           quotaUnitsToEditableAmount(props.member.monthly_spend_limit ?? 0)
         )
@@ -69,10 +70,14 @@ export function PlatformMemberDialog(props: {
       const payload = {
         role,
         status,
-        spend_limit: parseQuotaFromDollars(Number(spendLimit || 0)),
-        monthly_spend_limit: parseQuotaFromDollars(
-          Number(monthlySpendLimit || 0)
-        ),
+        spend_limit:
+          spendLimit.trim() === ''
+            ? null
+            : parseQuotaFromDollars(Number(spendLimit)),
+        monthly_spend_limit:
+          monthlySpendLimit.trim() === ''
+            ? null
+            : parseQuotaFromDollars(Number(monthlySpendLimit)),
         reason: reason.trim(),
       }
       if (!props.member) {
@@ -229,7 +234,7 @@ export function PlatformMemberDialog(props: {
               onChange={(event) => setSpendLimit(event.target.value)}
             />
             <FieldDescription>
-              {t('Leave empty for unlimited.')}
+              {t('Leave empty for unlimited. Enter 0 to block spending.')}
             </FieldDescription>
           </Field>
           <Field>
@@ -246,7 +251,7 @@ export function PlatformMemberDialog(props: {
               onChange={(event) => setMonthlySpendLimit(event.target.value)}
             />
             <FieldDescription>
-              {t('Leave empty for unlimited.')}
+              {t('Leave empty for unlimited. Enter 0 to block spending.')}
             </FieldDescription>
           </Field>
           <Field>

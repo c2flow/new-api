@@ -39,6 +39,7 @@ export type OrganizationMembership = Organization & {
 export type OrganizationMember = {
   total_usage?: { used: number; reserved: number }
   monthly_spend_limit?: number
+  monthly_spend_limit_enabled?: boolean
   monthly_usage?: { used: number; reserved: number }
   monthly_reset_at?: number
   id: number
@@ -47,6 +48,7 @@ export type OrganizationMember = {
   role: OrganizationRole
   join_source?: 'owner' | 'invite' | 'platform' | ''
   spend_limit: number
+  spend_limit_enabled?: boolean
   status: number
   username: string
   display_name: string
@@ -72,6 +74,10 @@ export type OrganizationInvite = {
 }
 export type OrganizationSummary = {
   available_quota: number
+  total_limit_enabled: boolean
+  total_remaining_quota: number
+  monthly_limit_enabled: boolean
+  monthly_remaining_quota: number
   request_count: number
   quota: number
   used_quota: number

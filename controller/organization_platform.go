@@ -200,9 +200,11 @@ func PlatformAddOrganizationMember(c *gin.Context) {
 	memberInput := model.PlatformOrganizationMemberInput{Username: input.Username, Role: input.Role, Reason: input.Reason}
 	if input.SpendLimit != nil {
 		memberInput.SpendLimit = *input.SpendLimit
+		memberInput.SpendLimitSet = true
 	}
 	if input.MonthlySpendLimit != nil {
 		memberInput.MonthlySpendLimit = *input.MonthlySpendLimit
+		memberInput.MonthlySpendLimitSet = true
 	}
 	member, err := model.PlatformAddOrganizationMember(orgID, c.GetInt("id"), memberInput)
 	if err != nil {
@@ -222,11 +224,11 @@ func PlatformUpdateOrganizationMember(c *gin.Context) {
 		MonthlySpendLimit *int64 `json:"monthly_spend_limit"`
 		Reason            string `json:"reason"`
 	}
-	if orgErr != nil || userErr != nil || orgID <= 0 || userID <= 0 || c.ShouldBindJSON(&input) != nil || input.SpendLimit == nil || input.MonthlySpendLimit == nil {
+	if orgErr != nil || userErr != nil || orgID <= 0 || userID <= 0 || c.ShouldBindJSON(&input) != nil {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	if err := model.PlatformUpdateOrganizationMember(orgID, c.GetInt("id"), userID, input.Role, input.Status, *input.SpendLimit, *input.MonthlySpendLimit, input.Reason); err != nil {
+	if err := model.PlatformUpdateOrganizationMember(orgID, c.GetInt("id"), userID, input.Role, input.Status, input.SpendLimit, input.MonthlySpendLimit, input.Reason); err != nil {
 		organizationError(c, err)
 		return
 	}

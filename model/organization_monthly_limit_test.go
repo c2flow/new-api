@@ -31,8 +31,8 @@ func TestOrganizationMonthlyLimitIsOptionalAndIndependent(t *testing.T) {
 	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "refund-releases", 10)
 	require.NoError(t, err)
 	require.NoError(t, setMonthlyLimitForTest(org.Id, users[0].Id, []int{uid}, 0))
-	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "disabled-month", 200)
-	require.NoError(t, err)
+	_, err = ReserveOrganizationCharge(org.Id, uid, 0, "disabled-month", 1)
+	assert.ErrorIs(t, err, ErrMemberSpendLimit)
 	// The total cap still works independently.
 	total := int64(210)
 	require.NoError(t, SetOrganizationMemberLimits(org.Id, users[0].Id, []int{uid}, &total, nil))
@@ -62,6 +62,15 @@ func TestOrganizationTotalLimitSurvivesPeriodsAndMonths(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestOrganizationExplicitZeroTotalLimitBlocksSpending(t *testing.T) {
+	_, org, users := organizationBillingFixture(t)
+	zero := int64(0)
+	require.NoError(t, SetOrganizationMemberLimits(org.Id, users[0].Id, []int{users[1].Id}, &zero, nil))
+
+	_, err := ReserveOrganizationCharge(org.Id, users[1].Id, 0, "zero-total-limit", 1)
+	assert.ErrorIs(t, err, ErrMemberSpendLimit)
+}
+
 func TestOrganizationLimitsPatchIsAtomicAndPreservesOmittedFields(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
 	ids := []int{users[0].Id, users[1].Id}
@@ -89,6 +98,7 @@ func TestOrganizationLimitsPatchIsAtomicAndPreservesOmittedFields(t *testing.T) 
 	for _, member := range after {
 		assert.Equal(t, total, member.SpendLimit)
 		assert.Zero(t, member.MonthlySpendLimit)
+		assert.True(t, member.MonthlySpendLimitEnabled)
 	}
 }
 
@@ -112,6 +122,7 @@ func TestOrganizationMonthlyLimitBatchIsAtomicAndAuthorized(t *testing.T) {
 	require.NoError(t, db.Where("org_id = ?", org.Id).Order("user_id").Find(&updated).Error)
 	for i := range members {
 		members[i].MonthlySpendLimit = 99
+		members[i].MonthlySpendLimitEnabled = true
 	}
 	assert.Equal(t, members, updated)
 	var audits []OrganizationAudit
@@ -185,6 +196,8 @@ func TestOrganizationMonthlyLimitUpgradePreservesMembers(t *testing.T) {
 	var before []OrganizationMember
 	require.NoError(t, db.Where("org_id = ?", org.Id).Order("id").Find(&before).Error)
 	require.NoError(t, db.Migrator().DropColumn(&OrganizationMember{}, "monthly_spend_limit"))
+	require.NoError(t, db.Migrator().DropColumn(&OrganizationMember{}, "spend_limit_enabled"))
+	require.NoError(t, db.Migrator().DropColumn(&OrganizationMember{}, "monthly_spend_limit_enabled"))
 	require.NoError(t, db.Migrator().DropIndex(&OrganizationCharge{}, "idx_org_charge_month"))
 	for i := 0; i < 2; i++ {
 		require.NoError(t, db.AutoMigrate(&OrganizationMember{}, &OrganizationCharge{}))

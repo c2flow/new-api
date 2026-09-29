@@ -184,7 +184,29 @@ test('personal-only accounts do not see the organization summary panel', () => {
   )
   expect(screen.queryByText('Personal account')).not.toBeInTheDocument()
   expect(screen.queryByText('Organization wallet')).not.toBeInTheDocument()
-  expect(screen.queryByText('My remaining limit')).not.toBeInTheDocument()
+  expect(screen.queryByText('Total remaining limit')).not.toBeInTheDocument()
+  expect(screen.queryByText('Monthly remaining limit')).not.toBeInTheDocument()
+})
+
+test('organization summary shows member limits independently from the wallet', () => {
+  useOrganizationStore.setState({ activeOrgID: team.id, context: teamContext })
+  client.setQueryData(['organization-summary', team.id], {
+    available_quota: 500000,
+    total_limit_enabled: true,
+    total_remaining_quota: 7500000,
+    monthly_limit_enabled: true,
+    monthly_remaining_quota: 2500000,
+    quota: 500000,
+    used_quota: 0,
+    usage: [],
+  })
+
+  renderPage(OrganizationSummary)
+
+  expect(screen.getByText('Total remaining limit')).toBeVisible()
+  expect(screen.getByText('Monthly remaining limit')).toBeVisible()
+  expect(screen.getByText('$15')).toBeVisible()
+  expect(screen.getByText('$5')).toBeVisible()
 })
 
 test('personal and team selection preserve admin navigation and show team tools only for teams', async () => {

@@ -11,11 +11,13 @@ import (
 )
 
 type PlatformOrganizationMemberInput struct {
-	Username          string
-	Role              string
-	SpendLimit        int64
-	MonthlySpendLimit int64
-	Reason            string
+	Username             string
+	Role                 string
+	SpendLimit           int64
+	MonthlySpendLimit    int64
+	Reason               string
+	SpendLimitSet        bool
+	MonthlySpendLimitSet bool
 }
 
 func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizationMemberInput) (*OrganizationMember, error) {
@@ -56,6 +58,8 @@ func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizatio
 		member.Status = OrganizationActive
 		member.SpendLimit = input.SpendLimit
 		member.MonthlySpendLimit = input.MonthlySpendLimit
+		member.SpendLimitEnabled = input.SpendLimitSet
+		member.MonthlySpendLimitEnabled = input.MonthlySpendLimitSet
 		if err := tx.Save(&member).Error; err != nil {
 			return err
 		}
@@ -70,11 +74,11 @@ func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizatio
 	return &member, err
 }
 
-func PlatformUpdateOrganizationMember(orgID, actorID, userID int, role string, status int, total, monthly int64, reason string) error {
+func PlatformUpdateOrganizationMember(orgID, actorID, userID int, role string, status int, total, monthly *int64, reason string) error {
 	reason = strings.TrimSpace(reason)
 	if orgID <= 0 || actorID <= 0 || userID <= 0 || (role != OrgRoleAdmin && role != OrgRoleMember) ||
 		(status != OrganizationActive && status != OrganizationDisabled && status != OrganizationDeleting) || reason == "" || utf8.RuneCountInString(reason) > 256 ||
-		total < 0 || total > int64(common.MaxWalletQuota) || monthly < 0 || monthly > int64(common.MaxWalletQuota) {
+		(total != nil && (*total < 0 || *total > int64(common.MaxWalletQuota))) || (monthly != nil && (*monthly < 0 || *monthly > int64(common.MaxWalletQuota))) {
 		return ErrOrganizationInput
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
@@ -95,12 +99,32 @@ func PlatformUpdateOrganizationMember(orgID, actorID, userID int, role string, s
 			}
 		}
 		before := fmt.Sprintf("role: %s; status: %d; spend_limit: %d; monthly_spend_limit: %d", member.Role, member.Status, member.SpendLimit, member.MonthlySpendLimit)
-		if err := tx.Model(&member).Updates(map[string]interface{}{"role": role, "status": status, "spend_limit": total, "monthly_spend_limit": monthly}).Error; err != nil {
+		updates := map[string]interface{}{"role": role, "status": status}
+		if total != nil {
+			updates["spend_limit"] = *total
+			updates["spend_limit_enabled"] = true
+		} else {
+			updates["spend_limit_enabled"] = false
+		}
+		if monthly != nil {
+			updates["monthly_spend_limit"] = *monthly
+			updates["monthly_spend_limit_enabled"] = true
+		} else {
+			updates["monthly_spend_limit_enabled"] = false
+		}
+		if err := tx.Model(&member).Updates(updates).Error; err != nil {
 			return err
+		}
+		totalValue, monthlyValue := member.SpendLimit, member.MonthlySpendLimit
+		if total != nil {
+			totalValue = *total
+		}
+		if monthly != nil {
+			monthlyValue = *monthly
 		}
 		return tx.Create(&OrganizationAudit{
 			OrgId: orgID, ActorId: actorID, Action: "platform.member_update", ObjectId: fmt.Sprint(userID), Result: "success",
-			Reason: fmt.Sprintf("%s\n%s -> role: %s; status: %d; spend_limit: %d; monthly_spend_limit: %d", reason, before, role, status, total, monthly),
+			Reason: fmt.Sprintf("%s\n%s -> role: %s; status: %d; spend_limit: %d; monthly_spend_limit: %d", reason, before, role, status, totalValue, monthlyValue),
 		}).Error
 	})
 }
