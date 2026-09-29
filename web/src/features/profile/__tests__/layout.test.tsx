@@ -80,8 +80,11 @@ vi.mock('../components/two-fa-card', () => ({
 test('personal profile omits standalone security and sidebar cards', () => {
   render(<Profile />)
 
-  expect(screen.getByText('Profile settings')).toBeVisible()
-  expect(screen.getByText('Check-in calendar')).toBeVisible()
+  const profileSettings = screen.getByText('Profile settings')
+  const checkinCalendar = screen.getByText('Check-in calendar')
+  expect(profileSettings).toBeVisible()
+  expect(checkinCalendar).toBeVisible()
+  expect(checkinCalendar.parentElement).toBe(profileSettings.parentElement)
   expect(screen.queryByText('Sidebar modules')).toBeNull()
   expect(screen.queryByText('Passkey login')).toBeNull()
   expect(screen.queryByText('Two-factor authentication')).toBeNull()
