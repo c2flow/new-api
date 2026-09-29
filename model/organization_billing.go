@@ -108,7 +108,7 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 				return err
 			}
 		}
-		if member.SpendLimit > 0 {
+		if member.SpendLimitEnabled || member.SpendLimit > 0 {
 			var used int64
 			if err := tx.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("user_id = ? AND status IN ?", userID, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 				return err
@@ -118,7 +118,7 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 			}
 		}
 
-		if member.MonthlySpendLimit > 0 {
+		if member.MonthlySpendLimitEnabled || member.MonthlySpendLimit > 0 {
 			timestamp := now
 			if receipt.Id != 0 {
 				timestamp = receipt.CreatedAt

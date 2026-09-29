@@ -77,11 +77,13 @@ function deserializeLogTypeFilter(value: unknown): unknown[] {
 
 interface UsageLogsTableProps {
   logCategory: LogCategory
+  scopeCurrentUserID?: number
 }
 
-export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
+export function UsageLogsTable(props: UsageLogsTableProps) {
   const route = useUsageLogsRoute()
   const { t } = useTranslation()
+  const logCategory = props.logCategory
   const {
     platform,
     isAdminView: isAdmin,
@@ -90,12 +92,10 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   } = useLogsViewScope()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
-  const { commonLogScope } = useUsageLogsContext()
+  const { commonLogScope, organizationID } = useUsageLogsContext()
+  const isCommon = logCategory === 'common'
   const userIDs =
-    logCategory === 'common' &&
-    !platform &&
-    isAdmin &&
-    commonLogScope.type === 'members'
+    isCommon && !platform && isAdmin && commonLogScope.type === 'members'
       ? commonLogScope.userIDs
       : undefined
 
@@ -141,6 +141,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     queryKey: [
       'logs',
       platform,
+      organizationID,
       logCategory,
       viewAccess,
       pagination.pageIndex + 1,
@@ -154,6 +155,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       const result = await fetchLogsByCategory({
         logCategory,
         platform,
+        organizationID,
         isAdmin,
         page: pagination.pageIndex + 1,
         pageSize: pagination.pageSize,
@@ -203,8 +205,6 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     ensurePageInRange,
   })
 
-  const isCommon = logCategory === 'common'
-
   return (
     <DataTablePage
       table={table}
@@ -221,15 +221,20 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
         '[&_[data-slot=table]]:text-[13px] [&_[data-slot=table]_td]:text-[13px] [&_[data-slot=table]_td_*]:text-[13px] [&_[data-slot=table]_th]:text-[13px] [&_[data-slot=table]_th_*]:text-[13px]'
       )}
       mobile={
-        <UsageLogsMobileList
-          table={table}
-          isLoading={isLoadingData}
-          logCategory={logCategory}
-        />
+        <div className='space-y-2.5'>
+          <UsageLogsMobileList
+            table={table}
+            isLoading={isLoadingData}
+            logCategory={logCategory}
+          />
+        </div>
       }
       toolbar={
         isCommon ? (
-          <CommonLogsFilterBar table={table} />
+          <CommonLogsFilterBar
+            table={table}
+            scopeCurrentUserID={props.scopeCurrentUserID}
+          />
         ) : (
           <TaskLogsFilterBar table={table} logCategory={logCategory} />
         )

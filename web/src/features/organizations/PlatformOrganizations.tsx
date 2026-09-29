@@ -43,20 +43,34 @@ import {
 import { hasPermission } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
 import { formatQuotaWithCurrency } from '@/lib/currency'
+import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { OrganizationGroupDialog } from './components/OrganizationGroupDialog'
 import { OrganizationQuotaDialog } from './components/OrganizationQuotaDialog'
 import { OrganizationRemarkDialog } from './components/OrganizationRemarkDialog'
-import type { PlatformOrganization, Page } from './types'
+import { PlatformMemberDialog } from './components/PlatformMemberDialog'
+import { PlatformOrganizationDashboard } from './components/PlatformOrganizationDashboard'
+import { PlatformOrganizationUsageLogs } from './components/PlatformOrganizationUsageLogs'
+import type {
+  PlatformOrganization,
+  PlatformOrganizationMember,
+  Page,
+} from './types'
 
 const resourceColumns = {
-  members: ['user_id', 'role', 'status', 'spend_limit'],
-  logs: ['created_at', 'user_id', 'model_name', 'quota', 'request_id'],
+  members: [
+    'username',
+    'user_id',
+    'role',
+    'status',
+    'spend_limit',
+    'monthly_spend_limit',
+  ],
   audit: ['created_at', 'actor_id', 'action', 'object_id', 'result', 'reason'],
 } as const
 
-type Resource = keyof typeof resourceColumns
+type Resource = keyof typeof resourceColumns | 'logs' | 'dashboard'
 
 export function PlatformOrganizations() {
   const { t } = useTranslation()
@@ -64,12 +78,19 @@ export function PlatformOrganizations() {
   const canManage = useAuthStore((state) =>
     hasPermission(state.auth.user, 'organization', 'write')
   )
+  const isPlatformAdmin = useAuthStore(
+    (state) => (state.auth.user?.role ?? 0) >= ROLE.ADMIN
+  )
   const [quotaOrganization, setQuotaOrganization] =
     useState<PlatformOrganization | null>(null)
   const [groupOrganization, setGroupOrganization] =
     useState<PlatformOrganization | null>(null)
   const [remarkOrganization, setRemarkOrganization] =
     useState<PlatformOrganization | null>(null)
+  const [memberDialog, setMemberDialog] = useState<{
+    organization: PlatformOrganization
+    member?: PlatformOrganizationMember
+  } | null>(null)
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<PlatformOrganization | null>(null)
@@ -97,7 +118,8 @@ export function PlatformOrganizations() {
       resource,
       resourcePage,
     ],
-    enabled: selected !== null,
+    enabled:
+      selected !== null && (resource === 'members' || resource === 'audit'),
     queryFn: async () => {
       const response = await api.get<{
         success: boolean
@@ -131,11 +153,14 @@ export function PlatformOrganizations() {
   const labels: Record<string, string> = {
     members: t('Members'),
     logs: t('Usage Logs'),
+    dashboard: t('Dashboard'),
     audit: t('Organization audit'),
     user_id: t('User ID'),
     role: t('Role'),
     status: t('Status'),
     spend_limit: t('Spending limit'),
+    monthly_spend_limit: t('Monthly spending limit'),
+    username: t('Username'),
     name: t('Name'),
     key: t('API Key'),
     used_quota: t('Used Quota'),
@@ -241,7 +266,7 @@ export function PlatformOrganizations() {
                           size='sm'
                           onClick={() => setRemarkOrganization(org)}
                         >
-                          {t('Edit remark')}
+                          {t('Remark')}
                         </Button>
                       )}
                       {canManage && org.status !== 3 && (
@@ -250,7 +275,7 @@ export function PlatformOrganizations() {
                           size='sm'
                           onClick={() => setGroupOrganization(org)}
                         >
-                          {t('Edit group')}
+                          {t('Group')}
                         </Button>
                       )}
                       {canManage && org.status !== 3 && (
@@ -259,7 +284,7 @@ export function PlatformOrganizations() {
                           size='sm'
                           onClick={() => setQuotaOrganization(org)}
                         >
-                          {t('Adjust Quota')}
+                          {t('Quota')}
                         </Button>
                       )}
                       <Button
@@ -270,7 +295,7 @@ export function PlatformOrganizations() {
                           setResourcePage(1)
                         }}
                       >
-                        {t('View details')}
+                        {t('Details')}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -298,11 +323,24 @@ export function PlatformOrganizations() {
             <section className='space-y-4 rounded-xl border p-4'>
               <div className='flex flex-wrap items-center justify-between gap-3'>
                 <h2 className='font-semibold'>{selected.name}</h2>
-                <Button variant='outline' onClick={() => setConfirm(true)}>
-                  {selected.status === 1
-                    ? t('Disable organization')
-                    : t('Restore organization')}
-                </Button>
+                <div className='flex flex-wrap gap-2'>
+                  {isPlatformAdmin && selected.status === 1 && (
+                    <Button
+                      onClick={() =>
+                        setMemberDialog({ organization: selected })
+                      }
+                    >
+                      {t('Add member')}
+                    </Button>
+                  )}
+                  {canManage && (
+                    <Button variant='outline' onClick={() => setConfirm(true)}>
+                      {selected.status === 1
+                        ? t('Disable organization')
+                        : t('Restore organization')}
+                    </Button>
+                  )}
+                </div>
               </div>
               <Tabs
                 value={resource}
@@ -312,66 +350,111 @@ export function PlatformOrganizations() {
                 }}
               >
                 <TabsList className='h-auto flex-wrap'>
-                  {Object.keys(resourceColumns).map((key) => (
+                  {(isPlatformAdmin
+                    ? ['members', 'logs', 'dashboard', 'audit']
+                    : ['members', 'audit']
+                  ).map((key) => (
                     <TabsTrigger key={key} value={key}>
                       {labels[key]}
                     </TabsTrigger>
                   ))}
                 </TabsList>
               </Tabs>
-              {resources.isError ? (
-                <Button
-                  onClick={() => {
-                    void resources.refetch()
-                  }}
-                >
-                  {t('Retry')}
-                </Button>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {resourceColumns[resource].map((column) => (
-                        <TableHead key={column}>{labels[column]}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {resources.data?.items.map((row, index) => (
-                      <TableRow key={row.id ?? index}>
-                        {resourceColumns[resource].map((column) => (
-                          <TableCell
-                            key={column}
-                            className='max-w-64 break-words'
-                          >
-                            {column === 'created_at' && row[column]
-                              ? new Date(
-                                  Number(row[column]) * 1000
-                                ).toLocaleString()
-                              : String(row[column] ?? '—')}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              {resource === 'logs' && (
+                <PlatformOrganizationUsageLogs
+                  key={selected.id}
+                  organizationID={selected.id}
+                  ownerID={selected.owner_id}
+                />
               )}
-              <div className='flex gap-2'>
-                <Button
-                  variant='outline'
-                  disabled={resourcePage === 1}
-                  onClick={() => setResourcePage(resourcePage - 1)}
-                >
-                  {t('Previous')}
-                </Button>
-                <Button
-                  variant='outline'
-                  disabled={resourcePage * 20 >= (resources.data?.total ?? 0)}
-                  onClick={() => setResourcePage(resourcePage + 1)}
-                >
-                  {t('Next')}
-                </Button>
-              </div>
+              {resource === 'dashboard' && (
+                <PlatformOrganizationDashboard
+                  key={selected.id}
+                  organization={selected}
+                />
+              )}
+              {(resource === 'members' || resource === 'audit') &&
+                (resources.isError ? (
+                  <Button
+                    onClick={() => {
+                      void resources.refetch()
+                    }}
+                  >
+                    {t('Retry')}
+                  </Button>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {resourceColumns[resource].map((column) => (
+                          <TableHead key={column}>{labels[column]}</TableHead>
+                        ))}
+                        {resource === 'members' && isPlatformAdmin && (
+                          <TableHead>{t('Actions')}</TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {resources.data?.items.map((row, index) => (
+                        <TableRow key={row.id ?? index}>
+                          {resourceColumns[resource].map((column) => (
+                            <TableCell
+                              key={column}
+                              className='max-w-64 break-words'
+                            >
+                              {column === 'created_at' && row[column]
+                                ? new Date(
+                                    Number(row[column]) * 1000
+                                  ).toLocaleString()
+                                : String(row[column] ?? '—')}
+                            </TableCell>
+                          ))}
+                          {resource === 'members' && isPlatformAdmin && (
+                            <TableCell>
+                              {row.role === 'owner' ? (
+                                <span className='text-muted-foreground'>
+                                  {t('Owner')}
+                                </span>
+                              ) : (
+                                <Button
+                                  variant='outline'
+                                  size='sm'
+                                  onClick={() =>
+                                    setMemberDialog({
+                                      organization: selected,
+                                      member:
+                                        row as unknown as PlatformOrganizationMember,
+                                    })
+                                  }
+                                >
+                                  {t('Edit member')}
+                                </Button>
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ))}
+              {(resource === 'members' || resource === 'audit') && (
+                <div className='flex gap-2'>
+                  <Button
+                    variant='outline'
+                    disabled={resourcePage === 1}
+                    onClick={() => setResourcePage(resourcePage - 1)}
+                  >
+                    {t('Previous')}
+                  </Button>
+                  <Button
+                    variant='outline'
+                    disabled={resourcePage * 20 >= (resources.data?.total ?? 0)}
+                    onClick={() => setResourcePage(resourcePage + 1)}
+                  >
+                    {t('Next')}
+                  </Button>
+                </div>
+              )}
             </section>
           )}
           {remarkOrganization && (
@@ -390,6 +473,13 @@ export function PlatformOrganizations() {
             <OrganizationGroupDialog
               organization={groupOrganization}
               close={() => setGroupOrganization(null)}
+            />
+          )}
+          {memberDialog && (
+            <PlatformMemberDialog
+              organization={memberDialog.organization}
+              member={memberDialog.member}
+              close={() => setMemberDialog(null)}
             />
           )}
           <ConfirmDialog

@@ -29,7 +29,10 @@ import {
   type UsageScope,
 } from '@/features/dashboard/lib/usage-scope'
 import type { DashboardFilters } from '@/features/dashboard/types'
-import { usePlatformView } from '@/features/organizations/platform-view'
+import {
+  usePlatformOrganizationScope,
+  usePlatformView,
+} from '@/features/organizations/platform-view'
 import { ROLE } from '@/lib/roles'
 import { computeTimeRange } from '@/lib/time'
 import { useAuthStore } from '@/stores/auth-store'
@@ -44,9 +47,14 @@ export function useModelAnalytics(
   const activeOrgID = useOrganizationStore((state) => state.activeOrgID)
   const epoch = useOrganizationStore((state) => state.epoch)
   const platform = usePlatformView()
-  const isPlatformAdmin = platform && (user?.role ?? 0) >= ROLE.ADMIN
+  const platformOrganizationID = usePlatformOrganizationScope()
+  const isPlatformAdmin =
+    platformOrganizationID == null &&
+    platform &&
+    (user?.role ?? 0) >= ROLE.ADMIN
   const canCompare =
-    !platform && context?.capabilities.org['org.usage']?.read_all === true
+    platformOrganizationID != null ||
+    (!platform && context?.capabilities.org['org.usage']?.read_all === true)
   const timeRange = useMemo(
     () =>
       computeTimeRange(
@@ -64,17 +72,25 @@ export function useModelAnalytics(
       context?.organization?.id ?? null,
       epoch,
       isPlatformAdmin,
+      platformOrganizationID,
       canCompare,
       params,
     ],
     queryFn: async ({ signal }) => {
-      const response = await getUserQuotaDates(params, isPlatformAdmin, signal)
+      const response = await getUserQuotaDates(
+        params,
+        isPlatformAdmin,
+        signal,
+        platformOrganizationID ?? undefined
+      )
       if (!response.success) throw new Error('Usage request failed')
       return response.data
     },
     enabled:
       !!user?.id &&
-      (isPlatformAdmin || (!platform && (activeOrgID === null || !!context))),
+      (platformOrganizationID != null ||
+        isPlatformAdmin ||
+        (!platform && (activeOrgID === null || !!context))),
   })
   let scope: UsageScope = selectedScope
   if (!canCompare) {

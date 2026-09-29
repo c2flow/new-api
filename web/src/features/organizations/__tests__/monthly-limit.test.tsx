@@ -204,6 +204,27 @@ test('turning off an existing monthly cap submits zero', async () => {
   })
 })
 
+test('turning off an existing total cap submits zero', async () => {
+  const close = vi.fn()
+  renderDialog({
+    members: [{ ...member, spend_limit: 1000000 }],
+    close,
+  })
+  fireEvent.change(
+    screen.getByRole('spinbutton', { name: /Total spending limit/ }),
+    { target: { value: '0' } }
+  )
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(close).toHaveBeenCalledOnce())
+  expect(JSON.parse(requests[0].data)).toEqual({
+    user_ids: [1],
+    spend_limit: 0,
+  })
+})
+
 test('invalid monthly amounts cannot submit and failed requests retain the form', async () => {
   const close = vi.fn()
   response.success = false

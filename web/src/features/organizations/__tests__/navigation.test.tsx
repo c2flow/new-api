@@ -36,7 +36,7 @@ import {
 import { createInstance } from 'i18next'
 import type { ReactNode } from 'react'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { MobileDrawer } from '@/components/layout/components/mobile-drawer'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -55,6 +55,13 @@ import { OrganizationPage } from '../index'
 import { OrganizationBoundary } from '../OrganizationBoundary'
 import { PlatformOrganizations } from '../PlatformOrganizations'
 import type { OrganizationMembership } from '../types'
+
+vi.mock('../components/PlatformOrganizationDashboard', () => ({
+  PlatformOrganizationDashboard: () => <div>Organization dashboard</div>,
+}))
+vi.mock('../components/PlatformOrganizationUsageLogs', () => ({
+  PlatformOrganizationUsageLogs: () => <div>Organization usage logs</div>,
+}))
 
 const i18n = createInstance()
 await i18n
@@ -177,7 +184,29 @@ test('personal-only accounts do not see the organization summary panel', () => {
   )
   expect(screen.queryByText('Personal account')).not.toBeInTheDocument()
   expect(screen.queryByText('Organization wallet')).not.toBeInTheDocument()
-  expect(screen.queryByText('My remaining limit')).not.toBeInTheDocument()
+  expect(screen.queryByText('Total remaining limit')).not.toBeInTheDocument()
+  expect(screen.queryByText('Monthly remaining limit')).not.toBeInTheDocument()
+})
+
+test('organization summary shows member limits independently from the wallet', () => {
+  useOrganizationStore.setState({ activeOrgID: team.id, context: teamContext })
+  client.setQueryData(['organization-summary', team.id], {
+    available_quota: 500000,
+    total_limit_enabled: true,
+    total_remaining_quota: 7500000,
+    monthly_limit_enabled: true,
+    monthly_remaining_quota: 2500000,
+    quota: 500000,
+    used_quota: 0,
+    usage: [],
+  })
+
+  renderPage(OrganizationSummary)
+
+  expect(screen.getByText('Total remaining limit')).toBeVisible()
+  expect(screen.getByText('Monthly remaining limit')).toBeVisible()
+  expect(screen.getByText('$15')).toBeVisible()
+  expect(screen.getByText('$5')).toBeVisible()
 })
 
 test('personal and team selection preserve admin navigation and show team tools only for teams', async () => {
@@ -338,6 +367,52 @@ test('platform organization owners show a readable name and user ID', async () =
   ).not.toBeInTheDocument()
 })
 
+test('platform organization details expose owner-equivalent usage and dashboard tabs', async () => {
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [
+      { ...team, owner_username: 'root', owner_display_name: 'Root User' },
+    ],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
+
+  expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
+  expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull()
+  expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeVisible()
+})
+
+test('regular platform administrators see owner-equivalent organization tabs', async () => {
+  useAuthStore.getState().auth.setUser({
+    id: 2,
+    username: 'admin',
+    role: 10,
+    permissions: { admin_permissions: { organization: { read: true } } },
+  })
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [
+      { ...team, owner_username: 'root', owner_display_name: 'Root User' },
+    ],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
+
+  expect(screen.getByRole('tab', { name: 'Usage Logs' })).toBeVisible()
+  expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull()
+  expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeVisible()
+})
+
 test.each([null, 99])(
   'account bootstrap works with team-only empty lists and saved selection %s',
   async (savedSelection) => {
@@ -428,10 +503,10 @@ test.each([
     renderPage(PlatformOrganizations)
     expect(await screen.findByText('Design team')).toBeVisible()
     if (visible) {
-      expect(screen.getByRole('button', { name: 'Adjust Quota' })).toBeVisible()
+      expect(screen.getByRole('button', { name: 'Quota' })).toBeVisible()
     } else {
       expect(
-        screen.queryByRole('button', { name: 'Adjust Quota' })
+        screen.queryByRole('button', { name: 'Quota' })
       ).not.toBeInTheDocument()
     }
   }
@@ -643,9 +718,7 @@ test('platform organization search sends remarks to server and resets pagination
   }
   renderPage(() => <PlatformOrganizations />)
   expect(await screen.findByText('Internal customer')).toBeInTheDocument()
-  expect(
-    screen.getByRole('button', { name: 'Edit remark' })
-  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remark' })).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Next' }))
   await waitFor(() => expect(queries.at(-1)?.p).toBe(2))
   fireEvent.change(
@@ -655,6 +728,81 @@ test('platform organization search sends remarks to server and resets pagination
   await waitFor(() =>
     expect(queries.at(-1)).toMatchObject({ keyword: 'customer', p: 1 })
   )
+})
+
+test('only the super administrator can directly add an organization member', async () => {
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [{ ...team, owner_username: 'owner', owner_display_name: 'Owner' }],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+  const bodies: unknown[] = []
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'post') {
+      bodies.push(JSON.parse(config.data))
+    }
+    return {
+      config,
+      data: { success: true, data: {} },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+    }
+  }
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Add member' })
+  )
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Add member',
+  })
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Username' }), {
+    target: { value: 'managed-user' },
+  })
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Reason' }), {
+    target: { value: 'authorized onboarding' },
+  })
+  fireEvent.click(
+    within(dialog).getByText(
+      'I confirm this consent bypass is authorized for account administration.'
+    )
+  )
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+  await waitFor(() => expect(bodies).toHaveLength(1))
+  expect(bodies[0]).toMatchObject({
+    username: 'managed-user',
+    role: 'member',
+    reason: 'authorized onboarding',
+  })
+
+  cleanup()
+  client.clear()
+  useAuthStore.getState().auth.setUser({
+    id: 2,
+    username: 'admin',
+    role: 10,
+    permissions: { admin_permissions: { organization: { read: true } } },
+  })
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
+  client.setQueryData(['platform-organizations', '', 1], {
+    items: [{ ...team, owner_username: 'owner', owner_display_name: 'Owner' }],
+    total: 1,
+  })
+  client.setQueryData(
+    ['platform-organization-resources', team.id, 'members', 1],
+    { items: [], total: 0 }
+  )
+  renderPage(PlatformOrganizations)
+  fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
+  expect(
+    screen.queryByRole('button', { name: 'Add member' })
+  ).not.toBeInTheDocument()
 })
 
 test.each([false, true])(

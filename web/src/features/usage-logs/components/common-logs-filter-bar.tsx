@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import type { Table } from '@tanstack/react-table'
 import { Eye, EyeOff } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
@@ -37,7 +36,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { usePlatformView } from '@/features/organizations/platform-view'
+import { OrganizationUsageSelector } from '@/features/dashboard/components/models/usage-scope-selector'
 import { useUsageLogsRoute } from '@/features/usage-logs/route'
 
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
@@ -107,23 +106,24 @@ function buildSearchSourceKey(values: {
 
 interface CommonLogsFilterBarProps<TData> {
   table: Table<TData>
+  scopeCurrentUserID?: number
 }
 
 export function CommonLogsFilterBar<TData>(
   props: CommonLogsFilterBarProps<TData>
 ) {
-  const platform = usePlatformView()
   const route = useUsageLogsRoute()
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const navigate = route.useNavigate()
   const queryClient = useQueryClient()
   const searchParams = route.useSearch()
-  const { isAdminView: isAdmin } = useLogsViewScope()
+  const { canManageScope, isAdminView: isAdmin, platform } = useLogsViewScope()
   const {
     sensitiveVisible,
     setSensitiveVisible,
     commonLogScope,
     setCommonLogScope,
+    organizationID,
   } = useUsageLogsContext()
   const fetchingLogs = useIsFetching({ queryKey: ['logs'] })
 
@@ -195,8 +195,6 @@ export function CommonLogsFilterBar<TData>(
   const handleApply = useCallback(() => {
     const filterParams = buildSearchParams(filters, 'common')
     navigate({
-      to: platform ? '/platform/usage-logs/$section' : '/usage-logs/$section',
-      params: { section: 'common' },
       search: {
         ...filterParams,
         type: [logType],
@@ -205,7 +203,7 @@ export function CommonLogsFilterBar<TData>(
     })
     queryClient.invalidateQueries({ queryKey: ['logs'] })
     queryClient.invalidateQueries({ queryKey: ['usage-logs-stats'] })
-  }, [filters, logType, navigate, platform, queryClient])
+  }, [filters, logType, navigate, queryClient])
 
   const handleReset = useCallback(() => {
     const { start, end } = getDefaultTimeRange()
@@ -222,8 +220,6 @@ export function CommonLogsFilterBar<TData>(
     })
 
     navigate({
-      to: platform ? '/platform/usage-logs/$section' : '/usage-logs/$section',
-      params: { section: 'common' },
       search: {
         page: 1,
         ...resetSearch,
@@ -232,7 +228,7 @@ export function CommonLogsFilterBar<TData>(
     queryClient.invalidateQueries({ queryKey: ['logs'] })
     queryClient.invalidateQueries({ queryKey: ['usage-logs-stats'] })
     setCommonLogScope({ type: 'organization' })
-  }, [navigate, platform, queryClient, setCommonLogScope])
+  }, [navigate, queryClient, setCommonLogScope])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -373,6 +369,18 @@ export function CommonLogsFilterBar<TData>(
       </Select>
     </LogsFilterField>
   )
+  const userScopeFilter =
+    canManageScope && !platform ? (
+      <LogsFilterField>
+        <OrganizationUsageSelector
+          value={commonLogScope}
+          onChange={setCommonLogScope}
+          organizationID={organizationID}
+          currentUserID={props.scopeCurrentUserID}
+          triggerClassName='w-full justify-between'
+        />
+      </LogsFilterField>
+    ) : undefined
   const advancedFilters = (
     <>
       <LogsFilterField>
@@ -432,6 +440,7 @@ export function CommonLogsFilterBar<TData>(
       primaryFilters={
         <>
           {dateRangeFilter}
+          {userScopeFilter}
           {modelFilter}
           {groupFilter}
           {typeFilter}
@@ -441,6 +450,7 @@ export function CommonLogsFilterBar<TData>(
       mobilePinnedFilters={dateRangeFilter}
       mobileFilters={
         <>
+          {userScopeFilter}
           {modelFilter}
           {groupFilter}
           {typeFilter}

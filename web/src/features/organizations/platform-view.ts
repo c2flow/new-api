@@ -23,3 +23,11 @@ export const PlatformViewContext = createContext(false)
 export function usePlatformView() {
   return useContext(PlatformViewContext)
 }
+
+export const PlatformOrganizationScopeContext = createContext<number | null>(
+  null
+)
+
+export function usePlatformOrganizationScope() {
+  return useContext(PlatformOrganizationScopeContext)
+}

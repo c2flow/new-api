@@ -1,11 +1,133 @@
 package model
 
 import (
+	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/QuantumNous/new-api/common"
+	"gorm.io/gorm"
 )
+
+type PlatformOrganizationMemberInput struct {
+	Username             string
+	Role                 string
+	SpendLimit           int64
+	MonthlySpendLimit    int64
+	Reason               string
+	SpendLimitSet        bool
+	MonthlySpendLimitSet bool
+}
+
+func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizationMemberInput) (*OrganizationMember, error) {
+	input.Username = strings.TrimSpace(input.Username)
+	input.Reason = strings.TrimSpace(input.Reason)
+	if orgID <= 0 || actorID <= 0 || input.Username == "" || utf8.RuneCountInString(input.Username) > 20 ||
+		(input.Role != OrgRoleAdmin && input.Role != OrgRoleMember) || input.Reason == "" || utf8.RuneCountInString(input.Reason) > 256 ||
+		input.SpendLimit < 0 || input.SpendLimit > int64(common.MaxWalletQuota) ||
+		input.MonthlySpendLimit < 0 || input.MonthlySpendLimit > int64(common.MaxWalletQuota) {
+		return nil, ErrOrganizationInput
+	}
+	member := OrganizationMember{}
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var org Organization
+		if err := lockForUpdate(tx).Where("id = ? AND status = ?", orgID, OrganizationActive).First(&org).Error; err != nil {
+			return ErrOrganizationAccess
+		}
+		var target User
+		if err := tx.Where("username = ? AND status = ?", input.Username, common.UserStatusEnabled).First(&target).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrOrganizationInviteUser
+			}
+			return err
+		}
+		if target.Username != input.Username {
+			return ErrOrganizationInviteUser
+		}
+		err := tx.Scopes(OrgScope(orgID)).Where("user_id = ?", target.Id).First(&member).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if member.Id != 0 && member.Status == OrganizationActive {
+			return ErrOrganizationMemberExists
+		}
+		member.OrgId = orgID
+		member.UserId = target.Id
+		member.Role = input.Role
+		member.Status = OrganizationActive
+		member.SpendLimit = input.SpendLimit
+		member.MonthlySpendLimit = input.MonthlySpendLimit
+		member.SpendLimitEnabled = input.SpendLimitSet
+		member.MonthlySpendLimitEnabled = input.MonthlySpendLimitSet
+		if err := tx.Save(&member).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&OrganizationInvite{}).Scopes(OrgScope(orgID)).Where("invitee_id = ? AND status = ?", target.Id, "pending").Update("status", "superseded").Error; err != nil {
+			return err
+		}
+		return tx.Create(&OrganizationAudit{
+			OrgId: orgID, ActorId: actorID, Action: "platform.member_add", ObjectId: fmt.Sprint(target.Id), Result: "success",
+			Reason: fmt.Sprintf("%s\nrole: %s; spend_limit: %d; monthly_spend_limit: %d", input.Reason, input.Role, input.SpendLimit, input.MonthlySpendLimit),
+		}).Error
+	})
+	return &member, err
+}
+
+func PlatformUpdateOrganizationMember(orgID, actorID, userID int, role string, status int, total, monthly *int64, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if orgID <= 0 || actorID <= 0 || userID <= 0 || (role != OrgRoleAdmin && role != OrgRoleMember) ||
+		(status != OrganizationActive && status != OrganizationDisabled && status != OrganizationDeleting) || reason == "" || utf8.RuneCountInString(reason) > 256 ||
+		(total != nil && (*total < 0 || *total > int64(common.MaxWalletQuota))) || (monthly != nil && (*monthly < 0 || *monthly > int64(common.MaxWalletQuota))) {
+		return ErrOrganizationInput
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var org Organization
+		if err := lockForUpdate(tx).Where("id = ? AND status = ?", orgID, OrganizationActive).First(&org).Error; err != nil {
+			return ErrOrganizationAccess
+		}
+		var member OrganizationMember
+		if err := tx.Scopes(OrgScope(orgID)).Where("user_id = ?", userID).First(&member).Error; err != nil {
+			return ErrOrganizationAccess
+		}
+		if member.Role == OrgRoleOwner {
+			return ErrOrganizationOwner
+		}
+		if status != OrganizationActive {
+			if err := DisableOrganizationMemberTokensTx(tx, orgID, userID); err != nil {
+				return err
+			}
+		}
+		before := fmt.Sprintf("role: %s; status: %d; spend_limit: %d; monthly_spend_limit: %d", member.Role, member.Status, member.SpendLimit, member.MonthlySpendLimit)
+		updates := map[string]interface{}{"role": role, "status": status}
+		if total != nil {
+			updates["spend_limit"] = *total
+			updates["spend_limit_enabled"] = true
+		} else {
+			updates["spend_limit_enabled"] = false
+		}
+		if monthly != nil {
+			updates["monthly_spend_limit"] = *monthly
+			updates["monthly_spend_limit_enabled"] = true
+		} else {
+			updates["monthly_spend_limit_enabled"] = false
+		}
+		if err := tx.Model(&member).Updates(updates).Error; err != nil {
+			return err
+		}
+		totalValue, monthlyValue := member.SpendLimit, member.MonthlySpendLimit
+		if total != nil {
+			totalValue = *total
+		}
+		if monthly != nil {
+			monthlyValue = *monthly
+		}
+		return tx.Create(&OrganizationAudit{
+			OrgId: orgID, ActorId: actorID, Action: "platform.member_update", ObjectId: fmt.Sprint(userID), Result: "success",
+			Reason: fmt.Sprintf("%s\n%s -> role: %s; status: %d; spend_limit: %d; monthly_spend_limit: %d", reason, before, role, status, totalValue, monthlyValue),
+		}).Error
+	})
+}
 
 func PlatformChangeOrganizationStatusTx(tx *gorm.DB, orgID, actorID, status int, reason string) error {
 	var org Organization

@@ -50,14 +50,22 @@ export function CommonLogsStats() {
   const { t } = useTranslation()
   const { isAdminView: isAdmin, platform } = useLogsViewScope()
   const searchParams = route.useSearch()
-  const { sensitiveVisible, commonLogScope } = useUsageLogsContext()
+  const { sensitiveVisible, commonLogScope, organizationID } =
+    useUsageLogsContext()
   const userIDs =
     !platform && isAdmin && commonLogScope.type === 'members'
       ? commonLogScope.userIDs
       : undefined
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['usage-logs-stats', platform, isAdmin, userIDs, searchParams],
+    queryKey: [
+      'usage-logs-stats',
+      platform,
+      organizationID,
+      isAdmin,
+      userIDs,
+      searchParams,
+    ],
     queryFn: async () => {
       const params = buildApiParams({
         page: 1,
@@ -69,7 +77,7 @@ export function CommonLogsStats() {
       })
 
       const result = isAdmin
-        ? await getLogStats(params, platform)
+        ? await getLogStats(params, platform, organizationID)
         : await getUserLogStats(params, platform)
 
       return result.success

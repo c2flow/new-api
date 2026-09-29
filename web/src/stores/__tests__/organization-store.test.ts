@@ -21,8 +21,8 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 import { useOrganizationStore } from '../organization-store'
 
 const memberships = [
-  { id: 20, status: 1, membership_id: 8 },
-  { id: 10, status: 1, membership_id: 3 },
+  { id: 20, status: 1, membership_id: 8, join_source: 'invite' as const },
+  { id: 10, status: 1, membership_id: 3, join_source: 'owner' as const },
 ]
 
 beforeEach(() => {
@@ -43,7 +43,7 @@ test('a first visit selects the most recently joined organization', () => {
   expect(useOrganizationStore.getState().membershipSelectionReady).toBe(true)
 })
 
-test('an explicit personal selection is kept until a newer membership appears', () => {
+test('an explicit personal selection is kept for a platform-assigned membership', () => {
   useOrganizationStore.getState().bindUser(7)
   useOrganizationStore.getState().syncMemberships(memberships)
   useOrganizationStore.getState().select(null)
@@ -55,8 +55,11 @@ test('an explicit personal selection is kept until a newer membership appears', 
 
   useOrganizationStore
     .getState()
-    .syncMemberships([{ id: 30, status: 1, membership_id: 9 }, ...memberships])
-  expect(useOrganizationStore.getState().activeOrgID).toBe(30)
+    .syncMemberships([
+      { id: 30, status: 1, membership_id: 9, join_source: 'platform' },
+      ...memberships,
+    ])
+  expect(useOrganizationStore.getState().activeOrgID).toBeNull()
 })
 
 test('a legacy saved organization upgrades to the newest joined organization', () => {

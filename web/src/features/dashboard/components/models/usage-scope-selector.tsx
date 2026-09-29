@@ -16,8 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { UnfoldMoreIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -32,14 +33,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { UsageScope } from '@/features/dashboard/lib/usage-scope'
-import { getOrganizationMembers } from '@/features/organizations/api'
+import {
+  getOrganizationMembers,
+  getPlatformOrganizationMembers,
+} from '@/features/organizations/api'
 import type { OrganizationMember } from '@/features/organizations/types'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOrganizationStore } from '@/stores/organization-store'
 
 interface UsageScopeSelectionProps {
   value: UsageScope
   onChange: (value: UsageScope) => void
+  organizationID?: number
+  currentUserID?: number
+  triggerClassName?: string
 }
 
 interface UsageScopeSelectorProps extends UsageScopeSelectionProps {
@@ -52,18 +60,24 @@ interface UsageScopeSelectorProps extends UsageScopeSelectionProps {
 
 export function OrganizationUsageSelector(props: UsageScopeSelectionProps) {
   const userID = useAuthStore((state) => state.auth.user?.id)
-  const orgID = useOrganizationStore((state) => state.context?.organization?.id)
+  const activeOrgID = useOrganizationStore(
+    (state) => state.context?.organization?.id
+  )
+  const orgID = props.organizationID ?? activeOrgID
   const epoch = useOrganizationStore((state) => state.epoch)
   const members = useQuery({
     queryKey: ['organization-members', orgID, userID, epoch],
-    queryFn: getOrganizationMembers,
-    enabled: !!orgID && !!userID,
+    queryFn: () =>
+      props.organizationID != null
+        ? getPlatformOrganizationMembers(props.organizationID)
+        : getOrganizationMembers(),
+    enabled: !!orgID && !!(props.currentUserID ?? userID),
   })
   return (
     <UsageScopeSelector
       {...props}
       members={members.data ?? []}
-      currentUserID={userID ?? 0}
+      currentUserID={props.currentUserID ?? userID ?? 0}
       loading={members.isPending}
       error={members.isError}
       onRetry={() => void members.refetch()}
@@ -97,13 +111,23 @@ export function UsageScopeSelector(props: UsageScopeSelectorProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant='outline' size='sm' aria-label={t('Usage scope')} />
+          <Button
+            variant='outline'
+            size='default'
+            className={cn('font-normal', props.triggerClassName)}
+            aria-label={t('Usage scope')}
+          />
         }
       >
         <span className='max-w-52 truncate' title={label}>
           {label || t('Organization members')}
         </span>
-        <ChevronDown aria-hidden='true' />
+        <HugeiconsIcon
+          icon={UnfoldMoreIcon}
+          strokeWidth={2}
+          className='text-muted-foreground pointer-events-none size-4'
+          aria-hidden='true'
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align='end'

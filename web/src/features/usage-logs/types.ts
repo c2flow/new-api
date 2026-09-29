@@ -460,6 +460,7 @@ export interface GetTaskLogsParams {
  * Configuration for fetching logs by category
  */
 export interface FetchLogsConfig {
+  organizationID?: number
   platform?: boolean
   logCategory: LogCategory
   isAdmin: boolean

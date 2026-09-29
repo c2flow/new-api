@@ -15,6 +15,10 @@ func GetOrganizationSummary(c *gin.Context) {
 		organizationError(c, err)
 		return
 	}
+	getOrganizationSummary(c, org, member)
+}
+
+func getOrganizationSummary(c *gin.Context, org *model.Organization, member *model.OrganizationMember) {
 	usage, err := model.GetOrganizationMonthlyUsage(org.Id, common.GetTimestamp())
 	if err != nil {
 		common.ApiError(c, err)
@@ -36,7 +40,12 @@ func GetOrganizationSummary(c *gin.Context) {
 		usage = own
 	}
 	var memberCount, keyCount, requestCount int64
-	if err := usageScope(c).Apply(model.LOG_DB.Model(&model.Log{})).Where("type = ?", model.LogTypeConsume).Count(&requestCount).Error; err != nil {
+	usageScope := model.ResourceScope{
+		OrgID:      org.Id,
+		UserID:     member.UserId,
+		AllMembers: authz.CanOrg(member.UserId, org.Id, member.Role, authz.Permission{Resource: "org.usage", Action: "read_all"}),
+	}
+	if err := usageScope.Apply(model.LOG_DB.Model(&model.Log{})).Where("type = ?", model.LogTypeConsume).Count(&requestCount).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -44,34 +53,45 @@ func GetOrganizationSummary(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if err := tokenScope(c).Apply(model.DB.Model(&model.Token{})).Count(&keyCount).Error; err != nil {
+	if err := (model.TokenScope{OrgID: org.Id, UserID: member.UserId}).Apply(model.DB.Model(&model.Token{})).Count(&keyCount).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	available := max(int64(0), org.Quota)
-	if member.SpendLimit > 0 {
+	totalRemaining, monthlyRemaining := int64(0), int64(0)
+	totalLimitEnabled := member.SpendLimitEnabled || member.SpendLimit > 0
+	monthlyLimitEnabled := member.MonthlySpendLimitEnabled || member.MonthlySpendLimit > 0
+	if totalLimitEnabled {
 		var used int64
 		if err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(org.Id)).Where("user_id = ? AND status IN ?", member.UserId, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 			common.ApiError(c, err)
 			return
 		}
-		available = min(available, max(int64(0), member.SpendLimit-used))
+		totalRemaining = max(int64(0), member.SpendLimit-used)
+		available = min(available, totalRemaining)
 	}
 
-	if member.MonthlySpendLimit > 0 {
+	if monthlyLimitEnabled {
 		start, end := model.OrganizationMonthlyWindow(common.GetTimestamp())
 		var used int64
 		if err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(org.Id)).Where("user_id = ? AND created_at >= ? AND created_at < ? AND status IN ?", member.UserId, start, end, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 			common.ApiError(c, err)
 			return
 		}
-		available = min(available, max(int64(0), member.MonthlySpendLimit-used))
+		monthlyRemaining = max(int64(0), member.MonthlySpendLimit-used)
+		available = min(available, monthlyRemaining)
 	}
 	if !authz.CanOrg(member.UserId, org.Id, member.Role, authz.Permission{Resource: "org.billing", Action: "read"}) {
 		org.Quota = available
 		memberCount = 1
 	}
-	common.ApiSuccess(c, gin.H{"available_quota": available, "request_count": requestCount, "quota": org.Quota, "used_quota": org.UsedQuota, "group": org.Group, "usage": usage, "member_count": memberCount, "key_count": keyCount, "spend_limit": member.SpendLimit})
+	common.ApiSuccess(c, gin.H{
+		"available_quota": available, "request_count": requestCount, "quota": org.Quota,
+		"used_quota": org.UsedQuota, "group": org.Group, "usage": usage,
+		"member_count": memberCount, "key_count": keyCount, "spend_limit": member.SpendLimit,
+		"total_limit_enabled": totalLimitEnabled, "total_remaining_quota": totalRemaining,
+		"monthly_limit_enabled": monthlyLimitEnabled, "monthly_remaining_quota": monthlyRemaining,
+	})
 }
 
 func GetOrganizationSettings(c *gin.Context) {

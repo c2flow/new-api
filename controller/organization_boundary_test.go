@@ -49,7 +49,7 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, sqlDB.Close())
 	})
-	resources := []any{&model.User{}, &model.Organization{}, &model.OrganizationMember{}, &model.OrganizationAudit{}, &model.OrganizationTransfer{}, &model.OrganizationCharge{}, &model.Token{}, &model.Log{}, &model.TopUp{}, &model.UserSubscription{}, &model.SubscriptionOrder{}, &model.CasbinRule{}, &model.AuthzRole{}}
+	resources := []any{&model.User{}, &model.Organization{}, &model.OrganizationMember{}, &model.OrganizationAudit{}, &model.OrganizationTransfer{}, &model.OrganizationCharge{}, &model.Token{}, &model.Log{}, &model.QuotaData{}, &model.TopUp{}, &model.UserSubscription{}, &model.SubscriptionOrder{}, &model.CasbinRule{}, &model.AuthzRole{}}
 	for _, resource := range resources {
 		require.NoError(t, db.Migrator().DropTable(resource))
 	}
@@ -72,6 +72,11 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 	r.Use(func(c *gin.Context) { c.Set("id", owner.Id); c.Set("role", common.RoleRootUser); c.Next() })
 	r.GET("/organizations", ListOrganizations)
 	r.GET("/platform/organizations", PlatformListOrganizations)
+	r.GET("/platform/organizations/:org_id/summary", GetPlatformOrganizationSummary)
+	r.GET("/platform/organizations/:org_id/logs", GetPlatformOrganizationLogs)
+	r.GET("/platform/organizations/:org_id/logs/stat", GetPlatformOrganizationLogStats)
+	r.GET("/platform/organizations/:org_id/data", GetPlatformOrganizationQuotaDates)
+	r.GET("/platform/organizations/:org_id/data/flow", GetPlatformOrganizationFlowQuotaDates)
 	r.GET("/platform/organizations/:org_id/resources/:resource", PlatformOrganizationResources)
 	r.PUT("/platform/organizations/:org_id/status", PlatformChangeOrganizationStatus)
 	r.GET("/organizations/:org_id/deletion-impact", GetOrganizationDeletionImpact)
@@ -209,16 +214,53 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		result = request("GET", "/org/members", path, "")
 		assert.Contains(t, result.Body.String(), "monthly_usage")
 	})
+
+	t.Run("platform owner views stay scoped and use owner log visibility", func(t *testing.T) {
+		otherOwner := model.User{Username: "other-owner", AffCode: "other-owner", Status: 1}
+		require.NoError(t, db.Create(&otherOwner).Error)
+		otherTeam, err := model.CreateTeamOrganization(otherOwner.Id, "Other team")
+		require.NoError(t, err)
+		require.NoError(t, db.Create(&model.Log{OrgId: team.Id, UserId: owner.Id, Type: model.LogTypeConsume, ModelName: "team-model", Quota: 11, CreatedAt: common.GetTimestamp()}).Error)
+		require.NoError(t, db.Create(&model.Log{OrgId: otherTeam.Id, UserId: otherOwner.Id, Type: model.LogTypeConsume, ModelName: "other-model", Quota: 99, CreatedAt: common.GetTimestamp()}).Error)
+		hour := common.GetTimestamp() - common.GetTimestamp()%3600
+		require.NoError(t, db.Create(&model.QuotaData{OrgId: team.Id, UserID: owner.Id, Username: owner.Username, ModelName: "team-model", CreatedAt: hour, UseGroup: "default", Count: 1, Quota: 11}).Error)
+		require.NoError(t, db.Create(&model.QuotaData{OrgId: otherTeam.Id, UserID: otherOwner.Id, Username: otherOwner.Username, ModelName: "other-model", CreatedAt: hour, UseGroup: "default", Count: 1, Quota: 99}).Error)
+
+		id := strconv.Itoa(team.Id)
+		result := request("GET", "/platform/organizations/"+id+"/logs?type=2", "", "")
+		require.Equal(t, 200, result.Code, result.Body.String())
+		assert.Contains(t, result.Body.String(), "team-model")
+		assert.NotContains(t, result.Body.String(), "other-model")
+		assert.NotContains(t, result.Body.String(), "admin_info")
+
+		result = request("GET", "/platform/organizations/"+id+"/summary", "", "")
+		require.Equal(t, 200, result.Code, result.Body.String())
+		assert.Contains(t, result.Body.String(), `"member_count":1`)
+
+		start := hour - 1
+		end := hour + 3601
+		for _, path := range []string{
+			fmt.Sprintf("/platform/organizations/%s/data?start_timestamp=%d&end_timestamp=%d", id, start, end),
+			fmt.Sprintf("/platform/organizations/%s/data/flow?start_timestamp=%d&end_timestamp=%d", id, start, end),
+		} {
+			result = request("GET", path, "", "")
+			require.Equal(t, 200, result.Code, result.Body.String())
+			assert.Contains(t, result.Body.String(), "team-model")
+			assert.NotContains(t, result.Body.String(), "other-model")
+		}
+	})
 	t.Run("member total limit includes historical periods and supports partial limit updates", func(t *testing.T) {
 		path := fmt.Sprint(team.Id)
-		result := request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"spend_limit":100}`, owner.Id))
+		result := request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"spend_limit":100,"monthly_spend_limit":100}`, owner.Id))
 		require.Equal(t, 200, result.Code, result.Body.String())
-		require.NoError(t, db.Model(team).Update("quota", 1000).Error)
+		require.NoError(t, db.Model(team).Update("quota", 10).Error)
 		charge := model.OrganizationCharge{OrgId: team.Id, UserId: owner.Id, RequestId: "historic-total-summary", Quota: 40, Status: "settled", PeriodStart: 1, CreatedAt: 1}
 		require.NoError(t, db.Create(&charge).Error)
 		result = request("GET", "/org/summary", path, "")
 		require.Equal(t, 200, result.Code)
-		assert.Contains(t, result.Body.String(), `"available_quota":60`)
+		assert.Contains(t, result.Body.String(), `"available_quota":10`)
+		assert.Contains(t, result.Body.String(), `"total_remaining_quota":60`)
+		assert.Contains(t, result.Body.String(), `"monthly_remaining_quota":100`)
 		result = request("GET", "/org/members", path, "")
 		assert.Contains(t, result.Body.String(), `"used":40`)
 		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":20}`, owner.Id))

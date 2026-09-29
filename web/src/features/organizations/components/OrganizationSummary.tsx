@@ -28,11 +28,18 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatQuotaWithCurrency } from '@/lib/currency'
 
-import { getOrganizationSummary, organizationMutation } from '../api'
+import {
+  getOrganizationSummary,
+  getPlatformOrganizationSummary,
+  organizationMutation,
+} from '../api'
 import { useOrganization } from '../context'
 import { usePlatformView } from '../platform-view'
 
-export function OrganizationSummary() {
+export function OrganizationSummary(props: {
+  platformOrganization?: { id: number; name: string }
+  hideOwnerAndPersonalQuota?: boolean
+}) {
   const { t } = useTranslation()
   const context = useOrganization()
   const client = useQueryClient()
@@ -46,12 +53,19 @@ export function OrganizationSummary() {
     },
   })
   const platform = usePlatformView()
+  const platformOrganization = props.platformOrganization
   const summary = useQuery({
-    queryKey: ['organization-summary', context?.organization.id],
-    queryFn: getOrganizationSummary,
-    enabled: !platform && context !== null,
+    queryKey: [
+      'organization-summary',
+      platformOrganization?.id ?? context?.organization.id,
+    ],
+    queryFn: () =>
+      platformOrganization
+        ? getPlatformOrganizationSummary(platformOrganization.id)
+        : getOrganizationSummary(),
+    enabled: platformOrganization != null || (!platform && context !== null),
   })
-  if (platform) {
+  if (platform && platformOrganization == null) {
     return (
       <div className='bg-muted/30 rounded-xl border px-4 py-3 text-sm'>
         {t('Platform administration')} ·{' '}
@@ -59,21 +73,34 @@ export function OrganizationSummary() {
       </div>
     )
   }
-  if (context === null) return null
+  if (context === null && platformOrganization == null) return null
   const data = summary.data
   const roleLabels = {
     owner: t('Owner'),
     admin: t('Admin'),
     member: t('Member'),
   }
-  const remainingLabel = data
-    ? formatQuotaWithCurrency(data.available_quota)
-    : ''
+  let roleLabel = ''
+  if (platformOrganization) {
+    roleLabel = roleLabels.owner
+  } else if (context?.membership) {
+    roleLabel = roleLabels[context.membership.role]
+  }
+  let totalRemainingLabel = ''
+  let monthlyRemainingLabel = ''
+  if (data) {
+    totalRemainingLabel = data.total_limit_enabled
+      ? formatQuotaWithCurrency(data.total_remaining_quota)
+      : t('Unlimited')
+    monthlyRemainingLabel = data.monthly_limit_enabled
+      ? formatQuotaWithCurrency(data.monthly_remaining_quota)
+      : t('Unlimited')
+  }
   return (
     <div className='bg-card flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border px-5 py-4 shadow-xs'>
       <div className='flex min-w-0 items-center gap-3'>
         <span className='bg-primary/10 text-primary rounded-xl p-2'>
-          {context.logo ? (
+          {platformOrganization == null && context?.logo ? (
             <img
               src={context.logo}
               alt=''
@@ -85,23 +112,36 @@ export function OrganizationSummary() {
         </span>
         <div className='min-w-0'>
           <div className='flex items-center gap-2'>
-            <strong className='truncate'>{context.organization.name}</strong>
-            <Badge variant='secondary'>
-              {context.membership ? roleLabels[context.membership.role] : ''}
-            </Badge>
+            <strong className='truncate'>
+              {platformOrganization?.name ?? context?.organization.name}
+            </strong>
+            {!props.hideOwnerAndPersonalQuota && (
+              <Badge variant='secondary'>{roleLabel}</Badge>
+            )}
           </div>
           <span className='text-muted-foreground text-xs'>
             {t('Organization usage')}
           </span>
         </div>
       </div>
-      <div className='text-muted-foreground text-xs'>
-        {t('My remaining limit')}
-        <strong className='text-foreground mt-1 block text-base'>
-          {data ? remainingLabel : <Skeleton className='h-5 w-20' />}
-        </strong>
-      </div>
-      {context.capabilities.org['org.billing']?.read === true && (
+      {!props.hideOwnerAndPersonalQuota && (
+        <div className='text-muted-foreground text-xs'>
+          {t('Total remaining limit')}
+          <strong className='text-foreground mt-1 block text-base'>
+            {data ? totalRemainingLabel : <Skeleton className='h-5 w-20' />}
+          </strong>
+        </div>
+      )}
+      {!props.hideOwnerAndPersonalQuota && (
+        <div className='text-muted-foreground text-xs'>
+          {t('Monthly remaining limit')}
+          <strong className='text-foreground mt-1 block text-base'>
+            {data ? monthlyRemainingLabel : <Skeleton className='h-5 w-20' />}
+          </strong>
+        </div>
+      )}
+      {(platformOrganization != null ||
+        context?.capabilities.org['org.billing']?.read === true) && (
         <div className='text-muted-foreground text-xs'>
           {t('Organization wallet')}
           <strong className='text-foreground mt-1 block text-base'>
@@ -113,7 +153,7 @@ export function OrganizationSummary() {
           </strong>
         </div>
       )}
-      {context.pending_transfer && (
+      {context?.pending_transfer && platformOrganization == null && (
         <>
           <Button variant='outline' onClick={() => setConfirmTransfer(true)}>
             {t('Accept ownership')}
@@ -136,29 +176,37 @@ export function OrganizationSummary() {
           </Dialog>
         </>
       )}
-      <div className='ms-auto flex flex-wrap items-center gap-2'>
-        <Button
-          variant='outline'
-          size='sm'
-          render={
-            <Link to='/organization/$section' params={{ section: 'members' }} />
-          }
-        >
-          <Users />
-          {t('Members')}
-          {data && ` · ${data.member_count}`}
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          render={
-            <Link to='/organization/$section' params={{ section: 'billing' }} />
-          }
-        >
-          <Wallet />
-          {t('Wallet')}
-        </Button>
-      </div>
+      {platformOrganization == null && (
+        <div className='ms-auto flex flex-wrap items-center gap-2'>
+          <Button
+            variant='outline'
+            size='sm'
+            render={
+              <Link
+                to='/organization/$section'
+                params={{ section: 'members' }}
+              />
+            }
+          >
+            <Users />
+            {t('Members')}
+            {data && ` · ${data.member_count}`}
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            render={
+              <Link
+                to='/organization/$section'
+                params={{ section: 'billing' }}
+              />
+            }
+          >
+            <Wallet />
+            {t('Wallet')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
