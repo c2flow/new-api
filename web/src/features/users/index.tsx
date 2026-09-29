@@ -38,7 +38,9 @@ function UsersContent() {
           <UsersPrimaryButtons />
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
-          <UsersTable />
+          <div data-tutorial='user-management' className='h-full'>
+            <UsersTable />
+          </div>
         </SectionPageLayout.Content>
       </SectionPageLayout>
 

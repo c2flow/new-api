@@ -16,22 +16,32 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Plus } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+export type TutorialTrackID = 'quickstart' | 'organization' | 'admin'
 
-import { Button } from '@/components/ui/button'
+export type OrganizationTutorialRole = 'owner' | 'admin' | 'member'
 
-import { useApiKeys } from './api-keys-context'
+export type TutorialStep = {
+  id: string
+  titleKey: string
+  descriptionKey: string
+  href: string
+  target: string
+  advanceOn?:
+    | 'click'
+    | 'input'
+    | 'paste-api-key'
+    | 'copy-curl'
+    | 'request-log'
+    | 'api-key-created'
+    | 'api-key-copied'
+  inputEvent?: 'input' | 'change'
+  minimumInputLength?: number
+  code?: 'curl-key' | 'curl-copy' | 'curl-wait'
+}
 
-export function ApiKeysPrimaryButtons() {
-  const { t } = useTranslation()
-  const { setOpen } = useApiKeys()
-  return (
-    <div className='flex gap-2' data-tutorial='create-api-key'>
-      <Button size='sm' onClick={() => setOpen('create')}>
-        <Plus className='h-4 w-4' />
-        {t('Create API Key')}
-      </Button>
-    </div>
-  )
+export type TutorialTrack = {
+  id: TutorialTrackID
+  titleKey: string
+  descriptionKey: string
+  steps: TutorialStep[]
 }

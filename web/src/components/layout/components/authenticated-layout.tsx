@@ -26,6 +26,7 @@ import { SearchProvider } from '@/context/search-provider'
 import { OrganizationSwitcher } from '@/features/organizations/components/OrganizationSwitcher'
 import { useHasTeamOrganizations } from '@/features/organizations/context'
 import { OrganizationBoundary } from '@/features/organizations/OrganizationBoundary'
+import { TutorialCoach } from '@/features/tutorial/components/tutorial-coach'
 import { getCookie } from '@/lib/cookies'
 import { cn } from '@/lib/utils'
 
@@ -69,6 +70,7 @@ export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
                 {props.children ?? <AnimatedOutlet />}
               </SidebarInset>
             </div>
+            <TutorialCoach />
           </SidebarProvider>
         </SearchProvider>
       </LayoutProvider>

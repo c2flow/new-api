@@ -25,6 +25,7 @@ type SettingsSectionProps = {
   titleProps?: React.HTMLAttributes<HTMLHeadingElement>
   children: React.ReactNode
   className?: string
+  tutorialTarget?: string
 }
 
 export function SettingsSection({
@@ -32,11 +33,15 @@ export function SettingsSection({
   titleProps,
   children,
   className,
+  tutorialTarget,
 }: SettingsSectionProps) {
   const suppressHeader = useSuppressSettingsSectionHeader()
 
   return (
-    <section className={cn('flex flex-col gap-4', className)}>
+    <section
+      className={cn('flex flex-col gap-4', className)}
+      data-tutorial={tutorialTarget}
+    >
       {!suppressHeader && (
         <div className='flex flex-col gap-1'>
           <h3

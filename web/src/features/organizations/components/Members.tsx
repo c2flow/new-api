@@ -137,7 +137,7 @@ export function Members() {
     )
   }
   return (
-    <div className='flex flex-col gap-5'>
+    <div className='flex flex-col gap-5' data-tutorial='organization-members'>
       {limitsDialog && (
         <MemberLimitsDialog
           members={limitsDialog.members}
@@ -161,7 +161,10 @@ export function Members() {
           />
         </InputGroup>
         {manage && (
-          <Button onClick={() => setDialog('invite')}>
+          <Button
+            data-tutorial='invite-member'
+            onClick={() => setDialog('invite')}
+          >
             <UserPlus />
             {t('Invite member')}
           </Button>

@@ -472,11 +472,13 @@ export function RatioSettingsCard({
       ))}
     </TabsList>
   )
+  const tutorialTarget =
+    titleKey === 'Group Pricing' ? 'group-pricing' : 'model-pricing'
 
   return (
     <>
       {visibleTabs.length === 1 ? (
-        <SettingsSection title={t(titleKey)}>
+        <SettingsSection title={t(titleKey)} tutorialTarget={tutorialTarget}>
           {renderTabContent(defaultTab)}
         </SettingsSection>
       ) : (
@@ -485,7 +487,11 @@ export function RatioSettingsCard({
             {renderTabSwitcher()}
           </SettingsPageTitleStatusPortal>
 
-          <SettingsSection title={t(titleKey)} className='min-h-0 flex-1'>
+          <SettingsSection
+            title={t(titleKey)}
+            className='min-h-0 flex-1'
+            tutorialTarget={tutorialTarget}
+          >
             {visibleTabs.map((tab) => (
               <TabsContent key={tab} value={tab} className='min-h-0'>
                 {renderTabContent(tab)}

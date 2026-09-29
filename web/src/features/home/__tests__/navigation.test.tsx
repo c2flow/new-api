@@ -128,6 +128,9 @@ test('signed-out console entry preserves the dashboard destination through sign-
     'href',
     '/pricing'
   )
+  expect(
+    screen.queryByRole('link', { name: 'Usage tutorial' })
+  ).not.toBeInTheDocument()
 })
 
 test('signed-in console entry goes directly to the dashboard and supports keyboard focus', async () => {
@@ -141,6 +144,9 @@ test('signed-in console entry goes directly to the dashboard and supports keyboa
   expect(
     within(main).getByRole('link', { name: 'Browse Models' })
   ).toHaveFocus()
+  expect(
+    within(main).getByRole('link', { name: 'Usage tutorial' })
+  ).toHaveAttribute('href', '/tutorial')
 })
 
 test('switching to Chinese displays the requested title and subtitle', async () => {

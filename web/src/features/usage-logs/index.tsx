@@ -175,7 +175,7 @@ function UsageLogsContent() {
                 </TabsList>
               </Tabs>
             )}
-            <div className='min-h-0 flex-1'>
+            <div className='min-h-0 flex-1' data-tutorial='usage-logs'>
               <UsageLogsTable logCategory={activeCategory} />
             </div>
           </div>

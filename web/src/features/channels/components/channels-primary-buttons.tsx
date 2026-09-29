@@ -151,6 +151,7 @@ export function ChannelsPrimaryButtons() {
         <Tooltip>
           <TooltipTrigger render={<span className='inline-flex' />}>
             <Button
+              data-tutorial='create-channel'
               onClick={() => {
                 if (!canEditSensitive) return
                 setCurrentRow(null)

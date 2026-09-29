@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Activity,
+  BookOpen,
   Box,
   CreditCard,
   FileText,
@@ -97,6 +98,11 @@ export function useSidebarData(): SidebarData {
             title: t('Usage Logs'),
             url: '/usage-logs/common',
             icon: FileText,
+          },
+          {
+            title: t('Usage tutorial'),
+            url: '/tutorial',
+            icon: BookOpen,
           },
           {
             title: t('Task Logs'),

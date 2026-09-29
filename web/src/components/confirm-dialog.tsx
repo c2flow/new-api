@@ -43,6 +43,7 @@ type ConfirmDialogProps = {
   isLoading?: boolean
   className?: string
   children?: React.ReactNode
+  tutorialTarget?: string
 }
 
 export function ConfirmDialog(props: ConfirmDialogProps) {
@@ -58,11 +59,12 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
     isLoading,
     disabled = false,
     handleConfirm,
+    tutorialTarget,
     ...actions
   } = props
   return (
     <AlertDialog {...actions}>
-      <AlertDialogContent className={cn(className && className)}>
+      <AlertDialogContent className={cn(className)}>
         <AlertDialogHeader className='text-start'>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription render={<div />}>
@@ -75,6 +77,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
             {cancelBtnText ?? t('Cancel')}
           </AlertDialogCancel>
           <Button
+            data-tutorial={tutorialTarget}
             variant={destructive ? 'destructive' : 'default'}
             onClick={handleConfirm}
             disabled={disabled || isLoading}

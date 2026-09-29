@@ -74,6 +74,7 @@ export function OrganizationSwitcher() {
       <PopoverTrigger
         render={
           <Button
+            data-tutorial='organization-switcher'
             variant='ghost'
             className='mt-org-trigger'
             aria-label={t('Switch organization')}
