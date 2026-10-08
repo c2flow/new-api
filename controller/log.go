@@ -10,6 +10,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// User-facing log responses omit channel metadata even when it is present in the model.
+type userLogResponse struct {
+	*model.Log
+	Channel     *int    `json:"channel,omitempty"`
+	ChannelName *string `json:"channel_name,omitempty"`
+}
+
+func userLogResponses(logs []*model.Log) []userLogResponse {
+	items := make([]userLogResponse, len(logs))
+	for i, log := range logs {
+		items[i] = userLogResponse{Log: log}
+	}
+	return items
+}
+
 func GetAllLogs(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	logType, _ := strconv.Atoi(c.Query("type"))
@@ -66,7 +81,7 @@ func GetLogByKey(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logs,
+		"data":    userLogResponses(logs),
 	})
 }
 
