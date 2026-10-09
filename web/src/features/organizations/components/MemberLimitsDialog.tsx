@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Switch } from '@/components/ui/switch'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 
 import { organizationMutation } from '../api'
@@ -157,33 +158,55 @@ export function MemberLimitsDialog(props: {
           </p>
           {fields.map((field) => (
             <Field key={field} data-invalid={!!form.formState.errors[field]}>
-              <FieldLabel htmlFor={field}>
-                {labels[field]} ({getCurrencyLabel()})
-              </FieldLabel>
-              <NativeSelect
-                aria-label={`${labels[field]} ${t('Limit mode')}`}
-                value={values[field].mode}
-                disabled={mutation.isPending}
-                onChange={(event) =>
-                  form.setValue(
-                    `${field}.mode`,
-                    event.target.value as z.infer<typeof limit>['mode'],
-                    { shouldValidate: true }
-                  )
-                }
-              >
-                {batch && (
+              <div className='flex flex-wrap items-center justify-between gap-3'>
+                <FieldLabel htmlFor={field}>
+                  {labels[field]} ({getCurrencyLabel()})
+                </FieldLabel>
+                {!batch && (
+                  <div className='flex items-center gap-2'>
+                    <FieldLabel htmlFor={`${field}-enabled`}>
+                      <span className='sr-only'>{labels[field]}</span>{' '}
+                      {t('Set spending limit')}
+                    </FieldLabel>
+                    <Switch
+                      id={`${field}-enabled`}
+                      checked={values[field].mode === 'limited'}
+                      disabled={mutation.isPending}
+                      onCheckedChange={(checked) =>
+                        form.setValue(
+                          `${field}.mode`,
+                          checked ? 'limited' : 'unlimited',
+                          { shouldValidate: true }
+                        )
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+              {batch && (
+                <NativeSelect
+                  aria-label={`${labels[field]} ${t('Limit mode')}`}
+                  value={values[field].mode}
+                  disabled={mutation.isPending}
+                  onChange={(event) =>
+                    form.setValue(
+                      `${field}.mode`,
+                      event.target.value as z.infer<typeof limit>['mode'],
+                      { shouldValidate: true }
+                    )
+                  }
+                >
                   <NativeSelectOption value='unchanged'>
                     {t('Keep unchanged')}
                   </NativeSelectOption>
-                )}
-                <NativeSelectOption value='unlimited'>
-                  {t('Unlimited')}
-                </NativeSelectOption>
-                <NativeSelectOption value='limited'>
-                  {t('Set spending limit')}
-                </NativeSelectOption>
-              </NativeSelect>
+                  <NativeSelectOption value='unlimited'>
+                    {t('Unlimited')}
+                  </NativeSelectOption>
+                  <NativeSelectOption value='limited'>
+                    {t('Set spending limit')}
+                  </NativeSelectOption>
+                </NativeSelect>
+              )}
               <Input
                 id={field}
                 type='number'

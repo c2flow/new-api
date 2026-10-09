@@ -25,6 +25,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { createInstance } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
@@ -163,20 +164,38 @@ test.each([false, true])(
       batch,
       close,
     })
-    fireEvent.change(
-      screen.getByRole('combobox', { name: 'Total spending limit Limit mode' }),
-      { target: { value: 'limited' } }
-    )
+    if (batch) {
+      fireEvent.change(
+        screen.getByRole('combobox', {
+          name: 'Total spending limit Limit mode',
+        }),
+        { target: { value: 'limited' } }
+      )
+    } else {
+      fireEvent.click(
+        screen.getByRole('switch', {
+          name: 'Total spending limit Set spending limit',
+        })
+      )
+    }
     fireEvent.change(
       screen.getByRole('spinbutton', { name: /Total spending limit/ }),
       { target: { value: '20' } }
     )
-    fireEvent.change(
-      screen.getByRole('combobox', {
-        name: 'Monthly spending limit Limit mode',
-      }),
-      { target: { value: 'limited' } }
-    )
+    if (batch) {
+      fireEvent.change(
+        screen.getByRole('combobox', {
+          name: 'Monthly spending limit Limit mode',
+        }),
+        { target: { value: 'limited' } }
+      )
+    } else {
+      fireEvent.click(
+        screen.getByRole('switch', {
+          name: 'Monthly spending limit Set spending limit',
+        })
+      )
+    }
     fireEvent.change(
       screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
       { target: { value: '5' } }
@@ -205,10 +224,6 @@ test('setting an existing monthly cap to zero blocks spending', async () => {
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
   ).toHaveValue(2)
   fireEvent.change(
-    screen.getByRole('combobox', { name: 'Monthly spending limit Limit mode' }),
-    { target: { value: 'limited' } }
-  )
-  fireEvent.change(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
     { target: { value: '0' } }
   )
@@ -230,10 +245,6 @@ test('setting an existing total cap to zero blocks spending', async () => {
     close,
   })
   fireEvent.change(
-    screen.getByRole('combobox', { name: 'Total spending limit Limit mode' }),
-    { target: { value: 'limited' } }
-  )
-  fireEvent.change(
     screen.getByRole('spinbutton', { name: /Total spending limit/ }),
     { target: { value: '0' } }
   )
@@ -252,9 +263,10 @@ test('invalid monthly amounts cannot submit and failed requests retain the form'
   const close = vi.fn()
   response.success = false
   renderDialog({ members: [member], close })
-  fireEvent.change(
-    screen.getByRole('combobox', { name: 'Monthly spending limit Limit mode' }),
-    { target: { value: 'limited' } }
+  fireEvent.click(
+    screen.getByRole('switch', {
+      name: 'Monthly spending limit Set spending limit',
+    })
   )
   fireEvent.change(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
@@ -268,10 +280,6 @@ test('invalid monthly amounts cannot submit and failed requests retain the form'
     ).toHaveAttribute('aria-invalid', 'true')
   )
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
-  fireEvent.change(
-    screen.getByRole('combobox', { name: 'Monthly spending limit Limit mode' }),
-    { target: { value: 'limited' } }
-  )
   fireEvent.change(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
     { target: { value: '1' } }
@@ -438,14 +446,13 @@ test.each(['Total spending limit', 'Monthly spending limit'])(
     const close = vi.fn()
     renderDialog({ members: [{ ...member, [field]: 0 }], close })
     expect(
-      screen.getByRole('combobox', { name: `${label} Limit mode` })
-    ).toHaveValue('limited')
+      screen.getByRole('switch', { name: `${label} Set spending limit` })
+    ).toBeChecked()
     expect(
       screen.getByRole('spinbutton', { name: new RegExp(label) })
     ).toHaveValue(0)
-    fireEvent.change(
-      screen.getByRole('combobox', { name: `${label} Limit mode` }),
-      { target: { value: 'unlimited' } }
+    fireEvent.click(
+      screen.getByRole('switch', { name: `${label} Set spending limit` })
     )
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
@@ -466,10 +473,14 @@ test.each(['Total spending limit', 'Monthly spending limit'])(
       label === 'Total spending limit' ? 'spend_limit' : 'monthly_spend_limit'
     const close = vi.fn()
     renderDialog({ members: [member], close })
-    fireEvent.change(
-      screen.getByRole('combobox', { name: `${label} Limit mode` }),
-      { target: { value: 'limited' } }
-    )
+    const toggle = screen.getByRole('switch', {
+      name: `${label} Set spending limit`,
+    })
+    expect(toggle).not.toBeChecked()
+    expect(
+      screen.getByRole('spinbutton', { name: new RegExp(label) })
+    ).toBeDisabled()
+    fireEvent.click(toggle)
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
     )
@@ -498,4 +509,37 @@ test('a zero monthly cap is visible and displayed as a numeric limit', () => {
   const row = within(screen.getByRole('row', { name: /Owner/ }))
   expect(row.queryByText('Unlimited')).not.toBeInTheDocument()
   expect(row.getAllByText('$0')).toHaveLength(2)
+})
+
+test('keyboard toggling keeps the entered amount and only saves on submit', async () => {
+  const user = userEvent.setup()
+  const close = vi.fn()
+  renderDialog({ members: [member], close })
+  const toggle = screen.getByRole('switch', {
+    name: 'Total spending limit Set spending limit',
+  })
+  const amount = screen.getByRole('spinbutton', {
+    name: /Total spending limit/,
+  })
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  toggle.focus()
+  await user.keyboard('[Space]')
+  expect(toggle).toBeChecked()
+  expect(amount).toBeEnabled()
+  await user.clear(amount)
+  await user.type(amount, '7')
+  await user.click(toggle)
+  expect(toggle).not.toBeChecked()
+  expect(amount).toBeDisabled()
+  expect(amount).toHaveAttribute('placeholder', 'Unlimited')
+  await user.keyboard('[Space]')
+  expect(toggle).toBeChecked()
+  expect(amount).toHaveValue(7)
+  expect(requests).toHaveLength(0)
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(close).toHaveBeenCalledOnce())
+  expect(JSON.parse(requests[0].data)).toEqual({
+    user_ids: [1],
+    spend_limit: 3500000,
+  })
 })
