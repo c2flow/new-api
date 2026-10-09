@@ -122,7 +122,7 @@ export function Members() {
     (member) => member.status === 1 && selectedIDs.includes(member.user_id)
   )
   const showMonthly = (members.data ?? []).some(
-    (member) => (member.monthly_spend_limit ?? 0) > 0
+    (member) => member.monthly_spend_limit !== null
   )
   if (members.isError) {
     return (
@@ -307,9 +307,9 @@ export function Members() {
                     ].map(({ key, limit, usage }) => (
                       <TableCell key={key} className='tabular-nums'>
                         <p>
-                          {limit
-                            ? formatQuotaWithCurrency(limit)
-                            : t('Unlimited')}
+                          {limit === null
+                            ? t('Unlimited')
+                            : formatQuotaWithCurrency(limit)}
                         </p>
                         <p className='text-muted-foreground text-xs'>
                           {t('Used')}:{' '}

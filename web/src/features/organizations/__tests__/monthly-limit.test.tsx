@@ -55,7 +55,8 @@ const member: OrganizationMember = {
   user_id: 1,
   role: 'owner',
   status: 1,
-  spend_limit: 0,
+  spend_limit: null,
+  monthly_spend_limit: null,
   email: 'owner@example.test',
   username: 'owner',
   display_name: 'Owner',
@@ -133,6 +134,10 @@ test.each(['Total spending limit', 'Monthly spending limit'])(
     renderDialog({ members: [member, { ...member, id: 2, user_id: 2 }], close })
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     fireEvent.change(
+      screen.getByRole('combobox', { name: new RegExp(`${label} Limit mode`) }),
+      { target: { value: 'limited' } }
+    )
+    fireEvent.change(
       screen.getByRole('spinbutton', { name: new RegExp(label) }),
       { target: { value: '2' } }
     )
@@ -159,8 +164,18 @@ test.each([false, true])(
       close,
     })
     fireEvent.change(
+      screen.getByRole('combobox', { name: 'Total spending limit Limit mode' }),
+      { target: { value: 'limited' } }
+    )
+    fireEvent.change(
       screen.getByRole('spinbutton', { name: /Total spending limit/ }),
       { target: { value: '20' } }
+    )
+    fireEvent.change(
+      screen.getByRole('combobox', {
+        name: 'Monthly spending limit Limit mode',
+      }),
+      { target: { value: 'limited' } }
     )
     fireEvent.change(
       screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
@@ -180,7 +195,7 @@ test.each([false, true])(
   }
 )
 
-test('turning off an existing monthly cap submits zero', async () => {
+test('setting an existing monthly cap to zero blocks spending', async () => {
   const close = vi.fn()
   renderDialog({
     members: [{ ...member, monthly_spend_limit: 1000000 }],
@@ -189,6 +204,10 @@ test('turning off an existing monthly cap submits zero', async () => {
   expect(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
   ).toHaveValue(2)
+  fireEvent.change(
+    screen.getByRole('combobox', { name: 'Monthly spending limit Limit mode' }),
+    { target: { value: 'limited' } }
+  )
   fireEvent.change(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
     { target: { value: '0' } }
@@ -204,12 +223,16 @@ test('turning off an existing monthly cap submits zero', async () => {
   })
 })
 
-test('turning off an existing total cap submits zero', async () => {
+test('setting an existing total cap to zero blocks spending', async () => {
   const close = vi.fn()
   renderDialog({
     members: [{ ...member, spend_limit: 1000000 }],
     close,
   })
+  fireEvent.change(
+    screen.getByRole('combobox', { name: 'Total spending limit Limit mode' }),
+    { target: { value: 'limited' } }
+  )
   fireEvent.change(
     screen.getByRole('spinbutton', { name: /Total spending limit/ }),
     { target: { value: '0' } }
@@ -230,6 +253,10 @@ test('invalid monthly amounts cannot submit and failed requests retain the form'
   response.success = false
   renderDialog({ members: [member], close })
   fireEvent.change(
+    screen.getByRole('combobox', { name: 'Monthly spending limit Limit mode' }),
+    { target: { value: 'limited' } }
+  )
+  fireEvent.change(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
     {
       target: { value: '1e100' },
@@ -241,6 +268,10 @@ test('invalid monthly amounts cannot submit and failed requests retain the form'
     ).toHaveAttribute('aria-invalid', 'true')
   )
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  fireEvent.change(
+    screen.getByRole('combobox', { name: 'Monthly spending limit Limit mode' }),
+    { target: { value: 'limited' } }
+  )
   fireEvent.change(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ }),
     { target: { value: '1' } }
@@ -320,10 +351,10 @@ test('Set spending limits opens both limits directly with no monthly column', as
   )
   expect(
     screen.getByRole('spinbutton', { name: /Monthly spending limit/ })
-  ).toHaveValue(0)
+  ).toHaveValue(null)
   expect(
     screen.getByRole('spinbutton', { name: /Total spending limit/ })
-  ).toHaveValue(0)
+  ).toHaveValue(null)
 })
 
 test('total and monthly limits show matching usage rows with nonzero reservations', async () => {
@@ -397,4 +428,74 @@ test('unlimited members still show both usage amounts when the monthly column is
   expect(
     screen.queryByRole('columnheader', { name: 'Total spending' })
   ).not.toBeInTheDocument()
+})
+
+test.each(['Total spending limit', 'Monthly spending limit'])(
+  'zero and unlimited remain distinct when editing %s',
+  async (label) => {
+    const field =
+      label === 'Total spending limit' ? 'spend_limit' : 'monthly_spend_limit'
+    const close = vi.fn()
+    renderDialog({ members: [{ ...member, [field]: 0 }], close })
+    expect(
+      screen.getByRole('combobox', { name: `${label} Limit mode` })
+    ).toHaveValue('limited')
+    expect(
+      screen.getByRole('spinbutton', { name: new RegExp(label) })
+    ).toHaveValue(0)
+    fireEvent.change(
+      screen.getByRole('combobox', { name: `${label} Limit mode` }),
+      { target: { value: 'unlimited' } }
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(JSON.parse(requests[0].data)).toEqual({
+      user_ids: [1],
+      [field]: null,
+    })
+  }
+)
+
+test.each(['Total spending limit', 'Monthly spending limit'])(
+  'an unlimited %s can be set to zero',
+  async (label) => {
+    const field =
+      label === 'Total spending limit' ? 'spend_limit' : 'monthly_spend_limit'
+    const close = vi.fn()
+    renderDialog({ members: [member], close })
+    fireEvent.change(
+      screen.getByRole('combobox', { name: `${label} Limit mode` }),
+      { target: { value: 'limited' } }
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(JSON.parse(requests[0].data)).toEqual({ user_ids: [1], [field]: 0 })
+  }
+)
+
+test('a zero monthly cap is visible and displayed as a numeric limit', () => {
+  client.setQueryData(
+    ['organization-members', 10],
+    [{ ...member, spend_limit: 0, monthly_spend_limit: 0 }]
+  )
+  client.setQueryData(['organization-invites', 10], [])
+  render(
+    <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={client}>
+        <Members />
+      </QueryClientProvider>
+    </I18nextProvider>
+  )
+  expect(
+    screen.getByRole('columnheader', { name: 'Monthly spending limit' })
+  ).toBeVisible()
+  const row = within(screen.getByRole('row', { name: /Owner/ }))
+  expect(row.queryByText('Unlimited')).not.toBeInTheDocument()
+  expect(row.getAllByText('$0')).toHaveLength(2)
 })

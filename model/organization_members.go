@@ -20,7 +20,7 @@ type OrganizationMembership struct {
 	Organization
 	Logo         string `json:"logo,omitempty" gorm:"-"`
 	Role         string `json:"role"`
-	SpendLimit   int64  `json:"spend_limit"`
+	SpendLimit   *int64 `json:"spend_limit"`
 	JoinSource   string `json:"join_source,omitempty" gorm:"-"`
 	MembershipId int    `json:"membership_id"`
 	JoinedAt     int64  `json:"joined_at"`

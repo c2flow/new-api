@@ -78,7 +78,7 @@ const team: OrganizationMembership = {
   budget_period_start: 0,
   budget_period_end: 0,
   role: 'owner',
-  spend_limit: 0,
+  spend_limit: null,
   membership_id: 1,
   joined_at: 1,
 }
@@ -89,7 +89,8 @@ const teamContext = {
     org_id: 2,
     user_id: 1,
     role: 'owner' as const,
-    spend_limit: 0,
+    spend_limit: null,
+    monthly_spend_limit: null,
     status: 1,
     username: 'owner',
     display_name: '',
@@ -103,7 +104,7 @@ const teamSettings = {
   transfers: [],
   settings: {
     logo: '',
-    default_spend_limit: 0,
+    default_spend_limit: null,
   },
 }
 const originalAdapter = api.defaults.adapter
@@ -188,7 +189,7 @@ test('personal-only accounts do not see the organization summary panel', () => {
   expect(screen.queryByText('Monthly remaining limit')).not.toBeInTheDocument()
 })
 
-test('organization summary shows member limits independently from the wallet', () => {
+test('organization summary shows member limits independently from the wallet', async () => {
   useOrganizationStore.setState({ activeOrgID: team.id, context: teamContext })
   client.setQueryData(['organization-summary', team.id], {
     available_quota: 500000,
@@ -201,9 +202,9 @@ test('organization summary shows member limits independently from the wallet', (
     usage: [],
   })
 
-  renderPage(OrganizationSummary)
+  renderPage(() => <OrganizationSummary />)
 
-  expect(screen.getByText('Total remaining limit')).toBeVisible()
+  expect(await screen.findByText('Total remaining limit')).toBeVisible()
   expect(screen.getByText('Monthly remaining limit')).toBeVisible()
   expect(screen.getByText('$15')).toBeVisible()
   expect(screen.getByText('$5')).toBeVisible()
@@ -754,9 +755,7 @@ test('only the super administrator can directly add an organization member', asy
   }
   renderPage(PlatformOrganizations)
   fireEvent.click(await screen.findByRole('button', { name: 'Details' }))
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Add member' })
-  )
+  fireEvent.click(screen.getByRole('button', { name: 'Add member' }))
   const dialog = await screen.findByRole('dialog', {
     name: 'Add member',
   })

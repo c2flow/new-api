@@ -91,6 +91,9 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 		if err := tx.Scopes(OrgScope(orgID)).Where("user_id = ? AND status = ?", userID, OrganizationActive).First(&member).Error; err != nil {
 			return ErrOrganizationAccess
 		}
+		if (member.SpendLimit != nil && *member.SpendLimit == 0) || (member.MonthlySpendLimit != nil && *member.MonthlySpendLimit == 0) {
+			return ErrMemberSpendLimit
+		}
 		now := common.GetTimestamp()
 		if org.BudgetPeriodEnd <= now {
 			org.BudgetPeriodStart, org.BudgetPeriodEnd = OrganizationMonthlyWindow(now)
@@ -108,17 +111,17 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 				return err
 			}
 		}
-		if member.SpendLimitEnabled || member.SpendLimit > 0 {
+		if member.SpendLimit != nil {
 			var used int64
 			if err := tx.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("user_id = ? AND status IN ?", userID, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 				return err
 			}
-			if used > member.SpendLimit || delta > member.SpendLimit-used {
+			if used > *member.SpendLimit || delta > *member.SpendLimit-used {
 				return ErrMemberSpendLimit
 			}
 		}
 
-		if member.MonthlySpendLimitEnabled || member.MonthlySpendLimit > 0 {
+		if member.MonthlySpendLimit != nil {
 			timestamp := now
 			if receipt.Id != 0 {
 				timestamp = receipt.CreatedAt
@@ -128,7 +131,7 @@ func reserveOrganizationCharge(orgID, userID, tokenID int, requestID string, amo
 			if err := tx.Model(&OrganizationCharge{}).Scopes(OrgScope(orgID)).Where("user_id = ? AND created_at >= ? AND created_at < ? AND status IN ?", userID, start, end, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 				return err
 			}
-			if used > member.MonthlySpendLimit || delta > member.MonthlySpendLimit-used {
+			if used > *member.MonthlySpendLimit || delta > *member.MonthlySpendLimit-used {
 				return ErrMemberSpendLimit
 			}
 		}

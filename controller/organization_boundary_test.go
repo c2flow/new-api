@@ -182,8 +182,8 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 			require.Equal(t, 200, result.Code)
 			require.NoError(t, db.First(&membership, membership.Id).Error)
 			assert.Equal(t, model.OrgRoleAdmin, membership.Role)
-			assert.Equal(t, int64(200), membership.SpendLimit)
-			assert.Equal(t, int64(100), membership.MonthlySpendLimit)
+			assert.Equal(t, common.GetPointer(int64(200)), membership.SpendLimit)
+			assert.Equal(t, common.GetPointer(int64(100)), membership.MonthlySpendLimit)
 		}
 		result = request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"monthly_spend_limit":100}`, owner.Id))
 		require.Equal(t, 200, result.Code)
@@ -274,6 +274,21 @@ func TestOrganizationPublicAPIBoundary(t *testing.T) {
 		require.Equal(t, 200, result.Code)
 		require.NoError(t, db.Delete(&charge).Error)
 		require.NoError(t, db.Model(team).Update("quota", 0).Error)
+	})
+	t.Run("limit patches distinguish omitted null and zero", func(t *testing.T) {
+		path := fmt.Sprint(team.Id)
+		for _, field := range []string{"spend_limit", "monthly_spend_limit"} {
+			for _, value := range []string{"100", "0", "null"} {
+				result := request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"%s":%s}`, owner.Id, field, value))
+				require.Equal(t, 200, result.Code, result.Body.String())
+				result = request("GET", "/org/members", path, "")
+				assert.Contains(t, result.Body.String(), fmt.Sprintf(`"%s":%s`, field, value))
+			}
+			for _, value := range []string{`-1`, `1.5`, `"unlimited"`, `true`, `9007199254740992`} {
+				result := request("PUT", "/org/members/limits", path, fmt.Sprintf(`{"user_ids":[%d],"%s":%s}`, owner.Id, field, value))
+				assert.Equal(t, 400, result.Code, result.Body.String())
+			}
+		}
 	})
 	t.Run("personal account has no organization identity but retains wallet and keys", func(t *testing.T) {
 		result := request("GET", "/account/context", "", "")

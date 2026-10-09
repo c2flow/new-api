@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/QuantumNous/new-api/common"
@@ -59,15 +60,15 @@ func getOrganizationSummary(c *gin.Context, org *model.Organization, member *mod
 	}
 	available := max(int64(0), org.Quota)
 	totalRemaining, monthlyRemaining := int64(0), int64(0)
-	totalLimitEnabled := member.SpendLimitEnabled || member.SpendLimit > 0
-	monthlyLimitEnabled := member.MonthlySpendLimitEnabled || member.MonthlySpendLimit > 0
+	totalLimitEnabled := member.SpendLimit != nil
+	monthlyLimitEnabled := member.MonthlySpendLimit != nil
 	if totalLimitEnabled {
 		var used int64
 		if err := model.DB.Model(&model.OrganizationCharge{}).Scopes(model.OrgScope(org.Id)).Where("user_id = ? AND status IN ?", member.UserId, []string{"reserved", "settled"}).Select("COALESCE(SUM(quota), 0)").Scan(&used).Error; err != nil {
 			common.ApiError(c, err)
 			return
 		}
-		totalRemaining = max(int64(0), member.SpendLimit-used)
+		totalRemaining = max(int64(0), *member.SpendLimit-used)
 		available = min(available, totalRemaining)
 	}
 
@@ -78,7 +79,7 @@ func getOrganizationSummary(c *gin.Context, org *model.Organization, member *mod
 			common.ApiError(c, err)
 			return
 		}
-		monthlyRemaining = max(int64(0), member.MonthlySpendLimit-used)
+		monthlyRemaining = max(int64(0), *member.MonthlySpendLimit-used)
 		available = min(available, monthlyRemaining)
 	}
 	if !authz.CanOrg(member.UserId, org.Id, member.Role, authz.Permission{Resource: "org.billing", Action: "read"}) {
@@ -189,15 +190,27 @@ func AcceptOrganizationTransfer(c *gin.Context) {
 
 func SetOrganizationMemberLimits(c *gin.Context) {
 	var input struct {
-		UserIDs []int  `json:"user_ids"`
-		Total   *int64 `json:"spend_limit"`
-		Monthly *int64 `json:"monthly_spend_limit"`
+		UserIDs []int           `json:"user_ids"`
+		Total   json.RawMessage `json:"spend_limit"`
+		Monthly json.RawMessage `json:"monthly_spend_limit"`
 	}
 	if c.ShouldBindJSON(&input) != nil {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	if err := model.SetOrganizationMemberLimits(c.GetInt("org_id"), c.GetInt("id"), input.UserIDs, input.Total, input.Monthly); err != nil {
+	limits := make(map[string]*int64, 2)
+	for field, data := range map[string]json.RawMessage{"spend_limit": input.Total, "monthly_spend_limit": input.Monthly} {
+		if len(data) == 0 {
+			continue
+		}
+		var value *int64
+		if err := common.Unmarshal(data, &value); err != nil {
+			organizationError(c, model.ErrOrganizationInput)
+			return
+		}
+		limits[field] = value
+	}
+	if err := model.SetOrganizationMemberLimits(c.GetInt("org_id"), c.GetInt("id"), input.UserIDs, limits); err != nil {
 		organizationError(c, err)
 		return
 	}

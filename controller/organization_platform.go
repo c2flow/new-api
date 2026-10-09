@@ -197,15 +197,7 @@ func PlatformAddOrganizationMember(c *gin.Context) {
 		organizationError(c, model.ErrOrganizationInput)
 		return
 	}
-	memberInput := model.PlatformOrganizationMemberInput{Username: input.Username, Role: input.Role, Reason: input.Reason}
-	if input.SpendLimit != nil {
-		memberInput.SpendLimit = *input.SpendLimit
-		memberInput.SpendLimitSet = true
-	}
-	if input.MonthlySpendLimit != nil {
-		memberInput.MonthlySpendLimit = *input.MonthlySpendLimit
-		memberInput.MonthlySpendLimitSet = true
-	}
+	memberInput := model.PlatformOrganizationMemberInput{Username: input.Username, Role: input.Role, Reason: input.Reason, SpendLimit: input.SpendLimit, MonthlySpendLimit: input.MonthlySpendLimit}
 	member, err := model.PlatformAddOrganizationMember(orgID, c.GetInt("id"), memberInput)
 	if err != nil {
 		organizationError(c, err)

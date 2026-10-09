@@ -19,7 +19,7 @@ func organizationBillingFixture(t *testing.T) (*gorm.DB, *Organization, []User) 
 	org, err := CreateTeamOrganization(users[0].Id, "Team")
 	require.NoError(t, err)
 	require.NoError(t, db.Model(org).Update("quota", 1000).Error)
-	require.NoError(t, db.Create(&OrganizationMember{OrgId: org.Id, UserId: users[1].Id, Role: OrgRoleMember, Status: OrganizationActive, SpendLimit: 200}).Error)
+	require.NoError(t, db.Create(&OrganizationMember{OrgId: org.Id, UserId: users[1].Id, Role: OrgRoleMember, Status: OrganizationActive, SpendLimit: common.GetPointer(int64(200))}).Error)
 	return db, org, users
 }
 

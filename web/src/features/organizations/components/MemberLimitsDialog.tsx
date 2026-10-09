@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
@@ -13,6 +13,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 
 import { organizationMutation } from '../api'
@@ -32,50 +33,63 @@ export function MemberLimitsDialog(props: {
     spend_limit: t('Total spending limit'),
     monthly_spend_limit: t('Monthly spending limit'),
   }
-  const amount = z
-    .string()
-    .trim()
-    .refine(
-      (value) =>
-        value === '' ||
-        (Number.isFinite(Number(value)) &&
-          Number(value) >= 0 &&
-          Number.isSafeInteger(Math.round(Number(value) * unit)) &&
-          (Number(value) === 0 || Math.round(Number(value) * unit) > 0))
-    )
-  const schema = z.object({ spend_limit: amount, monthly_spend_limit: amount })
-  const initialTotal =
-    props.members[0].spend_limit_enabled || props.members[0].spend_limit > 0
-      ? String((props.members[0].spend_limit ?? 0) / unit)
-      : ''
-  const initialMonthly =
-    props.members[0].monthly_spend_limit_enabled ||
-    (props.members[0].monthly_spend_limit ?? 0) > 0
-      ? String((props.members[0].monthly_spend_limit ?? 0) / unit)
-      : ''
+  const limit = z
+    .object({
+      mode: z.enum(['unchanged', 'unlimited', 'limited']),
+      amount: z.string(),
+    })
+    .superRefine((value, context) => {
+      if (value.mode !== 'limited') return
+      const amount = Number(value.amount)
+      const quota = Math.round(amount * unit)
+      if (
+        value.amount.trim() === '' ||
+        !Number.isFinite(amount) ||
+        amount < 0 ||
+        !Number.isSafeInteger(quota) ||
+        (amount > 0 && quota === 0)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['amount'],
+          message: t('Invalid amount'),
+        })
+      }
+    })
+  const schema = z.object({ spend_limit: limit, monthly_spend_limit: limit })
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      spend_limit: batch
-        ? ''
-        : initialTotal,
-      monthly_spend_limit: batch
-        ? ''
-        : initialMonthly,
-    },
+    defaultValues: Object.fromEntries(
+      fields.map((field) => {
+        let mode: z.infer<typeof limit>['mode'] = 'limited'
+        if (props.members[0][field] === null) mode = 'unlimited'
+        if (batch) mode = 'unchanged'
+        return [
+          field,
+          { mode, amount: String((props.members[0][field] ?? 0) / unit) },
+        ]
+      })
+    ),
     mode: 'onChange',
   })
-  const values = form.watch()
+  const [total, monthly] = useWatch({
+    control: form.control,
+    name: ['spend_limit', 'monthly_spend_limit'],
+  })
+  const values = { spend_limit: total, monthly_spend_limit: monthly }
   const changes = Object.fromEntries(
     fields
-      .filter(
+      .filter((field) => values[field].mode !== 'unchanged')
+      .map(
         (field) =>
-          values[field].trim() !== '' &&
-          (batch ||
-            Math.round(Number(values[field]) * unit) !==
-              (props.members[0][field] ?? 0))
+          [
+            field,
+            values[field].mode === 'unlimited'
+              ? null
+              : Math.round(Number(values[field].amount) * unit),
+          ] as const
       )
-      .map((field) => [field, Math.round(Number(values[field]) * unit)])
+      .filter(([field, value]) => batch || value !== props.members[0][field])
   )
   const mutation = useMutation({
     mutationFn: () =>
@@ -139,22 +153,59 @@ export function MemberLimitsDialog(props: {
       >
         <FieldGroup>
           <p className='text-muted-foreground text-sm'>
-            {t('Leave blank to keep unchanged. Enter 0 to block spending.')}
+            {t('Choose unlimited or set a limit. Enter 0 to block spending.')}
           </p>
           {fields.map((field) => (
             <Field key={field} data-invalid={!!form.formState.errors[field]}>
               <FieldLabel htmlFor={field}>
                 {labels[field]} ({getCurrencyLabel()})
               </FieldLabel>
+              <NativeSelect
+                aria-label={`${labels[field]} ${t('Limit mode')}`}
+                value={values[field].mode}
+                disabled={mutation.isPending}
+                onChange={(event) =>
+                  form.setValue(
+                    `${field}.mode`,
+                    event.target.value as z.infer<typeof limit>['mode'],
+                    { shouldValidate: true }
+                  )
+                }
+              >
+                {batch && (
+                  <NativeSelectOption value='unchanged'>
+                    {t('Keep unchanged')}
+                  </NativeSelectOption>
+                )}
+                <NativeSelectOption value='unlimited'>
+                  {t('Unlimited')}
+                </NativeSelectOption>
+                <NativeSelectOption value='limited'>
+                  {t('Set spending limit')}
+                </NativeSelectOption>
+              </NativeSelect>
               <Input
                 id={field}
                 type='number'
                 min='0'
                 step='any'
-                disabled={mutation.isPending}
-                placeholder={t('Keep unchanged')}
+                disabled={
+                  mutation.isPending || values[field].mode !== 'limited'
+                }
+                value={
+                  values[field].mode === 'limited' ? values[field].amount : ''
+                }
+                placeholder={
+                  values[field].mode === 'unlimited'
+                    ? t('Unlimited')
+                    : t('Keep unchanged')
+                }
                 aria-invalid={!!form.formState.errors[field]}
-                {...form.register(field)}
+                onChange={(event) =>
+                  form.setValue(`${field}.amount`, event.target.value, {
+                    shouldValidate: true,
+                  })
+                }
               />
               <FieldDescription>
                 {field === 'spend_limit'
