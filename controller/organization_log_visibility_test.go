@@ -55,7 +55,7 @@ func TestOrganizationLogVisibility(t *testing.T) {
 	other.SetAdmin("diagnostic", "admin-diagnostic")
 	other.SetRoot("upstream_request_id", "root-diagnostic")
 	for i, orgID := range []int{0, org.Id} {
-		require.NoError(t, db.Create(&model.Log{Id: 101 + i, OrgId: orgID, UserId: 1, Type: model.LogTypeConsume, ChannelId: 5, Other: other.JSONString()}).Error)
+		require.NoError(t, db.Create(&model.Log{Id: 101 + i, OrgId: orgID, UserId: 1, TokenId: 201 + i, Type: model.LogTypeConsume, ChannelId: 5, Other: other.JSONString()}).Error)
 	}
 	for _, test := range []struct {
 		name                 string
@@ -65,6 +65,7 @@ func TestOrganizationLogVisibility(t *testing.T) {
 		channel, admin, root bool
 	}{
 		{"personal", common.RoleCommonUser, 0, false, false, false, false},
+		{"personal with platform root account", common.RoleRootUser, 0, false, false, false, false},
 		{"team", common.RoleCommonUser, 10, false, false, false, false},
 		{"team with platform root account", common.RoleRootUser, 10, false, false, false, false},
 		{"platform admin", common.RoleAdminUser, 10, true, true, true, false},
@@ -94,7 +95,7 @@ func TestOrganizationLogVisibility(t *testing.T) {
 			require.True(t, payload.Success)
 			require.Len(t, payload.Data.Items, 1)
 			log := payload.Data.Items[0]
-			if test.orgID != 0 && !test.platform {
+			if !test.platform {
 				var rawPayload struct {
 					Data struct {
 						Items []map[string]any `json:"items"`
@@ -126,6 +127,28 @@ func TestOrganizationLogVisibility(t *testing.T) {
 					assert.NotContains(t, log.Other, value)
 				}
 			}
+		})
+	}
+	for i, name := range []string{"personal token", "organization token"} {
+		t.Run(name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(response)
+			c.Set("token_id", 201+i)
+			c.Request = httptest.NewRequest("GET", "/api/log/token", nil)
+			GetLogByKey(c)
+			require.Equal(t, 200, response.Code)
+			var payload struct {
+				Success bool             `json:"success"`
+				Data    []map[string]any `json:"data"`
+			}
+			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &payload))
+			require.True(t, payload.Success)
+			require.Len(t, payload.Data, 1)
+			assert.NotContains(t, payload.Data[0], "channel")
+			assert.NotContains(t, payload.Data[0], "channel_name")
+			assert.Equal(t, float64(201+i), payload.Data[0]["token_id"])
+			assert.Equal(t, float64(1), payload.Data[0]["id"])
+			assert.Equal(t, `{"usage":"public-usage"}`, payload.Data[0]["other"])
 		})
 	}
 }
