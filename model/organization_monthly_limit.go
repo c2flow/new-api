@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -16,21 +17,20 @@ func OrganizationMonthlyWindow(timestamp int64) (int64, int64) {
 	return start.Unix(), start.AddDate(0, 1, 0).Unix()
 }
 
-// SetOrganizationMemberLimits patches only supplied limits. An explicit zero blocks spending.
-func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, total, monthly *int64) error {
-	if len(userIDs) == 0 || len(userIDs) > 500 || (total == nil && monthly == nil) {
+// SetOrganizationMemberLimits patches supplied limits. NULL removes a cap; zero blocks spending.
+func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, limits map[string]*int64) error {
+	if len(userIDs) == 0 || len(userIDs) > 500 || len(limits) == 0 {
 		return ErrOrganizationInput
 	}
-	updates := make(map[string]interface{}, 4)
-	for field, value := range map[string]*int64{"spend_limit": total, "monthly_spend_limit": monthly} {
-		if value == nil {
-			continue
-		}
-		if *value < 0 || *value > int64(common.MaxWalletQuota) {
+	updates := make(map[string]interface{}, len(limits))
+	for field, value := range limits {
+		if field != "spend_limit" && field != "monthly_spend_limit" {
 			return ErrOrganizationInput
 		}
-		updates[field] = *value
-		updates[field+"_enabled"] = true
+		if value != nil && (*value < 0 || *value > int64(common.MaxWalletQuota)) {
+			return ErrOrganizationInput
+		}
+		updates[field] = value
 	}
 	seen := make(map[int]bool, len(userIDs))
 	for _, id := range userIDs {
@@ -55,12 +55,12 @@ func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, total, month
 		}
 		for _, member := range members {
 			audit := OrganizationAudit{OrgId: orgID, ActorId: actorID, Action: "member.monthly_limit", ObjectId: fmt.Sprint(member.UserId), Result: "success"}
-			if monthly != nil {
-				audit.Reason = fmt.Sprintf("monthly_spend_limit: %d -> %d", member.MonthlySpendLimit, *monthly)
+			if monthly, present := limits["monthly_spend_limit"]; present {
+				audit.Reason = fmt.Sprintf("monthly_spend_limit: %s -> %s", formatOrganizationSpendLimit(member.MonthlySpendLimit), formatOrganizationSpendLimit(monthly))
 			}
-			if total != nil {
+			if total, present := limits["spend_limit"]; present {
 				audit.Action = "member.limits"
-				audit.Reason += fmt.Sprintf(" spend_limit: %d -> %d", member.SpendLimit, *total)
+				audit.Reason += fmt.Sprintf(" spend_limit: %s -> %s", formatOrganizationSpendLimit(member.SpendLimit), formatOrganizationSpendLimit(total))
 			}
 			if err := tx.Create(&audit).Error; err != nil {
 				return err
@@ -68,4 +68,11 @@ func SetOrganizationMemberLimits(orgID, actorID int, userIDs []int, total, month
 		}
 		return nil
 	})
+}
+
+func formatOrganizationSpendLimit(limit *int64) string {
+	if limit == nil {
+		return "unlimited"
+	}
+	return strconv.FormatInt(*limit, 10)
 }

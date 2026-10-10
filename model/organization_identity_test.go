@@ -34,7 +34,7 @@ func TestOrganizationDeletionRequiresCurrentName(t *testing.T) {
 
 func TestOrganizationNameIsImmutableWhenUpdatingSettings(t *testing.T) {
 	db, org, users := organizationBillingFixture(t)
-	settings := OrganizationSettings{Logo: "https://example.test/logo.png", DefaultSpendLimit: 100}
+	settings := OrganizationSettings{Logo: "https://example.test/logo.png", DefaultSpendLimit: common.GetPointer(int64(100))}
 	assert.ErrorIs(t, UpdateOrganizationSettings(org.Id, users[0].Id, "New name", settings), ErrOrganizationInput)
 	var unchanged Organization
 	require.NoError(t, db.First(&unchanged, org.Id).Error)

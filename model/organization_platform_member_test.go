@@ -21,13 +21,13 @@ func TestPlatformAddOrganizationMemberBypassesConsentAndSupersedesInvites(t *tes
 	require.NoError(t, err)
 
 	member, err := PlatformAddOrganizationMember(org.Id, users[0].Id, PlatformOrganizationMemberInput{
-		Username: users[1].Username, Role: OrgRoleAdmin, SpendLimit: 100, MonthlySpendLimit: 25, Reason: "authorized onboarding",
+		Username: users[1].Username, Role: OrgRoleAdmin, SpendLimit: common.GetPointer(int64(100)), MonthlySpendLimit: common.GetPointer(int64(25)), Reason: "authorized onboarding",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, users[1].Id, member.UserId)
 	assert.Equal(t, OrgRoleAdmin, member.Role)
-	assert.Equal(t, int64(100), member.SpendLimit)
-	assert.Equal(t, int64(25), member.MonthlySpendLimit)
+	assert.Equal(t, common.GetPointer(int64(100)), member.SpendLimit)
+	assert.Equal(t, common.GetPointer(int64(25)), member.MonthlySpendLimit)
 	require.NoError(t, db.First(invite, invite.Id).Error)
 	assert.Equal(t, "superseded", invite.Status)
 	_, _, err = GetOrganizationMembership(org.Id, users[1].Id)
@@ -64,10 +64,16 @@ func TestPlatformMemberGovernanceProtectsOwnerAndDisablesTokens(t *testing.T) {
 	require.NoError(t, db.First(&member, member.Id).Error)
 	assert.Equal(t, OrgRoleAdmin, member.Role)
 	assert.Equal(t, OrganizationDisabled, member.Status)
-	assert.Equal(t, int64(80), member.SpendLimit)
-	assert.Equal(t, int64(20), member.MonthlySpendLimit)
-	assert.True(t, member.SpendLimitEnabled)
-	assert.True(t, member.MonthlySpendLimitEnabled)
+	assert.Equal(t, common.GetPointer(int64(80)), member.SpendLimit)
+	assert.Equal(t, common.GetPointer(int64(20)), member.MonthlySpendLimit)
+	assert.NotNil(t, member.SpendLimit)
+	assert.NotNil(t, member.MonthlySpendLimit)
+
+	require.NoError(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, memberID, OrgRoleAdmin, OrganizationActive, nil, nil, "remove limits"))
+	member = OrganizationMember{}
+	require.NoError(t, db.Where("org_id = ? AND user_id = ?", org.Id, memberID).First(&member).Error)
+	assert.Nil(t, member.SpendLimit)
+	assert.Nil(t, member.MonthlySpendLimit)
 
 	zero := int64(0)
 	assert.ErrorIs(t, PlatformUpdateOrganizationMember(org.Id, users[0].Id, users[0].Id, OrgRoleMember, OrganizationActive, &zero, &zero, "invalid owner edit"), ErrOrganizationOwner)

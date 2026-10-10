@@ -11,13 +11,11 @@ import (
 )
 
 type PlatformOrganizationMemberInput struct {
-	Username             string
-	Role                 string
-	SpendLimit           int64
-	MonthlySpendLimit    int64
-	Reason               string
-	SpendLimitSet        bool
-	MonthlySpendLimitSet bool
+	Username          string
+	Role              string
+	SpendLimit        *int64
+	MonthlySpendLimit *int64
+	Reason            string
 }
 
 func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizationMemberInput) (*OrganizationMember, error) {
@@ -25,8 +23,8 @@ func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizatio
 	input.Reason = strings.TrimSpace(input.Reason)
 	if orgID <= 0 || actorID <= 0 || input.Username == "" || utf8.RuneCountInString(input.Username) > 20 ||
 		(input.Role != OrgRoleAdmin && input.Role != OrgRoleMember) || input.Reason == "" || utf8.RuneCountInString(input.Reason) > 256 ||
-		input.SpendLimit < 0 || input.SpendLimit > int64(common.MaxWalletQuota) ||
-		input.MonthlySpendLimit < 0 || input.MonthlySpendLimit > int64(common.MaxWalletQuota) {
+		(input.SpendLimit != nil && (*input.SpendLimit < 0 || *input.SpendLimit > int64(common.MaxWalletQuota))) ||
+		(input.MonthlySpendLimit != nil && (*input.MonthlySpendLimit < 0 || *input.MonthlySpendLimit > int64(common.MaxWalletQuota))) {
 		return nil, ErrOrganizationInput
 	}
 	member := OrganizationMember{}
@@ -58,8 +56,6 @@ func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizatio
 		member.Status = OrganizationActive
 		member.SpendLimit = input.SpendLimit
 		member.MonthlySpendLimit = input.MonthlySpendLimit
-		member.SpendLimitEnabled = input.SpendLimitSet
-		member.MonthlySpendLimitEnabled = input.MonthlySpendLimitSet
 		if err := tx.Save(&member).Error; err != nil {
 			return err
 		}
@@ -68,7 +64,7 @@ func PlatformAddOrganizationMember(orgID, actorID int, input PlatformOrganizatio
 		}
 		return tx.Create(&OrganizationAudit{
 			OrgId: orgID, ActorId: actorID, Action: "platform.member_add", ObjectId: fmt.Sprint(target.Id), Result: "success",
-			Reason: fmt.Sprintf("%s\nrole: %s; spend_limit: %d; monthly_spend_limit: %d", input.Reason, input.Role, input.SpendLimit, input.MonthlySpendLimit),
+			Reason: fmt.Sprintf("%s\nrole: %s; spend_limit: %s; monthly_spend_limit: %s", input.Reason, input.Role, formatOrganizationSpendLimit(input.SpendLimit), formatOrganizationSpendLimit(input.MonthlySpendLimit)),
 		}).Error
 	})
 	return &member, err
@@ -98,33 +94,14 @@ func PlatformUpdateOrganizationMember(orgID, actorID, userID int, role string, s
 				return err
 			}
 		}
-		before := fmt.Sprintf("role: %s; status: %d; spend_limit: %d; monthly_spend_limit: %d", member.Role, member.Status, member.SpendLimit, member.MonthlySpendLimit)
-		updates := map[string]interface{}{"role": role, "status": status}
-		if total != nil {
-			updates["spend_limit"] = *total
-			updates["spend_limit_enabled"] = true
-		} else {
-			updates["spend_limit_enabled"] = false
-		}
-		if monthly != nil {
-			updates["monthly_spend_limit"] = *monthly
-			updates["monthly_spend_limit_enabled"] = true
-		} else {
-			updates["monthly_spend_limit_enabled"] = false
-		}
+		before := fmt.Sprintf("role: %s; status: %d; spend_limit: %s; monthly_spend_limit: %s", member.Role, member.Status, formatOrganizationSpendLimit(member.SpendLimit), formatOrganizationSpendLimit(member.MonthlySpendLimit))
+		updates := map[string]interface{}{"role": role, "status": status, "spend_limit": total, "monthly_spend_limit": monthly}
 		if err := tx.Model(&member).Updates(updates).Error; err != nil {
 			return err
 		}
-		totalValue, monthlyValue := member.SpendLimit, member.MonthlySpendLimit
-		if total != nil {
-			totalValue = *total
-		}
-		if monthly != nil {
-			monthlyValue = *monthly
-		}
 		return tx.Create(&OrganizationAudit{
 			OrgId: orgID, ActorId: actorID, Action: "platform.member_update", ObjectId: fmt.Sprint(userID), Result: "success",
-			Reason: fmt.Sprintf("%s\n%s -> role: %s; status: %d; spend_limit: %d; monthly_spend_limit: %d", reason, before, role, status, totalValue, monthlyValue),
+			Reason: fmt.Sprintf("%s\n%s -> role: %s; status: %d; spend_limit: %s; monthly_spend_limit: %s", reason, before, role, status, formatOrganizationSpendLimit(total), formatOrganizationSpendLimit(monthly)),
 		}).Error
 	})
 }

@@ -13,7 +13,7 @@ import (
 // OrganizationSettings deliberately excludes pricing, routing groups and credentials.
 type OrganizationSettings struct {
 	Logo              string `json:"logo"`
-	DefaultSpendLimit int64  `json:"default_spend_limit"`
+	DefaultSpendLimit *int64 `json:"default_spend_limit"`
 }
 
 func (org *Organization) EffectiveSettings() (OrganizationSettings, error) {
@@ -28,7 +28,7 @@ func (org *Organization) EffectiveSettings() (OrganizationSettings, error) {
 
 func UpdateOrganizationSettings(orgID, actorID int, name string, settings OrganizationSettings) error {
 	name = strings.TrimSpace(name)
-	if name == "" || utf8.RuneCountInString(name) > 64 || settings.DefaultSpendLimit < 0 || settings.DefaultSpendLimit > int64(common.MaxWalletQuota) {
+	if name == "" || utf8.RuneCountInString(name) > 64 || (settings.DefaultSpendLimit != nil && (*settings.DefaultSpendLimit < 0 || *settings.DefaultSpendLimit > int64(common.MaxWalletQuota))) {
 		return ErrOrganizationInput
 	}
 	if settings.Logo != "" {

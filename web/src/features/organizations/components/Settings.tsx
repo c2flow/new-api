@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
@@ -31,6 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -113,22 +114,27 @@ function SettingsForm(props: {
   const schema = z.object({
     logo: z.string(),
     default_limit: z.number().nonnegative(),
+    unlimited: z.boolean(),
   })
   const unit = getCurrencyDisplay().config.quotaPerUnit
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       logo: props.initial.settings.logo,
-      default_limit: props.initial.settings.default_spend_limit / unit,
+      default_limit: (props.initial.settings.default_spend_limit ?? 0) / unit,
+      unlimited: props.initial.settings.default_spend_limit === null,
     },
   })
+  const unlimited = useWatch({ control: form.control, name: 'unlimited' })
   const update = useMutation({
     mutationFn: async (values: z.infer<typeof schema>) => {
       await updateOrganizationSettings({
         name: props.initial.name,
         settings: {
           logo: values.logo,
-          default_spend_limit: Math.round(values.default_limit * unit),
+          default_spend_limit: values.unlimited
+            ? null
+            : Math.round(values.default_limit * unit),
         },
       })
       await client.invalidateQueries({ queryKey: ['organization-context'] })
@@ -196,8 +202,21 @@ function SettingsForm(props: {
                   type='number'
                   min='0'
                   step='0.01'
+                  disabled={unlimited}
                   {...form.register('default_limit', { valueAsNumber: true })}
                 />
+              </Field>
+              <Field orientation='horizontal'>
+                <Checkbox
+                  id='org-default-unlimited'
+                  checked={unlimited}
+                  onCheckedChange={(checked) =>
+                    form.setValue('unlimited', checked === true)
+                  }
+                />
+                <FieldLabel htmlFor='org-default-unlimited'>
+                  {t('Unlimited')}
+                </FieldLabel>
               </Field>
               {Object.keys(form.formState.errors).length > 0 && (
                 <p role='alert' className='text-destructive'>

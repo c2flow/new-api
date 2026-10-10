@@ -397,18 +397,31 @@ export function PlatformOrganizations() {
                     <TableBody>
                       {resources.data?.items.map((row, index) => (
                         <TableRow key={row.id ?? index}>
-                          {resourceColumns[resource].map((column) => (
-                            <TableCell
-                              key={column}
-                              className='max-w-64 break-words'
-                            >
-                              {column === 'created_at' && row[column]
-                                ? new Date(
-                                    Number(row[column]) * 1000
-                                  ).toLocaleString()
-                                : String(row[column] ?? '—')}
-                            </TableCell>
-                          ))}
+                          {resourceColumns[resource].map((column) => {
+                            let content = String(row[column] ?? '—')
+                            if (column === 'created_at' && row[column]) {
+                              content = new Date(
+                                Number(row[column]) * 1000
+                              ).toLocaleString()
+                            }
+                            if (
+                              column === 'spend_limit' ||
+                              column === 'monthly_spend_limit'
+                            ) {
+                              content =
+                                row[column] === null
+                                  ? t('Unlimited')
+                                  : formatQuotaWithCurrency(Number(row[column]))
+                            }
+                            return (
+                              <TableCell
+                                key={column}
+                                className='max-w-64 break-words'
+                              >
+                                {content}
+                              </TableCell>
+                            )
+                          })}
                           {resource === 'members' && isPlatformAdmin && (
                             <TableCell>
                               {row.role === 'owner' ? (

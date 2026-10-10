@@ -51,17 +51,14 @@ export function PlatformMemberDialog(props: {
   )
   const [status, setStatus] = useState(props.member?.status ?? 1)
   const [spendLimit, setSpendLimit] = useState(
-    props.member?.spend_limit_enabled || props.member?.spend_limit > 0
-      ? String(quotaUnitsToEditableAmount(props.member.spend_limit))
-      : ''
+    props.member?.spend_limit == null
+      ? ''
+      : String(quotaUnitsToEditableAmount(props.member.spend_limit))
   )
   const [monthlySpendLimit, setMonthlySpendLimit] = useState(
-    props.member?.monthly_spend_limit_enabled ||
-      (props.member?.monthly_spend_limit ?? 0) > 0
-      ? String(
-          quotaUnitsToEditableAmount(props.member.monthly_spend_limit ?? 0)
-        )
-      : ''
+    props.member?.monthly_spend_limit == null
+      ? ''
+      : String(quotaUnitsToEditableAmount(props.member.monthly_spend_limit))
   )
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
